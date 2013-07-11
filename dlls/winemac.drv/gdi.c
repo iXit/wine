@@ -538,6 +538,7 @@ static const struct gdi_dc_funcs macdrv_funcs =
     NULL,                                   /* pUnrealizePalette */
     NULL,                                   /* pWidenPath */
     macdrv_wine_get_wgl_driver,             /* wine_get_wgl_driver */
+    NULL,                                   /* wine_get_d3dadapter_driver */
     GDI_PRIORITY_GRAPHICS_DRV               /* priority */
 };
 

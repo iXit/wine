@@ -12,6 +12,7 @@ C_SRCS = \
 	bitmap.c \
 	brush.c \
 	clipping.c \
+	d3dadapter.c \
 	dc.c \
 	dib.c \
 	dibdrv/bitblt.c \

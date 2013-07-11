@@ -163,6 +163,7 @@ static const struct gdi_dc_funcs EMFDRV_Funcs =
     NULL,                            /* pUnrealizePalette */
     EMFDRV_WidenPath,                /* pWidenPath */
     NULL,                            /* wine_get_wgl_driver */
+    NULL,                            /* wine_get_d3dadapter_driver */
     GDI_PRIORITY_GRAPHICS_DRV        /* priority */
 };
 

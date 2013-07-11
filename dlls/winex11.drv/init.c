@@ -365,6 +365,7 @@ static INT X11DRV_ExtEscape( PHYSDEV dev, INT escape, INT in_count, LPCVOID in_d
                 {
                     struct x11drv_escape_get_drawable *data = out_data;
                     data->drawable = physDev->drawable;
+                    data->dc_rect = physDev->dc_rect;
                     return TRUE;
                 }
                 break;
@@ -460,6 +461,21 @@ static struct opengl_funcs * X11DRV_wine_get_wgl_driver( PHYSDEV dev, UINT versi
     {
         dev = GET_NEXT_PHYSDEV( dev, wine_get_wgl_driver );
         ret = dev->funcs->wine_get_wgl_driver( dev, version );
+    }
+    return ret;
+}
+
+/**********************************************************************
+ *           X11DRV_wine_get_d3dadapter_driver
+ */
+static struct d3dadapter_funcs * X11DRV_wine_get_d3dadapter_driver( PHYSDEV dev, UINT version )
+{
+    struct d3dadapter_funcs *ret;
+
+    if (!(ret = get_d3d_dri2_driver( version )))
+    {
+        dev = GET_NEXT_PHYSDEV( dev, wine_get_d3dadapter_driver );
+        ret = dev->funcs->wine_get_d3dadapter_driver( dev, version );
     }
     return ret;
 }
@@ -594,6 +610,7 @@ static const struct gdi_dc_funcs x11drv_funcs =
     X11DRV_UnrealizePalette,            /* pUnrealizePalette */
     NULL,                               /* pWidenPath */
     X11DRV_wine_get_wgl_driver,         /* wine_get_wgl_driver */
+    X11DRV_wine_get_d3dadapter_driver,  /* wine_get_d3dadapter_driver */
     GDI_PRIORITY_GRAPHICS_DRV           /* priority */
 };
 

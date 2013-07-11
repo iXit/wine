@@ -522,3 +522,6 @@
 
 # OpenGL
 @ cdecl __wine_get_wgl_driver(long long)
+
+# Native Direct3D
+@ cdecl __wine_get_d3dadapter_driver(long long)

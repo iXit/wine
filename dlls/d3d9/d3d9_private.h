@@ -132,6 +132,7 @@ struct d3d9
 
 BOOL d3d9_init(struct d3d9 *d3d9, BOOL extended) DECLSPEC_HIDDEN;
 void filter_caps(D3DCAPS9* pCaps) DECLSPEC_HIDDEN;
+HRESULT d3dadapter9_new(boolean ex, IDirect3D9Ex **ppOut);
 
 struct fvf_declaration
 {

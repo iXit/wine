@@ -8,7 +8,9 @@ C_SRCS = \
 	bitblt.c \
 	brush.c \
 	clipboard.c \
+	d3dadapter.c \
 	desktop.c \
+	dri2.c \
 	event.c \
 	graphics.c \
 	ime.c \

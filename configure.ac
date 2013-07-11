@@ -65,6 +65,7 @@ AC_ARG_WITH(openal,    AS_HELP_STRING([--without-openal],[do not use OpenAL]),
 AC_ARG_WITH(opencl,    AS_HELP_STRING([--without-opencl],[do not use OpenCL]),
             [if test "x$withval" = "xno"; then ac_cv_header_CL_cl_h=no; ac_cv_header_OpenCL_opencl_h=no; fi])
 AC_ARG_WITH(opengl,    AS_HELP_STRING([--without-opengl],[do not use OpenGL]))
+AC_ARG_WITH(d3dadapter,AS_HELP_STRING([--without-d3dadapter],[do not use native Direct3D]))
 AC_ARG_WITH(osmesa,     AS_HELP_STRING([--without-osmesa],[do not use the OSMesa library]))
 AC_ARG_WITH(oss,       AS_HELP_STRING([--without-oss],[do not use the OSS sound support]))
 AC_ARG_WITH(pcap,      AS_HELP_STRING([--without-pcap],[do not use the Packet Capture library]),
@@ -79,6 +80,8 @@ AC_ARG_WITH(xcomposite,AS_HELP_STRING([--without-xcomposite],[do not use the Xco
             [if test "x$withval" = "xno"; then ac_cv_header_X11_extensions_Xcomposite_h=no; fi])
 AC_ARG_WITH(xcursor,   AS_HELP_STRING([--without-xcursor],[do not use the Xcursor extension]),
             [if test "x$withval" = "xno"; then ac_cv_header_X11_Xcursor_Xcursor_h=no; fi])
+AC_ARG_WITH(xfixes,    AS_HELP_STRING([--without-xfixes],[do not use the Xfixes extension]),
+            [if test "x$withval" = "xno"; then ac_cv_header_X11_extensions_Xfixes_h=no; fi])
 AC_ARG_WITH(xinerama,  AS_HELP_STRING([--without-xinerama],[do not use Xinerama (multi-monitor support)]),
             [if test "x$withval" = "xno"; then ac_cv_header_X11_extensions_Xinerama_h=no; fi])
 AC_ARG_WITH(xinput,    AS_HELP_STRING([--without-xinput],[do not use the Xinput extension]),
@@ -1092,6 +1095,7 @@ then
                       X11/extensions/XInput2.h \
                       X11/extensions/XShm.h \
                       X11/extensions/Xcomposite.h \
+                      X11/extensions/Xfixes.h \
                       X11/extensions/Xinerama.h \
                       X11/extensions/Xrandr.h \
                       X11/extensions/Xrender.h \
@@ -1207,6 +1211,14 @@ then
         WINE_NOTICE_WITH(xcomposite,[test "x$ac_cv_lib_soname_Xcomposite" = "x"],
                          [libxcomposite ${notice_platform}development files not found, Xcomposite won't be supported.])
 
+        dnl *** Check for X Fixes extension
+        if test "$ac_cv_header_X11_extensions_Xfixes_h" = "yes"
+        then
+            WINE_CHECK_SONAME(Xfixes,XFixesCreateRegion,,,[$X_LIBS $XLIB $X_EXTRA_LIBS])
+        fi
+        WINE_NOTICE_WITH(xfixes,[test "x$ac_cv_lib_soname_Xfixes" = "x"],
+                         [libxfixes ${notice_platform}development files not found, Xfixes won't be supported.])
+
         dnl *** Check for XICCallback struct
         AC_CHECK_MEMBERS([XICCallback.callback, XEvent.xcookie],,,
 [#ifdef HAVE_X11_XLIB_H
@@ -1248,6 +1260,14 @@ This probably prevents linking to OpenGL. Try deleting the file and restarting c
     fi
     WINE_WARNING_WITH(opengl,[test -n "$opengl_msg"],[$opengl_msg
 OpenGL and Direct3D won't be supported.])
+
+    dnl Check for libd3dadapter9
+    if test "x$with_d3dadapter" != "xno"
+    then
+        WINE_CHECK_SONAME(d3dadapter9,D3DAdapter9GetProc)
+        WINE_NOTICE_WITH(d3dadapter9,[test "x$ac_cv_lib_soname_d3dadapter9" = "x"],
+                         [libd3dadapter9 ${notice_platform}development files not found. Native Direct3D9 won't be supported.])
+    fi
 
     CPPFLAGS="$ac_save_CPPFLAGS"
 else

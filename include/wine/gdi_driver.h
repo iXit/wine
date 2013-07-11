@@ -25,6 +25,7 @@
 
 struct gdi_dc_funcs;
 struct opengl_funcs;
+struct d3dadapter_funcs;
 
 typedef struct gdi_physdev
 {
@@ -191,6 +192,7 @@ struct gdi_dc_funcs
     BOOL     (*pUnrealizePalette)(HPALETTE);
     BOOL     (*pWidenPath)(PHYSDEV);
     struct opengl_funcs * (*wine_get_wgl_driver)(PHYSDEV,UINT);
+    struct d3dadapter_funcs * (*wine_get_d3dadapter_driver)(PHYSDEV,UINT);
 
     /* priority order for the driver on the stack */
     UINT       priority;
@@ -278,5 +280,6 @@ extern void CDECL __wine_set_visible_region( HDC hdc, HRGN hrgn, const RECT *vis
                                              const RECT *device_rect, struct window_surface *surface );
 extern void CDECL __wine_set_display_driver( HMODULE module );
 extern struct opengl_funcs * CDECL __wine_get_wgl_driver( HDC hdc, UINT version );
+extern struct d3dadapter_funcs * CDECL __wine_get_d3dadapter_driver( HDC hdc, UINT version );
 
 #endif /* __WINE_WINE_GDI_DRIVER_H */

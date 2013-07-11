@@ -41,6 +41,9 @@
 
 #define D3DPRESENTFLAGS_MASK 0x00000fffu
 
+extern void d3dadapter9_init(HINSTANCE hinst);
+extern void d3dadapter9_destroy(HINSTANCE hinst);
+
 extern HRESULT vdecl_convert_fvf(DWORD FVF, D3DVERTEXELEMENT9 **ppVertexElements) DECLSPEC_HIDDEN;
 D3DFORMAT d3dformat_from_wined3dformat(enum wined3d_format_id format) DECLSPEC_HIDDEN;
 enum wined3d_format_id wined3dformat_from_d3dformat(D3DFORMAT format) DECLSPEC_HIDDEN;
@@ -134,6 +137,7 @@ struct d3d9
 
 BOOL d3d9_init(struct d3d9 *d3d9, BOOL extended) DECLSPEC_HIDDEN;
 void filter_caps(D3DCAPS9* pCaps) DECLSPEC_HIDDEN;
+HRESULT d3dadapter9_new(boolean ex, IDirect3D9Ex **ppOut);
 
 struct fvf_declaration
 {

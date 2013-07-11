@@ -1609,6 +1609,7 @@ void CDECL X11DRV_DestroyWindow( HWND hwnd )
     struct x11drv_win_data *data;
 
     destroy_gl_drawable( hwnd );
+    destroy_d3dadapter_drawable( hwnd );
 
     if (!(data = get_win_data( hwnd ))) return;
 

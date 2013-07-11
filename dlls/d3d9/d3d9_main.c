@@ -33,11 +33,58 @@ void WINAPI DebugSetMute(void) {
     /* nothing to do */
 }
 
+static BOOL try_native(void)
+{
+    HKEY defkey, appkey;
+    DWORD type, data = 0;
+    DWORD size = sizeof(DWORD);
+    DWORD len;
+    char buffer[MAX_PATH];
+
+    /* @@ Wine registry key: HKCU\Software\Wine\Direct3D */
+    if ( RegOpenKeyA( HKEY_CURRENT_USER, "Software\\Wine\\Direct3D", &defkey ) ) defkey = 0;
+
+    len = GetModuleFileNameA( 0, buffer, MAX_PATH );
+    if (len && len < MAX_PATH)
+    {
+        HKEY tmpkey;
+        /* @@ Wine registry key: HKCU\Software\Wine\AppDefaults\app.exe\Direct3D */
+        if (!RegOpenKeyA( HKEY_CURRENT_USER, "Software\\Wine\\AppDefaults", &tmpkey ))
+        {
+            char *p, *appname = buffer;
+            if ((p = strrchr( appname, '/' ))) appname = p + 1;
+            if ((p = strrchr( appname, '\\' ))) appname = p + 1;
+            strcat( appname, "\\Direct3D" );
+            TRACE("appname = [%s]\n", appname);
+            if (RegOpenKeyA( tmpkey, appname, &appkey )) appkey = 0;
+            RegCloseKey( tmpkey );
+        }
+    }
+
+    if (!(appkey && !RegQueryValueExA(appkey, "UseNative", 0, &type, (BYTE *)&data, &size) && (type == REG_DWORD))) {
+        if (!(defkey && !RegQueryValueExA(defkey, "UseNative", 0, &type, (BYTE *)&data, &size) && (type == REG_DWORD))) {
+            data = 0;
+        }
+    }
+
+    if (appkey) RegCloseKey( appkey );
+    if (defkey) RegCloseKey( defkey );
+
+    return data ? TRUE : FALSE;
+}
+
 IDirect3D9 * WINAPI DECLSPEC_HOTPATCH Direct3DCreate9(UINT sdk_version)
 {
     struct d3d9 *object;
 
     TRACE("sdk_version %#x.\n", sdk_version);
+
+    if (try_native()) {
+        IDirect3D9 *native;
+        if (SUCCEEDED(d3dadapter9_new(FALSE, (IDirect3D9Ex **)&native))) {
+            return native;
+        }
+    }
 
     if (!(object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*object))))
         return NULL;
@@ -59,6 +106,10 @@ HRESULT WINAPI DECLSPEC_HOTPATCH Direct3DCreate9Ex(UINT sdk_version, IDirect3D9E
     struct d3d9 *object;
 
     TRACE("sdk_version %#x, d3d9ex %p.\n", sdk_version, d3d9ex);
+
+    if (try_native()) {
+        if (SUCCEEDED(d3dadapter9_new(TRUE, d3d9ex))) { return D3D_OK; }
+    }
 
     if (!(object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*object))))
         return E_OUTOFMEMORY;
@@ -88,6 +139,25 @@ void* WINAPI Direct3DShaderValidatorCreate9(void)
 
     if (!once++) FIXME("stub\n");
     return NULL;
+}
+
+/*******************************************************************
+ *       DllMain
+ */
+BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, void *reserved)
+{
+    switch (reason)
+    {
+        case DLL_PROCESS_ATTACH:
+            d3dadapter9_init(inst);
+            break;
+
+        case DLL_PROCESS_DETACH:
+            d3dadapter9_destroy(inst);
+            break;
+    }
+
+    return TRUE;
 }
 
 /***********************************************************************

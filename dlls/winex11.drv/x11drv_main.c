@@ -48,6 +48,7 @@
 
 #include "x11drv.h"
 #include "xcomposite.h"
+#include "xfixes.h"
 #include "wine/server.h"
 #include "wine/debug.h"
 #include "wine/library.h"
@@ -65,6 +66,7 @@ Window root_window;
 BOOL usexvidmode = TRUE;
 BOOL usexrandr = TRUE;
 BOOL usexcomposite = TRUE;
+BOOL usexfixes = TRUE;
 BOOL use_xkb = TRUE;
 BOOL use_take_focus = TRUE;
 BOOL use_primary_selection = FALSE;
@@ -476,6 +478,54 @@ sym_not_found:
 }
 #endif /* defined(SONAME_LIBXCOMPOSITE) */
 
+#ifdef SONAME_LIBXFIXES
+
+#define MAKE_FUNCPTR(f) typeof(f) * p##f;
+MAKE_FUNCPTR(XFixesQueryExtension)
+MAKE_FUNCPTR(XFixesQueryVersion)
+MAKE_FUNCPTR(XFixesCreateRegion)
+MAKE_FUNCPTR(XFixesDestroyRegion)
+#undef MAKE_FUNCPTR
+
+int xfixes_event_base;
+int xfixes_error_base;
+
+static void X11DRV_XFixes_Init(void)
+{
+    void *xfixes_handle = wine_dlopen(SONAME_LIBXFIXES, RTLD_NOW, NULL, 0);
+    if (!xfixes_handle)
+    {
+        TRACE("Unable to open %s, XFixes disabled\n", SONAME_LIBXFIXES);
+        usexfixes = 0;
+        return;
+    }
+
+#define LOAD_FUNCPTR(f) \
+    if((p##f = wine_dlsym(xfixes_handle, #f, NULL, 0)) == NULL) \
+        goto sym_not_found;
+    LOAD_FUNCPTR(XFixesQueryExtension)
+    LOAD_FUNCPTR(XFixesQueryVersion)
+    LOAD_FUNCPTR(XFixesCreateRegion)
+    LOAD_FUNCPTR(XFixesDestroyRegion)
+#undef LOAD_FUNCPTR
+
+    if(!pXFixesQueryExtension(gdi_display, &xfixes_event_base,
+                              &xfixes_error_base)) {
+        TRACE("XFixes extension could not be queried; disabled\n");
+        wine_dlclose(xfixes_handle, NULL, 0);
+        usexfixes = 0;
+        return;
+    }
+    TRACE("XFixes is up and running error_base = %d\n", xfixes_error_base);
+    return;
+
+sym_not_found:
+    TRACE("Unable to load function pointers from %s, XFixes disabled\n", SONAME_LIBXFIXES);
+    wine_dlclose(xfixes_handle, NULL, 0);
+    usexfixes = 0;
+}
+#endif /* SONAME_LIBXFIXES */
+
 static void init_visuals( Display *display, int screen )
 {
     int count;
@@ -581,6 +631,9 @@ static BOOL process_attach(void)
     X11DRV_XRandR_Init();
 #ifdef SONAME_LIBXCOMPOSITE
     X11DRV_XComposite_Init();
+#endif
+#ifdef SONAME_LIBXFIXES
+    X11DRV_XFixes_Init();
 #endif
     X11DRV_XInput2_Init();
 

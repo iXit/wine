@@ -632,6 +632,11 @@ static struct opengl_funcs *nulldrv_wine_get_wgl_driver( PHYSDEV dev, UINT versi
     return (void *)-1;
 }
 
+static struct d3dadapter_funcs *nulldrv_wine_get_d3dadapter_driver( PHYSDEV dev, UINT version )
+{
+    return NULL;
+}
+
 const struct gdi_dc_funcs null_driver =
 {
     nulldrv_AbortDoc,                   /* pAbortDoc */
@@ -761,6 +766,7 @@ const struct gdi_dc_funcs null_driver =
     nulldrv_UnrealizePalette,           /* pUnrealizePalette */
     nulldrv_WidenPath,                  /* pWidenPath */
     nulldrv_wine_get_wgl_driver,        /* wine_get_wgl_driver */
+    nulldrv_wine_get_d3dadapter_driver, /* wine_get_d3dadapter_driver */
 
     GDI_PRIORITY_NULL_DRV               /* priority */
 };

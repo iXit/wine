@@ -465,14 +465,12 @@ static HRESULT WINAPI
 DRI2Present_GetCursorPos( struct DRI2Present *This,
                           POINT *pPoint )
 {
-/*    BOOL ok;
+    BOOL ok;
     if (!pPoint)
         return D3DERR_INVALIDCALL;
     ok = GetCursorPos(pPoint);
-    ok = ok && ScreenToClient(This->current_window.real, pPoint);
-    return ok ? S_OK : D3DERR_DRIVERINTERNALERROR;*/
-    FIXME("(%p, {%d, %d}), stub!\n", This, pPoint->x, pPoint->y);
-    return D3DERR_INVALIDCALL;
+    ok = ok && ScreenToClient(This->focus_wnd, pPoint);
+    return ok ? S_OK : D3DERR_DRIVERINTERNALERROR;
 }
 
 static HRESULT WINAPI
@@ -522,7 +520,7 @@ DRI2Present_SetGammaRamp( struct DRI2Present *This,
                           const D3DGAMMARAMP *pRamp,
                           HWND hWndOverride )
 {
-/*    HWND hWnd = hWndOverride ? hWndOverride : This->current_window.real;
+    HWND hWnd = hWndOverride ? hWndOverride : This->focus_wnd;
     HDC hdc;
     BOOL ok;
     if (!pRamp) {
@@ -531,9 +529,7 @@ DRI2Present_SetGammaRamp( struct DRI2Present *This,
     hdc = GetDC(hWnd);
     ok = SetDeviceGammaRamp(hdc, (void *)pRamp);
     ReleaseDC(hWnd, hdc);
-    return ok ? D3D_OK : D3DERR_DRIVERINTERNALERROR;*/
-    FIXME("(%p, %p, %p), stub!\n", This, pRamp, hWndOverride);
-    return D3DERR_INVALIDCALL;
+    return ok ? D3D_OK : D3DERR_DRIVERINTERNALERROR;
 }
 
 static HRESULT WINAPI
@@ -541,12 +537,9 @@ DRI2Present_GetWindowRect( struct DRI2Present *This,
                            HWND hWnd,
                            LPRECT pRect )
 {
-/*    if (!hWnd)
-        hWnd = This->current_window.real;
-    return GetClientRect(hWnd, pRect) ? D3D_OK : D3DERR_INVALIDCALL;*/
-    FIXME("(%p, %p, {%u, %u, %u, %u}), stub!\n",
-          This, hWnd, pRect->left, pRect->top, pRect->right, pRect->bottom);
-    return D3DERR_INVALIDCALL;
+    if (!hWnd)
+        hWnd = This->focus_wnd;
+    return GetClientRect(hWnd, pRect) ? D3D_OK : D3DERR_INVALIDCALL;
 }
 
 static ID3DPresentVtbl DRI2Present_vtable = {

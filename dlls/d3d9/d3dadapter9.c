@@ -22,9 +22,10 @@
 #include "config.h"
 #include "wine/debug.h"
 
+#include <d3d9.h>
+
 #ifdef SONAME_LIBD3DADAPTER9
 
-#include <d3d9.h>
 #include "wine/d3dadapter.h"
 #include "wine/gdi_driver.h"
 

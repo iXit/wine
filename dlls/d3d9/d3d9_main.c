@@ -141,6 +141,25 @@ void* WINAPI Direct3DShaderValidatorCreate9(void)
     return NULL;
 }
 
+/*******************************************************************
+ *       DllMain
+ */
+BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, void *reserved)
+{
+    switch (reason)
+    {
+        case DLL_PROCESS_ATTACH:
+            d3dadapter9_init(inst);
+            break;
+
+        case DLL_PROCESS_DETACH:
+            d3dadapter9_destroy(inst);
+            break;
+    }
+
+    return TRUE;
+}
+
 /***********************************************************************
  *              D3DPERF_BeginEvent (D3D9.@)
  */

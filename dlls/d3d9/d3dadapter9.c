@@ -773,32 +773,39 @@ static IDirect3D9ExVtbl d3dadapter9_vtable = {
     (void *)d3dadapter9_GetAdapterLUID
 };
 
+#define D3D9_FAKE_WNDCLASS "FAKED3D9WINDOW"
+
+void
+d3dadapter9_init( HINSTANCE hinst )
+{
+    WNDCLASSA wc;
+
+    wc.style = CS_HREDRAW | CS_VREDRAW;
+    wc.lpfnWndProc = DefWindowProcA;
+    wc.cbClsExtra = 0;
+    wc.cbWndExtra = 0;
+    wc.hInstance = hinst;
+    wc.hIcon = LoadIconA(NULL, (LPCSTR)IDI_WINLOGO);
+    wc.hCursor = LoadCursorA(NULL, (LPCSTR)IDC_ARROW);
+    wc.hbrBackground = NULL;
+    wc.lpszMenuName = NULL;
+    wc.lpszClassName = D3D9_FAKE_WNDCLASS;
+
+    if (!RegisterClassA(&wc)) {
+        ERR("Unable to register window to retrieve driver info.\n");
+    }
+}
+
+void
+d3dadapter9_destroy( HINSTANCE hinst )
+{
+    UnregisterClassA(D3D9_FAKE_WNDCLASS, hinst);
+}
+
 static int
 load_adapter_funcs( struct d3dadapter9 *This )
 {
-    static WNDCLASSA wc;
-    static int done = 0;
-
-    if (!done) {
-        done = 1;
-        wc.style = CS_HREDRAW | CS_VREDRAW;
-        wc.lpfnWndProc = DefWindowProcA;
-        wc.cbClsExtra = 0;
-        wc.cbWndExtra = 0;
-        wc.hInstance = (HINSTANCE)GetModuleHandleA(NULL);
-        wc.hIcon = LoadIconA(NULL, (LPCSTR)IDI_WINLOGO);
-        wc.hCursor = LoadCursorA(NULL, (LPCSTR)IDC_ARROW);
-        wc.hbrBackground = NULL;
-        wc.lpszMenuName = NULL;
-        wc.lpszClassName = "FAKED3D9WINDOW";
-
-        if (!RegisterClassA(&wc)) {
-            ERR("Unable to register window to retrieve driver info.\n");
-            return FALSE;
-        }
-    }
-
-    This->hwnd = CreateWindowA(wc.lpszClassName, "D3DAdapter9 fake window",
+    This->hwnd = CreateWindowA(D3D9_FAKE_WNDCLASS, "D3DAdapter9 fake window",
                                WS_OVERLAPPEDWINDOW, 10, 10, 10, 10,
                                NULL, NULL, NULL, NULL);
     if (!This->hwnd) {

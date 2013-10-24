@@ -183,7 +183,6 @@ d3dadapter9_RegisterSoftwareDevice( struct d3dadapter9 *This,
 static UINT WINAPI
 d3dadapter9_GetAdapterCount( struct d3dadapter9 *This )
 {
-    TRACE("returning %u\n", This->nadapters);
     return This->nadapters;
 }
 

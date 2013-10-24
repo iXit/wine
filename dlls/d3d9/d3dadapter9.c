@@ -835,7 +835,7 @@ d3dadapter9_new( boolean ex,
     struct d3dadapter9 *This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
                                          sizeof(struct d3dadapter9));
     HRESULT hr;
-    int i, j, k = 0;
+    unsigned i, j, k;
 
     if (!This) {
         ERR("Out of memory.\n");
@@ -859,7 +859,7 @@ d3dadapter9_new( boolean ex,
     }
 
     /* map absolute adapter IDs with internal adapters */
-    for (i = k = 0; i < This->ngroups; ++i) {
+    for (i = 0; i < This->ngroups; ++i) {
         for (j = 0; j < This->groups[i].noutputs; ++j) {
             This->nadapters++;
         }

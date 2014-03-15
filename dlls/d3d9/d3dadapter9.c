@@ -896,4 +896,14 @@ d3dadapter9_new( boolean ex,
     return D3DERR_NOTAVAILABLE;
 }
 
+void
+d3dadapter9_init( HINSTANCE hinst )
+{
+}
+
+void
+d3dadapter9_destroy( HINSTANCE hinst )
+{
+}
+
 #endif /* SONAME_LIBD3DADAPTER9 */

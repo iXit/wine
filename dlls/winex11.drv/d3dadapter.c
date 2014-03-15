@@ -919,6 +919,8 @@ has_d3dadapter( void )
     d3d_hwnd_context = XUniqueContext();
 
     /* query DRI2 */
+    d3d_info.dri2_major = DRI2_MAJOR;
+    d3d_info.dri2_minor = DRI2_MINOR;
     if (!DRI2QueryExtension(gdi_display)) {
         ERR("Xserver doesn't support DRI2.\n");
         return D3DERR_DRIVERINTERNALERROR;

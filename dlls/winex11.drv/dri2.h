@@ -30,6 +30,7 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/Xfixes.h>
 #include <X11/extensions/dri2tokens.h>
+#include <X11/extensions/dri2proto.h>
 
 #include <stdint.h>
 

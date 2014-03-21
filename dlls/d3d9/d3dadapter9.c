@@ -193,6 +193,7 @@ d3dadapter9_GetAdapterIdentifier( struct d3dadapter9 *This,
                                   D3DADAPTER_IDENTIFIER9 *pIdentifier )
 {
     HRESULT hr;
+    HKEY regkey;
 
     if (Adapter >= d3dadapter9_GetAdapterCount(This)) { return D3DERR_INVALIDCALL; }
 
@@ -208,6 +209,20 @@ d3dadapter9_GetAdapterIdentifier( struct d3dadapter9 *This,
             return D3DERR_INVALIDCALL;
         }
         TRACE("DeviceName overriden: %s\n", pIdentifier->DeviceName);
+
+        /* Override PCI IDs when wined3d registry keys are set */
+        if (!RegOpenKeyA(HKEY_CURRENT_USER, "Software\\Wine\\Direct3D", &regkey)) {
+            DWORD type, data;
+            DWORD size = sizeof(DWORD);
+
+            if (!RegQueryValueExA(regkey, "VideoPciDeviceID", 0, &type, (BYTE *)&data, &size) && (type == REG_DWORD))
+                pIdentifier->DeviceId = data;
+            if (!RegQueryValueExA(regkey, "VideoPciVendorID", 0, &type, (BYTE *)&data, &size) && (type == REG_DWORD))
+                pIdentifier->VendorId = data;
+            RegCloseKey(regkey);
+
+            TRACE("DeviceId:VendorId overridden: %04X:%04X\n", pIdentifier->DeviceId, pIdentifier->VendorId);
+        }
     }
     return hr;
 }

@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Wine\n"
 "Report-Msgid-Bugs-To: http://bugs.winehq.org\n"
 "POT-Creation-Date: N/A\n"
-"PO-Revision-Date: 2014-05-16 08:19+0300\n"
+"PO-Revision-Date: 2014-06-16 21:18+0300\n"
 "Last-Translator: Aurimas Fišeras <aurimas@members.fsf.org>\n"
 "Language-Team: komp_lt@konf.lt\n"
 "Language: Lithuanian\n"
@@ -5008,7 +5008,7 @@ msgstr "Operacija nutraukta naudotojo.\n"
 msgid "File has a user-mapped section.\n"
 msgstr "Failas turi naudotojo atvaizduotą sekciją.\n"
 
-#: winerror.mc:1756 winerror.mc:3746
+#: winerror.mc:1756 winerror.mc:3751
 msgid "Connection refused.\n"
 msgstr "Sujungimas nepriimtas.\n"
 
@@ -6591,6 +6591,10 @@ msgstr "Naudotojo vardas nerastas.\n"
 #: winerror.mc:3741
 msgid "This network connection does not exist.\n"
 msgstr "Šis tinklo ryšys neegzistuoja.\n"
+
+#: winerror.mc:3746
+msgid "Connection reset by peer.\n"
+msgstr "Sujungimas nutrauktas kito serverio.\n"
 
 #: localspl.rc:31 localui.rc:31 winspool.rc:30
 msgid "Local Port"

@@ -2815,6 +2815,7 @@ static BOOL peek_message( MSG *msg, HWND hwnd, UINT first, UINT last, UINT flags
             if (size >= sizeof(msg_data->winevent))
             {
                 WINEVENTPROC hook_proc;
+                HMODULE free_module = 0;
 
                 hook_proc = wine_server_get_ptr( msg_data->winevent.hook_proc );
                 size -= sizeof(msg_data->winevent);
@@ -2825,7 +2826,7 @@ static BOOL peek_message( MSG *msg, HWND hwnd, UINT first, UINT last, UINT flags
                     size = min( size, (MAX_PATH - 1) * sizeof(WCHAR) );
                     memcpy( module, &msg_data->winevent + 1, size );
                     module[size / sizeof(WCHAR)] = 0;
-                    if (!(hook_proc = get_hook_proc( hook_proc, module )))
+                    if (!(hook_proc = get_hook_proc( hook_proc, module, &free_module )))
                     {
                         ERR( "invalid winevent hook module name %s\n", debugstr_w(module) );
                         continue;
@@ -2847,6 +2848,8 @@ static BOOL peek_message( MSG *msg, HWND hwnd, UINT first, UINT last, UINT flags
                              GetCurrentThreadId(), hook_proc,
                              msg_data->winevent.hook, info.msg.message, info.msg.hwnd, info.msg.wParam,
                              info.msg.lParam, msg_data->winevent.tid, info.msg.time);
+
+                if (free_module) FreeLibrary(free_module);
             }
             continue;
         case MSG_HOOK_LL:
@@ -3008,6 +3011,7 @@ static void wait_message_reply( UINT flags )
 {
     struct user_thread_info *thread_info = get_user_thread_info();
     HANDLE server_queue = get_server_queue_handle();
+    unsigned int wake_mask = QS_SMRESULT | ((flags & SMTO_BLOCK) ? 0 : QS_SENDMESSAGE);
 
     for (;;)
     {
@@ -3015,11 +3019,10 @@ static void wait_message_reply( UINT flags )
 
         SERVER_START_REQ( set_queue_mask )
         {
-            req->wake_mask    = QS_SMRESULT | ((flags & SMTO_BLOCK) ? 0 : QS_SENDMESSAGE);
-            req->changed_mask = req->wake_mask;
+            req->wake_mask    = wake_mask;
+            req->changed_mask = wake_mask;
             req->skip_wait    = 1;
-            if (!wine_server_call( req ))
-                wake_bits = reply->wake_bits;
+            if (!wine_server_call( req )) wake_bits = reply->wake_bits & wake_mask;
         }
         SERVER_END_REQ;
 
@@ -3033,7 +3036,7 @@ static void wait_message_reply( UINT flags )
             continue;
         }
 
-        wow_handlers.wait_message( 1, &server_queue, INFINITE, QS_SENDMESSAGE, 0 );
+        wow_handlers.wait_message( 1, &server_queue, INFINITE, wake_mask, 0 );
     }
 }
 

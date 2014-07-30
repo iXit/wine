@@ -133,25 +133,6 @@ static IDirect3DDevice8 *create_device(IDirect3D8 *d3d, HWND device_window, HWND
     return NULL;
 }
 
-struct vertex
-{
-    float x, y, z;
-    DWORD diffuse;
-};
-
-struct tvertex
-{
-    float x, y, z, w;
-    DWORD diffuse;
-};
-
-struct nvertex
-{
-    float x, y, z;
-    float nx, ny, nz;
-    DWORD diffuse;
-};
-
 static void test_sanity(void)
 {
     IDirect3DDevice8 *device;
@@ -205,33 +186,44 @@ static void lighting_test(void)
     HWND window;
     HRESULT hr;
 
-    static const struct vertex unlitquad[] =
+    static const struct
     {
-        {-1.0f, -1.0f, 0.1f, 0xffff0000},
-        {-1.0f,  0.0f, 0.1f, 0xffff0000},
-        { 0.0f,  0.0f, 0.1f, 0xffff0000},
-        { 0.0f, -1.0f, 0.1f, 0xffff0000},
+        struct vec3 position;
+        DWORD diffuse;
+    }
+    unlitquad[] =
+    {
+        {{-1.0f, -1.0f, 0.1f}, 0xffff0000},
+        {{-1.0f,  0.0f, 0.1f}, 0xffff0000},
+        {{ 0.0f,  0.0f, 0.1f}, 0xffff0000},
+        {{ 0.0f, -1.0f, 0.1f}, 0xffff0000},
+    },
+    litquad[] =
+    {
+        {{-1.0f,  0.0f, 0.1f}, 0xff00ff00},
+        {{-1.0f,  1.0f, 0.1f}, 0xff00ff00},
+        {{ 0.0f,  1.0f, 0.1f}, 0xff00ff00},
+        {{ 0.0f,  0.0f, 0.1f}, 0xff00ff00},
     };
-    static const struct vertex litquad[] =
+    static const struct
     {
-        {-1.0f,  0.0f, 0.1f, 0xff00ff00},
-        {-1.0f,  1.0f, 0.1f, 0xff00ff00},
-        { 0.0f,  1.0f, 0.1f, 0xff00ff00},
-        { 0.0f,  0.0f, 0.1f, 0xff00ff00},
-    };
-    static const struct nvertex unlitnquad[] =
+        struct vec3 position;
+        struct vec3 normal;
+        DWORD diffuse;
+    }
+    unlitnquad[] =
     {
-        { 0.0f, -1.0f, 0.1f, 1.0f, 1.0f, 1.0f, 0xff0000ff},
-        { 0.0f,  0.0f, 0.1f, 1.0f, 1.0f, 1.0f, 0xff0000ff},
-        { 1.0f,  0.0f, 0.1f, 1.0f, 1.0f, 1.0f, 0xff0000ff},
-        { 1.0f, -1.0f, 0.1f, 1.0f, 1.0f, 1.0f, 0xff0000ff},
-    };
-    static const struct nvertex litnquad[] =
+        {{0.0f, -1.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xff0000ff},
+        {{0.0f,  0.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xff0000ff},
+        {{1.0f,  0.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xff0000ff},
+        {{1.0f, -1.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xff0000ff},
+    },
+    litnquad[] =
     {
-        { 0.0f,  0.0f, 0.1f, 1.0f, 1.0f, 1.0f, 0xffffff00},
-        { 0.0f,  1.0f, 0.1f, 1.0f, 1.0f, 1.0f, 0xffffff00},
-        { 1.0f,  1.0f, 0.1f, 1.0f, 1.0f, 1.0f, 0xffffff00},
-        { 1.0f,  0.0f, 0.1f, 1.0f, 1.0f, 1.0f, 0xffffff00},
+        {{0.0f,  0.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xffffff00},
+        {{0.0f,  1.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xffffff00},
+        {{1.0f,  1.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xffffff00},
+        {{1.0f,  0.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xffffff00},
     };
     static const WORD Indices[] = {0, 1, 2, 2, 3, 0};
     static const D3DMATRIX mat =
@@ -754,12 +746,17 @@ static void fog_with_shader_test(void)
         0x00000001, 0x800f0000, 0x90e40000,                                     /* mov r0, v0 */
         0x0000ffff
     };
-    static struct vertex quad[] =
+    static struct
     {
-        {-1.0f, -1.0f,  0.0f, 0xffff0000},
-        {-1.0f,  1.0f,  0.0f, 0xffff0000},
-        { 1.0f, -1.0f,  0.0f, 0xffff0000},
-        { 1.0f,  1.0f,  0.0f, 0xffff0000},
+        struct vec3 position;
+        DWORD diffuse;
+    }
+    quad[] =
+    {
+        {{-1.0f, -1.0f, 0.0f}, 0xffff0000},
+        {{-1.0f,  1.0f, 0.0f}, 0xffff0000},
+        {{ 1.0f, -1.0f, 0.0f}, 0xffff0000},
+        {{ 1.0f,  1.0f, 0.0f}, 0xffff0000},
     };
     static const DWORD decl[] =
     {
@@ -980,10 +977,10 @@ static void fog_with_shader_test(void)
         for(j = 0; j < 11; ++j)
         {
             /* Don't use the whole zrange to prevent rounding errors */
-            quad[0].z = 0.001f + j / 10.02f;
-            quad[1].z = 0.001f + j / 10.02f;
-            quad[2].z = 0.001f + j / 10.02f;
-            quad[3].z = 0.001f + j / 10.02f;
+            quad[0].position.z = 0.001f + j / 10.02f;
+            quad[1].position.z = 0.001f + j / 10.02f;
+            quad[2].position.z = 0.001f + j / 10.02f;
+            quad[3].position.z = 0.001f + j / 10.02f;
 
             hr = IDirect3DDevice8_Clear(device, 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xffff00ff, 1.0f, 0);
             ok(hr == D3D_OK, "IDirect3DDevice9_Clear failed (%08x)\n", hr);
@@ -1580,33 +1577,43 @@ static void z_range_test(void)
     HWND window;
     HRESULT hr;
 
-    static const struct vertex quad[] =
+    static const struct
     {
-        {-1.0f, 0.0f,  1.1f, 0xffff0000},
-        {-1.0f, 1.0f,  1.1f, 0xffff0000},
-        { 1.0f, 0.0f, -1.1f, 0xffff0000},
-        { 1.0f, 1.0f, -1.1f, 0xffff0000},
+        struct vec3 position;
+        DWORD diffuse;
+    }
+    quad[] =
+    {
+        {{-1.0f, 0.0f,  1.1f}, 0xffff0000},
+        {{-1.0f, 1.0f,  1.1f}, 0xffff0000},
+        {{ 1.0f, 0.0f, -1.1f}, 0xffff0000},
+        {{ 1.0f, 1.0f, -1.1f}, 0xffff0000},
+    },
+    quad2[] =
+    {
+        {{-1.0f, 0.0f,  1.1f}, 0xff0000ff},
+        {{-1.0f, 1.0f,  1.1f}, 0xff0000ff},
+        {{ 1.0f, 0.0f, -1.1f}, 0xff0000ff},
+        {{ 1.0f, 1.0f, -1.1f}, 0xff0000ff},
     };
-    static const struct vertex quad2[] =
+    static const struct
     {
-        {-1.0f, 0.0f,  1.1f, 0xff0000ff},
-        {-1.0f, 1.0f,  1.1f, 0xff0000ff},
-        { 1.0f, 0.0f, -1.1f, 0xff0000ff},
-        { 1.0f, 1.0f, -1.1f, 0xff0000ff},
-    };
-    static const struct tvertex quad3[] =
+        struct vec4 position;
+        DWORD diffuse;
+    }
+    quad3[] =
     {
-        {640.0f, 240.0f, -1.1f, 1.0f, 0xffffff00},
-        {640.0f, 480.0f, -1.1f, 1.0f, 0xffffff00},
-        {  0.0f, 240.0f,  1.1f, 1.0f, 0xffffff00},
-        {  0.0f, 480.0f,  1.1f, 1.0f, 0xffffff00},
-    };
-    static const struct tvertex quad4[] =
+        {{640.0f, 240.0f, -1.1f, 1.0f}, 0xffffff00},
+        {{640.0f, 480.0f, -1.1f, 1.0f}, 0xffffff00},
+        {{  0.0f, 240.0f,  1.1f, 1.0f}, 0xffffff00},
+        {{  0.0f, 480.0f,  1.1f, 1.0f}, 0xffffff00},
+    },
+    quad4[] =
     {
-        {640.0f, 240.0f, -1.1f, 1.0f, 0xff00ff00},
-        {640.0f, 480.0f, -1.1f, 1.0f, 0xff00ff00},
-        {  0.0f, 240.0f,  1.1f, 1.0f, 0xff00ff00},
-        {  0.0f, 480.0f,  1.1f, 1.0f, 0xff00ff00},
+        {{640.0f, 240.0f, -1.1f, 1.0f}, 0xff00ff00},
+        {{640.0f, 480.0f, -1.1f, 1.0f}, 0xff00ff00},
+        {{  0.0f, 240.0f,  1.1f, 1.0f}, 0xff00ff00},
+        {{  0.0f, 480.0f,  1.1f, 1.0f}, 0xff00ff00},
     };
     static const DWORD shader_code[] =
     {
@@ -2108,19 +2115,24 @@ static void alpha_test(void)
     HWND window;
     HRESULT hr;
 
-    static const struct vertex quad1[] =
+    static const struct
     {
-        {-1.0f, -1.0f, 0.1f, 0x4000ff00},
-        {-1.0f,  0.0f, 0.1f, 0x4000ff00},
-        { 1.0f, -1.0f, 0.1f, 0x4000ff00},
-        { 1.0f,  0.0f, 0.1f, 0x4000ff00},
-    };
-    static const struct vertex quad2[] =
+        struct vec3 position;
+        DWORD diffuse;
+    }
+    quad1[] =
     {
-        {-1.0f,  0.0f, 0.1f, 0xc00000ff},
-        {-1.0f,  1.0f, 0.1f, 0xc00000ff},
-        { 1.0f,  0.0f, 0.1f, 0xc00000ff},
-        { 1.0f,  1.0f, 0.1f, 0xc00000ff},
+        {{-1.0f, -1.0f, 0.1f}, 0x4000ff00},
+        {{-1.0f,  0.0f, 0.1f}, 0x4000ff00},
+        {{ 1.0f, -1.0f, 0.1f}, 0x4000ff00},
+        {{ 1.0f,  0.0f, 0.1f}, 0x4000ff00},
+    },
+    quad2[] =
+    {
+        {{-1.0f,  0.0f, 0.1f}, 0xc00000ff},
+        {{-1.0f,  1.0f, 0.1f}, 0xc00000ff},
+        {{ 1.0f,  0.0f, 0.1f}, 0xc00000ff},
+        {{ 1.0f,  1.0f, 0.1f}, 0xc00000ff},
     };
     static const float composite_quad[][5] =
     {
@@ -2639,47 +2651,57 @@ static void depth_clamp_test(void)
     HWND window;
     HRESULT hr;
 
-    static const struct tvertex quad1[] =
+    static const struct
     {
-        {  0.0f,   0.0f,  5.0f, 1.0f, 0xff002b7f},
-        {640.0f,   0.0f,  5.0f, 1.0f, 0xff002b7f},
-        {  0.0f, 480.0f,  5.0f, 1.0f, 0xff002b7f},
-        {640.0f, 480.0f,  5.0f, 1.0f, 0xff002b7f},
+        struct vec4 position;
+        DWORD diffuse;
+    }
+    quad1[] =
+    {
+        {{  0.0f,   0.0f,  5.0f, 1.0f}, 0xff002b7f},
+        {{640.0f,   0.0f,  5.0f, 1.0f}, 0xff002b7f},
+        {{  0.0f, 480.0f,  5.0f, 1.0f}, 0xff002b7f},
+        {{640.0f, 480.0f,  5.0f, 1.0f}, 0xff002b7f},
+    },
+    quad2[] =
+    {
+        {{  0.0f, 300.0f, 10.0f, 1.0f}, 0xfff9e814},
+        {{640.0f, 300.0f, 10.0f, 1.0f}, 0xfff9e814},
+        {{  0.0f, 360.0f, 10.0f, 1.0f}, 0xfff9e814},
+        {{640.0f, 360.0f, 10.0f, 1.0f}, 0xfff9e814},
+    },
+    quad3[] =
+    {
+        {{112.0f, 108.0f,  5.0f, 1.0f}, 0xffffffff},
+        {{208.0f, 108.0f,  5.0f, 1.0f}, 0xffffffff},
+        {{112.0f, 204.0f,  5.0f, 1.0f}, 0xffffffff},
+        {{208.0f, 204.0f,  5.0f, 1.0f}, 0xffffffff},
+    },
+    quad4[] =
+    {
+        {{ 42.0f,  41.0f, 10.0f, 1.0f}, 0xffffffff},
+        {{112.0f,  41.0f, 10.0f, 1.0f}, 0xffffffff},
+        {{ 42.0f, 108.0f, 10.0f, 1.0f}, 0xffffffff},
+        {{112.0f, 108.0f, 10.0f, 1.0f}, 0xffffffff},
     };
-    static const struct tvertex quad2[] =
+    static const struct
     {
-        {  0.0f, 300.0f, 10.0f, 1.0f, 0xfff9e814},
-        {640.0f, 300.0f, 10.0f, 1.0f, 0xfff9e814},
-        {  0.0f, 360.0f, 10.0f, 1.0f, 0xfff9e814},
-        {640.0f, 360.0f, 10.0f, 1.0f, 0xfff9e814},
-    };
-    static const struct tvertex quad3[] =
+        struct vec3 position;
+        DWORD diffuse;
+    }
+    quad5[] =
     {
-        {112.0f, 108.0f,  5.0f, 1.0f, 0xffffffff},
-        {208.0f, 108.0f,  5.0f, 1.0f, 0xffffffff},
-        {112.0f, 204.0f,  5.0f, 1.0f, 0xffffffff},
-        {208.0f, 204.0f,  5.0f, 1.0f, 0xffffffff},
-    };
-    static const struct tvertex quad4[] =
+        {{-0.5f,  0.5f,  10.0f}, 0xff14f914},
+        {{ 0.5f,  0.5f,  10.0f}, 0xff14f914},
+        {{-0.5f, -0.5f,  10.0f}, 0xff14f914},
+        {{ 0.5f, -0.5f,  10.0f}, 0xff14f914},
+    },
+    quad6[] =
     {
-        { 42.0f,  41.0f, 10.0f, 1.0f, 0xffffffff},
-        {112.0f,  41.0f, 10.0f, 1.0f, 0xffffffff},
-        { 42.0f, 108.0f, 10.0f, 1.0f, 0xffffffff},
-        {112.0f, 108.0f, 10.0f, 1.0f, 0xffffffff},
-    };
-    static const struct vertex quad5[] =
-    {
-        { -0.5f,   0.5f, 10.0f,       0xff14f914},
-        {  0.5f,   0.5f, 10.0f,       0xff14f914},
-        { -0.5f,  -0.5f, 10.0f,       0xff14f914},
-        {  0.5f,  -0.5f, 10.0f,       0xff14f914},
-    };
-    static const struct vertex quad6[] =
-    {
-        { -1.0f,   0.5f, 10.0f,       0xfff91414},
-        {  1.0f,   0.5f, 10.0f,       0xfff91414},
-        { -1.0f,  0.25f, 10.0f,       0xfff91414},
-        {  1.0f,  0.25f, 10.0f,       0xfff91414},
+        {{-1.0f,  0.5f,  10.0f}, 0xfff91414},
+        {{ 1.0f,  0.5f,  10.0f}, 0xfff91414},
+        {{-1.0f,  0.25f, 10.0f}, 0xfff91414},
+        {{ 1.0f,  0.25f, 10.0f}, 0xfff91414},
     };
 
     window = CreateWindowA("static", "d3d8_test", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
@@ -2803,26 +2825,31 @@ static void depth_buffer_test(void)
     HWND window;
     HRESULT hr;
 
-    static const struct vertex quad1[] =
+    static const struct
     {
-        { -1.0,  1.0, 0.33f, 0xff00ff00},
-        {  1.0,  1.0, 0.33f, 0xff00ff00},
-        { -1.0, -1.0, 0.33f, 0xff00ff00},
-        {  1.0, -1.0, 0.33f, 0xff00ff00},
-    };
-    static const struct vertex quad2[] =
+        struct vec3 position;
+        DWORD diffuse;
+    }
+    quad1[] =
     {
-        { -1.0,  1.0, 0.50f, 0xffff00ff},
-        {  1.0,  1.0, 0.50f, 0xffff00ff},
-        { -1.0, -1.0, 0.50f, 0xffff00ff},
-        {  1.0, -1.0, 0.50f, 0xffff00ff},
-    };
-    static const struct vertex quad3[] =
+        {{-1.0f,  1.0f, 0.33f}, 0xff00ff00},
+        {{ 1.0f,  1.0f, 0.33f}, 0xff00ff00},
+        {{-1.0f, -1.0f, 0.33f}, 0xff00ff00},
+        {{ 1.0f, -1.0f, 0.33f}, 0xff00ff00},
+    },
+    quad2[] =
     {
-        { -1.0,  1.0, 0.66f, 0xffff0000},
-        {  1.0,  1.0, 0.66f, 0xffff0000},
-        { -1.0, -1.0, 0.66f, 0xffff0000},
-        {  1.0, -1.0, 0.66f, 0xffff0000},
+        {{-1.0f,  1.0f, 0.50f}, 0xffff00ff},
+        {{ 1.0f,  1.0f, 0.50f}, 0xffff00ff},
+        {{-1.0f, -1.0f, 0.50f}, 0xffff00ff},
+        {{ 1.0f, -1.0f, 0.50f}, 0xffff00ff},
+    },
+    quad3[] =
+    {
+        {{-1.0f,  1.0f, 0.66f}, 0xffff0000},
+        {{ 1.0f,  1.0f, 0.66f}, 0xffff0000},
+        {{-1.0f, -1.0f, 0.66f}, 0xffff0000},
+        {{ 1.0f, -1.0f, 0.66f}, 0xffff0000},
     };
     static const DWORD expected_colors[4][4] =
     {
@@ -2959,12 +2986,17 @@ static void depth_buffer2_test(void)
     HWND window;
     HRESULT hr;
 
-    static const struct vertex quad[] =
+    static const struct
     {
-        { -1.0,  1.0, 0.66f, 0xffff0000},
-        {  1.0,  1.0, 0.66f, 0xffff0000},
-        { -1.0, -1.0, 0.66f, 0xffff0000},
-        {  1.0, -1.0, 0.66f, 0xffff0000},
+        struct vec3 position;
+        DWORD diffuse;
+    }
+    quad[] =
+    {
+        {{-1.0f,  1.0f, 0.66f}, 0xffff0000},
+        {{ 1.0f,  1.0f, 0.66f}, 0xffff0000},
+        {{-1.0f, -1.0f, 0.66f}, 0xffff0000},
+        {{ 1.0f, -1.0f, 0.66f}, 0xffff0000},
     };
 
     window = CreateWindowA("static", "d3d8_test", WS_OVERLAPPEDWINDOW | WS_VISIBLE,

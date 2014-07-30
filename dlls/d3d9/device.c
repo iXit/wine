@@ -323,13 +323,21 @@ static HRESULT WINAPI d3d9_device_TestCooperativeLevel(IDirect3DDevice9Ex *iface
 
     TRACE("iface %p.\n", iface);
 
-    if (device->not_reset)
-    {
-        TRACE("D3D9 device is marked not reset.\n");
-        return D3DERR_DEVICENOTRESET;
-    }
+    TRACE("device state: %#x.\n", device->device_state);
 
-    return D3D_OK;
+    if (device->d3d_parent->extended)
+        return D3D_OK;
+
+    switch (device->device_state)
+    {
+        default:
+        case D3D9_DEVICE_STATE_OK:
+            return D3D_OK;
+        case D3D9_DEVICE_STATE_LOST:
+            return D3DERR_DEVICELOST;
+        case D3D9_DEVICE_STATE_NOT_RESET:
+            return D3DERR_DEVICENOTRESET;
+    }
 }
 
 static UINT WINAPI d3d9_device_GetAvailableTextureMem(IDirect3DDevice9Ex *iface)
@@ -621,9 +629,9 @@ static HRESULT WINAPI DECLSPEC_HOTPATCH d3d9_device_Reset(IDirect3DDevice9Ex *if
     hr = wined3d_device_reset(device->wined3d_device, &swapchain_desc,
             NULL, reset_enum_callback, !device->d3d_parent->extended);
     if (FAILED(hr) && !device->d3d_parent->extended)
-        device->not_reset = TRUE;
+        device->device_state = D3D9_DEVICE_STATE_NOT_RESET;
     else
-        device->not_reset = FALSE;
+        device->device_state = D3D9_DEVICE_STATE_OK;
     wined3d_mutex_unlock();
 
     return hr;
@@ -637,6 +645,9 @@ static HRESULT WINAPI DECLSPEC_HOTPATCH d3d9_device_Present(IDirect3DDevice9Ex *
 
     TRACE("iface %p, src_rect %p, dst_rect %p, dst_window_override %p, dirty_region %p.\n",
             iface, src_rect, dst_rect, dst_window_override, dirty_region);
+
+    if (device->device_state != D3D9_DEVICE_STATE_OK)
+        return device->d3d_parent->extended ? S_PRESENT_OCCLUDED : D3DERR_DEVICELOST;
 
     wined3d_mutex_lock();
     hr = wined3d_device_present(device->wined3d_device, src_rect, dst_rect,
@@ -3077,6 +3088,9 @@ static HRESULT WINAPI DECLSPEC_HOTPATCH d3d9_device_PresentEx(IDirect3DDevice9Ex
             iface, wine_dbgstr_rect(src_rect), wine_dbgstr_rect(dst_rect),
             dst_window_override, dirty_region, flags);
 
+    if (device->device_state != D3D9_DEVICE_STATE_OK)
+        return S_PRESENT_OCCLUDED;
+
     wined3d_mutex_lock();
     hr = wined3d_device_present(device->wined3d_device, src_rect, dst_rect,
             dst_window_override, dirty_region, flags);
@@ -3133,14 +3147,26 @@ static HRESULT WINAPI d3d9_device_GetMaximumFrameLatency(IDirect3DDevice9Ex *ifa
 
 static HRESULT WINAPI d3d9_device_CheckDeviceState(IDirect3DDevice9Ex *iface, HWND dst_window)
 {
-    static int i;
+    struct d3d9_device *device = impl_from_IDirect3DDevice9Ex(iface);
+    struct wined3d_swapchain_desc swapchain_desc;
+    struct wined3d_swapchain *swapchain;
 
-    TRACE("iface %p, dst_window %p stub!\n", iface, dst_window);
+    TRACE("iface %p, dst_window %p.\n", iface, dst_window);
 
-    if (!i++)
-        FIXME("iface %p, dst_window %p stub!\n", iface, dst_window);
+    wined3d_mutex_lock();
+    swapchain = wined3d_device_get_swapchain(device->wined3d_device, 0);
+    wined3d_swapchain_get_desc(swapchain, &swapchain_desc);
+    wined3d_mutex_unlock();
 
-    return D3D_OK;
+    if (swapchain_desc.windowed)
+        return D3D_OK;
+
+    /* FIXME: This is actually supposed to check if any other device is in
+     * fullscreen mode. */
+    if (dst_window != swapchain_desc.device_window)
+        return device->device_state == D3D9_DEVICE_STATE_OK ? S_PRESENT_OCCLUDED : D3D_OK;
+
+    return device->device_state == D3D9_DEVICE_STATE_OK ? D3D_OK : S_PRESENT_OCCLUDED;
 }
 
 static HRESULT WINAPI d3d9_device_CreateRenderTargetEx(IDirect3DDevice9Ex *iface,
@@ -3414,6 +3440,23 @@ static void CDECL device_parent_mode_changed(struct wined3d_device_parent *devic
     TRACE("device_parent %p.\n", device_parent);
 }
 
+static void CDECL device_parent_activate(struct wined3d_device_parent *device_parent, BOOL activate)
+{
+    struct d3d9_device *device = device_from_device_parent(device_parent);
+
+    TRACE("device_parent %p, activate %#x.\n", device_parent, activate);
+
+    if (!device->d3d_parent)
+        return;
+
+    if (!activate)
+        InterlockedCompareExchange(&device->device_state, D3D9_DEVICE_STATE_LOST, D3D9_DEVICE_STATE_OK);
+    else if (device->d3d_parent->extended)
+        InterlockedCompareExchange(&device->device_state, D3D9_DEVICE_STATE_OK, D3D9_DEVICE_STATE_LOST);
+    else
+        InterlockedCompareExchange(&device->device_state, D3D9_DEVICE_STATE_NOT_RESET, D3D9_DEVICE_STATE_LOST);
+}
+
 static HRESULT CDECL device_parent_surface_created(struct wined3d_device_parent *device_parent,
         void *container_parent, struct wined3d_surface *surface, void **parent,
         const struct wined3d_parent_ops **parent_ops)
@@ -3531,6 +3574,7 @@ static const struct wined3d_device_parent_ops d3d9_wined3d_device_parent_ops =
 {
     device_parent_wined3d_device_created,
     device_parent_mode_changed,
+    device_parent_activate,
     device_parent_surface_created,
     device_parent_volume_created,
     device_parent_create_swapchain_surface,

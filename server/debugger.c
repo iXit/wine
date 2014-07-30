@@ -209,16 +209,9 @@ static int fill_unload_dll_event( struct debug_event *event, const void *arg )
     return 1;
 }
 
-static int fill_output_debug_string_event( struct debug_event *event, const void *arg )
-{
-    const debug_event_t *data = arg;
-    event->data.output_string = data->output_string;
-    return 1;
-}
-
 typedef int (*fill_event_func)( struct debug_event *event, const void *arg );
 
-#define NB_DEBUG_EVENTS OUTPUT_DEBUG_STRING_EVENT  /* RIP_EVENT not supported */
+#define NB_DEBUG_EVENTS UNLOAD_DLL_DEBUG_EVENT
 
 static const fill_event_func fill_debug_event[NB_DEBUG_EVENTS] =
 {
@@ -228,8 +221,7 @@ static const fill_event_func fill_debug_event[NB_DEBUG_EVENTS] =
     fill_exit_thread_event,          /* EXIT_THREAD_DEBUG_EVENT */
     fill_exit_process_event,         /* EXIT_PROCESS_DEBUG_EVENT */
     fill_load_dll_event,             /* LOAD_DLL_DEBUG_EVENT */
-    fill_unload_dll_event,           /* UNLOAD_DLL_DEBUG_EVENT */
-    fill_output_debug_string_event   /* OUTPUT_DEBUG_STRING_EVENT */
+    fill_unload_dll_event            /* UNLOAD_DLL_DEBUG_EVENT */
 };
 
 
@@ -249,7 +241,13 @@ static void link_event( struct debug_event *event )
     assert( debug_ctx );
     grab_object( event );
     list_add_tail( &debug_ctx->event_queue, &event->entry );
-    if (!event->sender->debug_event) wake_up( &debug_ctx->obj, 0 );
+    if (!event->sender->debug_event)
+    {
+        /* grab reference since debugger could be killed while trying to wake up */
+        grab_object( debug_ctx );
+        wake_up( &debug_ctx->obj, 0 );
+        release_object( debug_ctx );
+    }
 }
 
 /* find the next event that we can send to the debugger */
@@ -693,16 +691,6 @@ DECL_HANDLER(get_exception_status)
         else set_error( STATUS_PENDING );
         release_object( event );
     }
-}
-
-/* send an output string to the debugger */
-DECL_HANDLER(output_debug_string)
-{
-    debug_event_t data;
-
-    data.output_string.string  = req->string;
-    data.output_string.length  = req->length;
-    generate_debug_event( current, OUTPUT_DEBUG_STRING_EVENT, &data );
 }
 
 /* simulate a breakpoint in a process */

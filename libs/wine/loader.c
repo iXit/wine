@@ -873,6 +873,12 @@ static jstring wine_init_jni( JNIEnv *env, jobject obj, jobjectArray cmdline, jo
             {
                 const char *val = (*env)->GetStringUTFChars( env, val_obj, NULL );
                 setenv( var, val, 1 );
+                if (!strcmp( var, "LD_LIBRARY_PATH" ))
+                {
+                    void (*update_func)( const char * ) = dlsym( RTLD_DEFAULT,
+                                                                 "android_update_LD_LIBRARY_PATH" );
+                    if (update_func) update_func( val );
+                }
                 (*env)->ReleaseStringUTFChars( env, val_obj, val );
             }
             else unsetenv( var );
@@ -1008,23 +1014,6 @@ void *wine_dlopen( const char *filename, int flag, char *error, size_t errorsize
         ret = dlopen( path, flag | RTLD_FIRST );
     }
     else
-#elif defined(__ANDROID__)
-    if (!strchr( filename, '/' ) && nb_dll_paths)
-    {
-        unsigned int i;
-        char *buffer = malloc( dll_path_maxlen + strlen(filename) + 2 );
-
-        buffer[dll_path_maxlen] = '/';
-        strcpy( buffer + dll_path_maxlen + 1, filename );
-        for (i = 0; i < nb_dll_paths; i++)
-        {
-            char *path = prepend( buffer + dll_path_maxlen, dll_paths[i], strlen(dll_paths[i]) );
-            ret = dlopen( path, flag | RTLD_FIRST );
-            if (ret) break;
-        }
-        free( buffer );
-        if (ret) return ret;
-    }
 #endif
     ret = dlopen( filename, flag | RTLD_FIRST );
     s = dlerror();

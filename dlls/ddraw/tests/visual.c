@@ -23,6 +23,16 @@
 #include "ddraw.h"
 #include "d3d.h"
 
+struct vec3
+{
+    float x, y, z;
+};
+
+struct vec4
+{
+    float x, y, z, w;
+};
+
 static HWND window;
 static IDirectDraw7        *DirectDraw;
 static IDirectDrawSurface7 *Surface;
@@ -264,25 +274,6 @@ static void set_viewport_size(IDirect3DDevice7 *device)
     return;
 }
 
-struct vertex
-{
-    float x, y, z;
-    DWORD diffuse;
-};
-
-struct tvertex
-{
-    float x, y, z, w;
-    DWORD diffuse;
-};
-
-struct nvertex
-{
-    float x, y, z;
-    float nx, ny, nz;
-    DWORD diffuse;
-};
-
 static void lighting_test(IDirect3DDevice7 *device)
 {
     HRESULT hr;
@@ -290,38 +281,51 @@ static void lighting_test(IDirect3DDevice7 *device)
     DWORD nfvf = D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_NORMAL;
     DWORD color;
 
-    float mat[16] = { 1.0f, 0.0f, 0.0f, 0.0f,
-                      0.0f, 1.0f, 0.0f, 0.0f,
-                      0.0f, 0.0f, 1.0f, 0.0f,
-                      0.0f, 0.0f, 0.0f, 1.0f };
-
-    struct vertex unlitquad[] =
+    D3DMATRIX mat =
     {
-        {-1.0f, -1.0f,   0.1f,                          0xffff0000},
-        {-1.0f,  0.0f,   0.1f,                          0xffff0000},
-        { 0.0f,  0.0f,   0.1f,                          0xffff0000},
-        { 0.0f, -1.0f,   0.1f,                          0xffff0000},
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
     };
-    struct vertex litquad[] =
+    struct
     {
-        {-1.0f,  0.0f,   0.1f,                          0xff00ff00},
-        {-1.0f,  1.0f,   0.1f,                          0xff00ff00},
-        { 0.0f,  1.0f,   0.1f,                          0xff00ff00},
-        { 0.0f,  0.0f,   0.1f,                          0xff00ff00},
+        struct vec3 position;
+        DWORD diffuse;
+    }
+    unlitquad[] =
+    {
+        {{-1.0f, -1.0f, 0.1f}, 0xffff0000},
+        {{-1.0f,  0.0f, 0.1f}, 0xffff0000},
+        {{ 0.0f,  0.0f, 0.1f}, 0xffff0000},
+        {{ 0.0f, -1.0f, 0.1f}, 0xffff0000},
+    },
+    litquad[] =
+    {
+        {{-1.0f,  0.0f, 0.1f}, 0xff00ff00},
+        {{-1.0f,  1.0f, 0.1f}, 0xff00ff00},
+        {{ 0.0f,  1.0f, 0.1f}, 0xff00ff00},
+        {{ 0.0f,  0.0f, 0.1f}, 0xff00ff00},
     };
-    struct nvertex unlitnquad[] =
+    struct
     {
-        { 0.0f, -1.0f,   0.1f,  1.0f,   1.0f,   1.0f,   0xff0000ff},
-        { 0.0f,  0.0f,   0.1f,  1.0f,   1.0f,   1.0f,   0xff0000ff},
-        { 1.0f,  0.0f,   0.1f,  1.0f,   1.0f,   1.0f,   0xff0000ff},
-        { 1.0f, -1.0f,   0.1f,  1.0f,   1.0f,   1.0f,   0xff0000ff},
-    };
-    struct nvertex litnquad[] =
+        struct vec3 position;
+        struct vec3 normal;
+        DWORD diffuse;
+    }
+    unlitnquad[] =
     {
-        { 0.0f,  0.0f,   0.1f,  1.0f,   1.0f,   1.0f,   0xffffff00},
-        { 0.0f,  1.0f,   0.1f,  1.0f,   1.0f,   1.0f,   0xffffff00},
-        { 1.0f,  1.0f,   0.1f,  1.0f,   1.0f,   1.0f,   0xffffff00},
-        { 1.0f,  0.0f,   0.1f,  1.0f,   1.0f,   1.0f,   0xffffff00},
+        {{0.0f, -1.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xff0000ff},
+        {{0.0f,  0.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xff0000ff},
+        {{1.0f,  0.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xff0000ff},
+        {{1.0f, -1.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xff0000ff},
+    },
+    litnquad[] =
+    {
+        {{0.0f,  0.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xffffff00},
+        {{0.0f,  1.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xffffff00},
+        {{1.0f,  1.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xffffff00},
+        {{1.0f,  0.0f, 0.1f}, {1.0f, 1.0f, 1.0f}, 0xffffff00},
     };
     WORD Indices[] = {0, 1, 2, 2, 3, 0};
 
@@ -329,11 +333,11 @@ static void lighting_test(IDirect3DDevice7 *device)
     ok(hr == D3D_OK, "IDirect3DDevice7_Clear failed with %08x\n", hr);
 
     /* Setup some states that may cause issues */
-    hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_WORLD, (D3DMATRIX *) mat);
+    hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_WORLD, &mat);
     ok(hr == D3D_OK, "IDirect3DDevice7_SetTransform returned %08x\n", hr);
-    hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_VIEW, (D3DMATRIX *)mat);
+    hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_VIEW, &mat);
     ok(hr == D3D_OK, "IDirect3DDevice7_SetTransform returned %08x\n", hr);
-    hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_PROJECTION, (D3DMATRIX *) mat);
+    hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_PROJECTION, &mat);
     ok(hr == D3D_OK, "IDirect3DDevice7_SetTransform returned %08x\n", hr);
     hr = IDirect3DDevice7_SetRenderState(device, D3DRENDERSTATE_CLIPPING, FALSE);
     ok(hr == D3D_OK, "IDirect3DDevice7_SetRenderState returned %08x\n", hr);
@@ -442,18 +446,6 @@ static void clear_test(IDirect3DDevice7 *device)
     ok(color == 0x00ffffff, "Clear rectangle 4(neg, neg) has color %08x\n", color);
 }
 
-struct sVertex {
-    float x, y, z;
-    DWORD diffuse;
-    DWORD specular;
-};
-
-struct sVertexT {
-    float x, y, z, rhw;
-    DWORD diffuse;
-    DWORD specular;
-};
-
 static void fog_test(IDirect3DDevice7 *device)
 {
     HRESULT hr;
@@ -461,79 +453,93 @@ static void fog_test(IDirect3DDevice7 *device)
     float start = 0.0, end = 1.0;
     D3DDEVICEDESC7 caps;
 
+    struct
+    {
+        struct vec3 position;
+        DWORD diffuse;
+        DWORD specular;
+    }
     /* Gets full z based fog with linear fog, no fog with specular color */
-    struct sVertex untransformed_1[] = {
-        {-1,    -1,   0.1f,         0xFFFF0000,     0xFF000000  },
-        {-1,     0,   0.1f,         0xFFFF0000,     0xFF000000  },
-        { 0,     0,   0.1f,         0xFFFF0000,     0xFF000000  },
-        { 0,    -1,   0.1f,         0xFFFF0000,     0xFF000000  },
-    };
+    untransformed_1[] =
+    {
+        {{-1.0f, -1.0f, 0.1f}, 0xffff0000, 0xff000000},
+        {{-1.0f,  0.0f, 0.1f}, 0xffff0000, 0xff000000},
+        {{ 0.0f,  0.0f, 0.1f}, 0xffff0000, 0xff000000},
+        {{ 0.0f, -1.0f, 0.1f}, 0xffff0000, 0xff000000},
+    },
     /* Ok, I am too lazy to deal with transform matrices */
-    struct sVertex untransformed_2[] = {
-        {-1,     0,   1.0f,         0xFFFF0000,     0xFF000000  },
-        {-1,     1,   1.0f,         0xFFFF0000,     0xFF000000  },
-        { 0,     1,   1.0f,         0xFFFF0000,     0xFF000000  },
-        { 0,     0,   1.0f,         0xFFFF0000,     0xFF000000  },
+    untransformed_2[] =
+    {
+        {{-1.0f,  0.0f, 1.0f}, 0xffff0000, 0xff000000},
+        {{-1.0f,  1.0f, 1.0f}, 0xffff0000, 0xff000000},
+        {{ 0.0f,  1.0f, 1.0f}, 0xffff0000, 0xff000000},
+        {{ 0.0f,  0.0f, 1.0f}, 0xffff0000, 0xff000000},
+    },
+    far_quad1[] =
+    {
+        {{-1.0f, -1.0f, 0.5f}, 0xffff0000, 0xff000000},
+        {{-1.0f,  0.0f, 0.5f}, 0xffff0000, 0xff000000},
+        {{ 0.0f,  0.0f, 0.5f}, 0xffff0000, 0xff000000},
+        {{ 0.0f, -1.0f, 0.5f}, 0xffff0000, 0xff000000},
+    },
+    far_quad2[] =
+    {
+        {{-1.0f,  0.0f, 1.5f}, 0xffff0000, 0xff000000},
+        {{-1.0f,  1.0f, 1.5f}, 0xffff0000, 0xff000000},
+        {{ 0.0f,  1.0f, 1.5f}, 0xffff0000, 0xff000000},
+        {{ 0.0f,  0.0f, 1.5f}, 0xffff0000, 0xff000000},
     };
-    /* Untransformed ones. Give them a different diffuse color to make the test look
-     * nicer. It also makes making sure that they are drawn correctly easier.
-     */
-    struct sVertexT transformed_1[] = {
-        {320,    0,   1.0f, 1.0f,   0xFFFFFF00,     0xFF000000  },
-        {640,    0,   1.0f, 1.0f,   0xFFFFFF00,     0xFF000000  },
-        {640,  240,   1.0f, 1.0f,   0xFFFFFF00,     0xFF000000  },
-        {320,  240,   1.0f, 1.0f,   0xFFFFFF00,     0xFF000000  },
-    };
-    struct sVertexT transformed_2[] = {
-        {320,  240,   1.0f, 1.0f,   0xFFFFFF00,     0xFF000000  },
-        {640,  240,   1.0f, 1.0f,   0xFFFFFF00,     0xFF000000  },
-        {640,  480,   1.0f, 1.0f,   0xFFFFFF00,     0xFF000000  },
-        {320,  480,   1.0f, 1.0f,   0xFFFFFF00,     0xFF000000  },
+    /* Untransformed ones. Give them a different diffuse color to make the
+     * test look nicer. It also makes making sure that they are drawn
+     * correctly easier. */
+    struct
+    {
+        struct vec4 position;
+        DWORD diffuse;
+        DWORD specular;
+    }
+    transformed_1[] =
+    {
+        {{320.0f,   0.0f, 1.0f, 1.0f}, 0xffffff00, 0xff000000},
+        {{640.0f,   0.0f, 1.0f, 1.0f}, 0xffffff00, 0xff000000},
+        {{640.0f, 240.0f, 1.0f, 1.0f}, 0xffffff00, 0xff000000},
+        {{320.0f, 240.0f, 1.0f, 1.0f}, 0xffffff00, 0xff000000},
+    },
+    transformed_2[] =
+    {
+        {{320.0f, 240.0f, 1.0f, 1.0f}, 0xffffff00, 0xff000000},
+        {{640.0f, 240.0f, 1.0f, 1.0f}, 0xffffff00, 0xff000000},
+        {{640.0f, 480.0f, 1.0f, 1.0f}, 0xffffff00, 0xff000000},
+        {{320.0f, 480.0f, 1.0f, 1.0f}, 0xffffff00, 0xff000000},
     };
     WORD Indices[] = {0, 1, 2, 2, 3, 0};
-
-    float ident_mat[16] =
+    D3DMATRIX ident_mat =
     {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
+        0.0f, 0.0f, 0.0f, 1.0f,
     };
-    float world_mat1[16] =
+    D3DMATRIX world_mat1 =
     {
         1.0f, 0.0f,  0.0f, 0.0f,
         0.0f, 1.0f,  0.0f, 0.0f,
         0.0f, 0.0f,  1.0f, 0.0f,
-        0.0f, 0.0f, -0.5f, 1.0f
+        0.0f, 0.0f, -0.5f, 1.0f,
     };
-    float world_mat2[16] =
+    D3DMATRIX world_mat2 =
     {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 1.0f
+        0.0f, 0.0f, 1.0f, 1.0f,
     };
-    float proj_mat[16] =
+    D3DMATRIX proj_mat =
     {
         1.0f, 0.0f,  0.0f, 0.0f,
         0.0f, 1.0f,  0.0f, 0.0f,
         0.0f, 0.0f,  1.0f, 0.0f,
-        0.0f, 0.0f, -1.0f, 1.0f
-    };
-
-    struct sVertex far_quad1[] =
-    {
-        {-1.0f, -1.0f, 0.5f, 0xffff0000, 0xff000000},
-        {-1.0f,  0.0f, 0.5f, 0xffff0000, 0xff000000},
-        { 0.0f,  0.0f, 0.5f, 0xffff0000, 0xff000000},
-        { 0.0f, -1.0f, 0.5f, 0xffff0000, 0xff000000},
-    };
-    struct sVertex far_quad2[] =
-    {
-        {-1.0f, 0.0f, 1.5f, 0xffff0000, 0xff000000},
-        {-1.0f, 1.0f, 1.5f, 0xffff0000, 0xff000000},
-        { 0.0f, 1.0f, 1.5f, 0xffff0000, 0xff000000},
-        { 0.0f, 0.0f, 1.5f, 0xffff0000, 0xff000000},
+        0.0f, 0.0f, -1.0f, 1.0f,
     };
 
     memset(&caps, 0, sizeof(caps));
@@ -625,7 +631,7 @@ static void fog_test(IDirect3DDevice7 *device)
     if (caps.dpcTriCaps.dwRasterCaps & D3DPRASTERCAPS_FOGTABLE)
     {
         /* A simple fog + non-identity world matrix test */
-        hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_WORLD, (D3DMATRIX *)world_mat1);
+        hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_WORLD, &world_mat1);
         ok(hr == D3D_OK, "IDirect3DDevice7_SetTransform returned %#08x\n", hr);
 
         hr = IDirect3DDevice7_SetRenderState(device, D3DRENDERSTATE_FOGTABLEMODE, D3DFOG_LINEAR);
@@ -660,9 +666,9 @@ static void fog_test(IDirect3DDevice7 *device)
         ok(color_match(color, 0x0000ff00, 1), "Fogged out quad has color %08x\n", color);
 
         /* Test fog behavior with an orthogonal (but not identity) projection matrix */
-        hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_WORLD, (D3DMATRIX *)world_mat2);
+        hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_WORLD, &world_mat2);
         ok(hr == D3D_OK, "SetTransform returned %#08x\n", hr);
-        hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_PROJECTION, (D3DMATRIX *)proj_mat);
+        hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_PROJECTION, &proj_mat);
         ok(hr == D3D_OK, "SetTransform returned %#08x\n", hr);
 
         hr = IDirect3DDevice7_Clear(device, 0, NULL, D3DCLEAR_TARGET, 0xffff00ff, 0.0, 0);
@@ -691,9 +697,9 @@ static void fog_test(IDirect3DDevice7 *device)
         color = getPixelColor(device, 160, 120);
         ok(color_match(color, 0x0000ff00, 1), "Fogged out quad has color %08x\n", color);
 
-        hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_WORLD, (D3DMATRIX *)ident_mat);
+        hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_WORLD, &ident_mat);
         ok(hr == D3D_OK, "SetTransform returned %#08x\n", hr);
-        hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_PROJECTION, (D3DMATRIX *)ident_mat);
+        hr = IDirect3DDevice7_SetTransform(device, D3DTRANSFORMSTATE_PROJECTION, &ident_mat);
         ok(hr == D3D_OK, "SetTransform returned %#08x\n", hr);
     }
     else
@@ -930,19 +936,24 @@ static void alpha_test(IDirect3DDevice7 *device)
     DWORD color, red, green, blue;
     DDSURFACEDESC2 ddsd;
 
-    struct vertex quad1[] =
+    struct
     {
-        {-1.0f, -1.0f,   0.1f,                          0x4000ff00},
-        {-1.0f,  0.0f,   0.1f,                          0x4000ff00},
-        { 1.0f, -1.0f,   0.1f,                          0x4000ff00},
-        { 1.0f,  0.0f,   0.1f,                          0x4000ff00},
-    };
-    struct vertex quad2[] =
+        struct vec3 position;
+        DWORD diffuse;
+    }
+    quad1[] =
     {
-        {-1.0f,  0.0f,   0.1f,                          0xc00000ff},
-        {-1.0f,  1.0f,   0.1f,                          0xc00000ff},
-        { 1.0f,  0.0f,   0.1f,                          0xc00000ff},
-        { 1.0f,  1.0f,   0.1f,                          0xc00000ff},
+        {{-1.0f, -1.0f, 0.1f}, 0x4000ff00},
+        {{-1.0f,  0.0f, 0.1f}, 0x4000ff00},
+        {{ 1.0f, -1.0f, 0.1f}, 0x4000ff00},
+        {{ 1.0f,  0.0f, 0.1f}, 0x4000ff00},
+    },
+    quad2[] =
+    {
+        {{-1.0f,  0.0f, 0.1f}, 0xc00000ff},
+        {{-1.0f,  1.0f, 0.1f}, 0xc00000ff},
+        {{ 1.0f,  0.0f, 0.1f}, 0xc00000ff},
+        {{ 1.0f,  1.0f, 0.1f}, 0xc00000ff},
     };
     static float composite_quad[][5] = {
         { 0.0f, -1.0f, 0.1f, 0.0f, 1.0f},
@@ -2230,16 +2241,24 @@ static void D3D3_ViewportClearTest(void)
     D3DVIEWPORT2 vp_data;
     DWORD color, red, green, blue;
     D3DRECT rect;
-    float mat[16] = { 1.0f, 0.0f, 0.0f, 0.0f,
-                      0.0f, 1.0f, 0.0f, 0.0f,
-                      0.0f, 0.0f, 1.0f, 0.0f,
-                      0.0f, 0.0f, 0.0f, 1.0f };
-    struct vertex quad[] =
+    D3DMATRIX mat =
     {
-        {-1.0f, -1.0f,   0.1f,                          0xffffffff},
-        {-1.0f,  1.0f,   0.1f,                          0xffffffff},
-        { 1.0f,  1.0f,   0.1f,                          0xffffffff},
-        { 1.0f, -1.0f,   0.1f,                          0xffffffff},
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
+    };
+    struct
+    {
+        struct vec3 position;
+        DWORD diffuse;
+    }
+    quad[] =
+    {
+        {{-1.0f, -1.0f, 0.1f}, 0xffffffff},
+        {{-1.0f,  1.0f, 0.1f}, 0xffffffff},
+        {{ 1.0f,  1.0f, 0.1f}, 0xffffffff},
+        {{ 1.0f, -1.0f, 0.1f}, 0xffffffff},
     };
 
     WORD Indices[] = {0, 1, 2, 2, 3, 0};
@@ -2335,11 +2354,11 @@ static void D3D3_ViewportClearTest(void)
     hr = IDirect3DDevice3_BeginScene(Direct3DDevice3);
     ok(hr == D3D_OK, "IDirect3DDevice3_BeginScene failed with %08x\n", hr);
 
-    hr = IDirect3DDevice3_SetTransform(Direct3DDevice3, D3DTRANSFORMSTATE_WORLD, (D3DMATRIX *) mat);
+    hr = IDirect3DDevice3_SetTransform(Direct3DDevice3, D3DTRANSFORMSTATE_WORLD, &mat);
     ok(hr == D3D_OK, "IDirect3DDevice3_SetTransform returned %08x\n", hr);
-    hr = IDirect3DDevice3_SetTransform(Direct3DDevice3, D3DTRANSFORMSTATE_VIEW, (D3DMATRIX *)mat);
+    hr = IDirect3DDevice3_SetTransform(Direct3DDevice3, D3DTRANSFORMSTATE_VIEW, &mat);
     ok(hr == D3D_OK, "IDirect3DDevice3_SetTransform returned %08x\n", hr);
-    hr = IDirect3DDevice3_SetTransform(Direct3DDevice3, D3DTRANSFORMSTATE_PROJECTION, (D3DMATRIX *) mat);
+    hr = IDirect3DDevice3_SetTransform(Direct3DDevice3, D3DTRANSFORMSTATE_PROJECTION, &mat);
     ok(hr == D3D_OK, "IDirect3DDevice3_SetTransform returned %08x\n", hr);
     hr = IDirect3DDevice3_SetRenderState(Direct3DDevice3, D3DRENDERSTATE_CLIPPING, FALSE);
     ok(hr == D3D_OK, "IDirect3DDevice3_SetRenderState returned %08x\n", hr);
@@ -2964,47 +2983,57 @@ out:
  */
 static void depth_clamp_test(IDirect3DDevice7 *device)
 {
-    struct tvertex quad1[] =
+    struct
     {
-        {  0.0f,   0.0f,  5.0f, 1.0f, 0xff002b7f},
-        {640.0f,   0.0f,  5.0f, 1.0f, 0xff002b7f},
-        {  0.0f, 480.0f,  5.0f, 1.0f, 0xff002b7f},
-        {640.0f, 480.0f,  5.0f, 1.0f, 0xff002b7f},
+        struct vec4 position;
+        DWORD diffuse;
+    }
+    quad1[] =
+    {
+        {{  0.0f,   0.0f,  5.0f, 1.0f}, 0xff002b7f},
+        {{640.0f,   0.0f,  5.0f, 1.0f}, 0xff002b7f},
+        {{  0.0f, 480.0f,  5.0f, 1.0f}, 0xff002b7f},
+        {{640.0f, 480.0f,  5.0f, 1.0f}, 0xff002b7f},
+    },
+    quad2[] =
+    {
+        {{  0.0f, 300.0f, 10.0f, 1.0f}, 0xfff9e814},
+        {{640.0f, 300.0f, 10.0f, 1.0f}, 0xfff9e814},
+        {{  0.0f, 360.0f, 10.0f, 1.0f}, 0xfff9e814},
+        {{640.0f, 360.0f, 10.0f, 1.0f}, 0xfff9e814},
+    },
+    quad3[] =
+    {
+        {{112.0f, 108.0f,  5.0f, 1.0f}, 0xffffffff},
+        {{208.0f, 108.0f,  5.0f, 1.0f}, 0xffffffff},
+        {{112.0f, 204.0f,  5.0f, 1.0f}, 0xffffffff},
+        {{208.0f, 204.0f,  5.0f, 1.0f}, 0xffffffff},
+    },
+    quad4[] =
+    {
+        {{ 42.0f,  41.0f, 10.0f, 1.0f}, 0xffffffff},
+        {{112.0f,  41.0f, 10.0f, 1.0f}, 0xffffffff},
+        {{ 42.0f, 108.0f, 10.0f, 1.0f}, 0xffffffff},
+        {{112.0f, 108.0f, 10.0f, 1.0f}, 0xffffffff},
     };
-    struct tvertex quad2[] =
+    struct
     {
-        {  0.0f, 300.0f, 10.0f, 1.0f, 0xfff9e814},
-        {640.0f, 300.0f, 10.0f, 1.0f, 0xfff9e814},
-        {  0.0f, 360.0f, 10.0f, 1.0f, 0xfff9e814},
-        {640.0f, 360.0f, 10.0f, 1.0f, 0xfff9e814},
-    };
-    struct tvertex quad3[] =
+        struct vec3 position;
+        DWORD diffuse;
+    }
+    quad5[] =
     {
-        {112.0f, 108.0f,  5.0f, 1.0f, 0xffffffff},
-        {208.0f, 108.0f,  5.0f, 1.0f, 0xffffffff},
-        {112.0f, 204.0f,  5.0f, 1.0f, 0xffffffff},
-        {208.0f, 204.0f,  5.0f, 1.0f, 0xffffffff},
-    };
-    struct tvertex quad4[] =
+        {{-0.5f,  0.5f, 10.0f}, 0xff14f914},
+        {{ 0.5f,  0.5f, 10.0f}, 0xff14f914},
+        {{-0.5f, -0.5f, 10.0f}, 0xff14f914},
+        {{ 0.5f, -0.5f, 10.0f}, 0xff14f914},
+    },
+    quad6[] =
     {
-        { 42.0f,  41.0f, 10.0f, 1.0f, 0xffffffff},
-        {112.0f,  41.0f, 10.0f, 1.0f, 0xffffffff},
-        { 42.0f, 108.0f, 10.0f, 1.0f, 0xffffffff},
-        {112.0f, 108.0f, 10.0f, 1.0f, 0xffffffff},
-    };
-    struct vertex quad5[] =
-    {
-        { -0.5f,   0.5f, 10.0f,       0xff14f914},
-        {  0.5f,   0.5f, 10.0f,       0xff14f914},
-        { -0.5f,  -0.5f, 10.0f,       0xff14f914},
-        {  0.5f,  -0.5f, 10.0f,       0xff14f914},
-    };
-    struct vertex quad6[] =
-    {
-        { -1.0f,   0.5f, 10.0f,       0xfff91414},
-        {  1.0f,   0.5f, 10.0f,       0xfff91414},
-        { -1.0f,  0.25f, 10.0f,       0xfff91414},
-        {  1.0f,  0.25f, 10.0f,       0xfff91414},
+        {{-1.0f, 0.5f,  10.0f}, 0xfff91414},
+        {{ 1.0f, 0.5f,  10.0f}, 0xfff91414},
+        {{-1.0f, 0.25f, 10.0f}, 0xfff91414},
+        {{ 1.0f, 0.25f, 10.0f}, 0xfff91414},
     };
 
     D3DVIEWPORT7 vp;

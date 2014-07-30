@@ -3764,13 +3764,44 @@ static void _test_form_elements(unsigned line, IUnknown *unk)
     IHTMLFormElement_Release(form);
 }
 
+#define test_form_reset(a) _test_form_reset(__LINE__,a)
+static void _test_form_reset(unsigned line, IUnknown *unk)
+{
+    IHTMLFormElement *form = _get_form_iface(line, unk);
+    HRESULT hres;
+
+    hres = IHTMLFormElement_reset(form);
+    ok_(__FILE__,line)(hres == S_OK, "reset failed: %08x\n", hres);
+
+    IHTMLFormElement_Release(form);
+}
+
+static void test_form_target(IUnknown *unk)
+{
+    IHTMLFormElement *form = get_form_iface(unk);
+    HRESULT hres;
+    BSTR str;
+    static const char target[] = "_blank";
+
+    str = a2bstr(target);
+    hres = IHTMLFormElement_put_target(form, str);
+    ok(hres == S_OK, "put_target(%s) failed: %08x\n", target, hres);
+    SysFreeString(str);
+
+    hres = IHTMLFormElement_get_target(form, &str);
+    ok(hres == S_OK, "get_target failed: %08x\n", hres);
+    ok(!strcmp_wa(str, target), "Expected %s, got %s\n", target, wine_dbgstr_w(str));
+    SysFreeString(str);
+
+    IHTMLFormElement_Release(form);
+}
+
 #define test_meta_name(a,b) _test_meta_name(__LINE__,a,b)
 static void _test_meta_name(unsigned line, IUnknown *unk, const char *exname)
 {
     IHTMLMetaElement *meta;
     BSTR name = NULL;
     HRESULT hres;
-
 
     meta = _get_metaelem_iface(line, unk);
     hres = IHTMLMetaElement_get_name(meta, &name);
@@ -3787,7 +3818,6 @@ static void _test_meta_content(unsigned line, IUnknown *unk, const char *exconte
     BSTR content = NULL;
     HRESULT hres;
 
-
     meta = _get_metaelem_iface(line, unk);
     hres = IHTMLMetaElement_get_content(meta, &content);
     ok_(__FILE__,line)(hres == S_OK, "get_content failed: %08x\n", hres);
@@ -3803,13 +3833,46 @@ static void _test_meta_httpequiv(unsigned line, IUnknown *unk, const char *exval
     BSTR val = NULL;
     HRESULT hres;
 
-
     meta = _get_metaelem_iface(line, unk);
     hres = IHTMLMetaElement_get_httpEquiv(meta, &val);
     ok_(__FILE__,line)(hres == S_OK, "get_httpEquiv failed: %08x\n", hres);
     ok_(__FILE__,line)(!strcmp_wa(val, exval), "httpEquiv = %s, expected %s\n", wine_dbgstr_w(val), exval);
     SysFreeString(val);
     IHTMLMetaElement_Release(meta);
+}
+
+#define test_meta_charset(a,b) _test_meta_charset(__LINE__,a,b)
+static void _test_meta_charset(unsigned line, IUnknown *unk, const char *exval)
+{
+    IHTMLMetaElement *meta;
+    BSTR val = NULL;
+    HRESULT hres;
+
+    meta = _get_metaelem_iface(line, unk);
+    hres = IHTMLMetaElement_get_charset(meta, &val);
+    ok_(__FILE__,line)(hres == S_OK, "get_charset failed: %08x\n", hres);
+    if(exval)
+        ok_(__FILE__,line)(!strcmp_wa(val, exval), "charset = %s, expected %s\n", wine_dbgstr_w(val), exval);
+    else
+        ok_(__FILE__,line)(!val, "charset = %s, expected NULL\n", wine_dbgstr_w(val));
+    SysFreeString(val);
+    IHTMLMetaElement_Release(meta);
+}
+
+#define set_meta_charset(a,b) _set_meta_charset(__LINE__,a,b)
+static void _set_meta_charset(unsigned line, IUnknown *unk, const char *vala)
+{
+    BSTR val = a2bstr(vala);
+    IHTMLMetaElement *meta;
+    HRESULT hres;
+
+    meta = _get_metaelem_iface(line, unk);
+    hres = IHTMLMetaElement_put_charset(meta, val);
+    ok_(__FILE__,line)(hres == S_OK, "put_charset failed: %08x\n", hres);
+    SysFreeString(val);
+    IHTMLMetaElement_Release(meta);
+
+    _test_meta_charset(line, unk, vala);
 }
 
 #define test_link_media(a,b) _test_link_media(__LINE__,a,b)
@@ -5243,9 +5306,16 @@ static void test_doc_elem(IHTMLDocument2 *doc)
     IHTMLElement *elem;
     IHTMLDocument3 *doc3;
     HRESULT hres;
+    BSTR bstr;
 
     hres = IHTMLDocument2_QueryInterface(doc, &IID_IHTMLDocument3, (void**)&doc3);
     ok(hres == S_OK, "QueryInterface(IID_IHTMLDocument3) failed: %08x\n", hres);
+
+    hres = IHTMLDocument2_toString(doc, &bstr);
+    ok(hres == S_OK, "toString failed: %08x\n", hres);
+    ok(!strcmp_wa(bstr, "[object]"),
+            "toString returned %s, expected [object]\n", wine_dbgstr_w(bstr));
+    SysFreeString(bstr);
 
     hres = IHTMLDocument3_get_documentElement(doc3, &elem);
     IHTMLDocument3_Release(doc3);
@@ -5730,10 +5800,22 @@ static void _test_tr_possess(unsigned line, IHTMLElement *elem,
 static void test_tr_modify(IHTMLElement *elem, IHTMLTableRow *row)
 {
     HRESULT hres;
+    IDispatch *disp;
+    IUnknown *unk;
 
     hres = IHTMLTableRow_deleteCell(row, 0);
     ok(hres == S_OK, "deleteCell failed: %08x\n", hres);
     test_tr_possess(elem, row, 1, "td2");
+
+    hres = IHTMLTableRow_insertCell(row, 0, &disp);
+    ok(hres == S_OK, "insertCell failed: %08x\n", hres);
+    ok(disp != NULL, "disp == NULL\n");
+    hres = IDispatch_QueryInterface(disp, &IID_IHTMLTableCell, (void **)&unk);
+    ok(hres == S_OK, "Could not get IID_IHTMLTableCell interface: %08x\n", hres);
+    if (SUCCEEDED(hres))
+        IUnknown_Release(unk);
+    test_tr_possess(elem, row, 2, "td2");
+    IDispatch_Release(disp);
 }
 
 static void test_tr_elem(IHTMLElement *elem)
@@ -5833,6 +5915,25 @@ static void test_tr_elem(IHTMLElement *elem)
     IHTMLTableRow_Release(row);
 }
 
+static void test_td_elem(IHTMLElement *elem)
+{
+    IHTMLTableCell *cell;
+    HRESULT hres;
+    LONG lval;
+
+    hres = IHTMLElement_QueryInterface(elem, &IID_IHTMLTableCell, (void**)&cell);
+    ok(hres == S_OK, "Could not get IHTMLTableRow iface: %08x\n", hres);
+    if(FAILED(hres))
+        return;
+
+    lval = 0xdeadbeef;
+    hres = IHTMLTableCell_get_cellIndex(cell, &lval);
+    ok(hres == S_OK, "get cellIndex failed: %08x\n", hres);
+    ok(lval == 1, "Expected 1, got %d\n", lval);
+
+    IHTMLTableCell_Release(cell);
+}
+
 static void test_label_elem(IHTMLElement *elem)
 {
     IHTMLLabelElement *label;
@@ -5892,6 +5993,7 @@ static void test_table_elem(IHTMLElement *elem)
 {
     IHTMLElementCollection *col;
     IHTMLTable *table;
+    IHTMLTable3 *table3;
     IHTMLDOMNode *node;
     VARIANT v;
     HRESULT hres;
@@ -5904,6 +6006,11 @@ static void test_table_elem(IHTMLElement *elem)
 
     hres = IHTMLElement_QueryInterface(elem, &IID_IHTMLTable, (void**)&table);
     ok(hres == S_OK, "Could not get IHTMLTable iface: %08x\n", hres);
+    if(FAILED(hres))
+        return;
+
+    hres = IHTMLElement_QueryInterface(elem, &IID_IHTMLTable3, (void**)&table3);
+    ok(hres == S_OK, "Could not get IHTMLTable3 iface: %08x\n", hres);
     if(FAILED(hres))
         return;
 
@@ -6044,6 +6151,17 @@ static void test_table_elem(IHTMLElement *elem)
     ok(!strcmp_wa(V_BSTR(&v), "11"), "Expected 11, got %s\n", wine_dbgstr_w(V_BSTR(&v)));
     VariantClear(&v);
 
+    bstr = a2bstr("summary");
+    hres = IHTMLTable3_put_summary(table3, bstr);
+    ok(hres == S_OK, "put_summary = %08x\n", hres);
+    SysFreeString(bstr);
+
+    hres = IHTMLTable3_get_summary(table3, &bstr);
+    ok(hres == S_OK, "get_summary = %08x\n", hres);
+    ok(!strcmp_wa(bstr, "summary"), "Expected summary, got %s\n", wine_dbgstr_w(bstr));
+    SysFreeString(bstr);
+
+    IHTMLTable3_Release(table3);
     IHTMLTable_Release(table);
 }
 
@@ -6794,6 +6912,13 @@ static void test_elems(IHTMLDocument2 *doc)
         IHTMLElement_Release(elem);
     }
 
+    elem = get_doc_elem_by_id(doc, "td2");
+    ok(elem != NULL, "elem == NULL\n");
+    if(elem) {
+        test_td_elem(elem);
+        IHTMLElement_Release(elem);
+    }
+
     elem = get_doc_elem_by_id(doc, "row2");
     ok(elem != NULL, "elem == NULL\n");
     if(elem) {
@@ -6875,6 +7000,8 @@ static void test_elems(IHTMLDocument2 *doc)
         test_meta_name((IUnknown*)elem, "meta name");
         test_meta_content((IUnknown*)elem, "text/html; charset=utf-8");
         test_meta_httpequiv((IUnknown*)elem, "Content-Type");
+        test_meta_charset((IUnknown*)elem, NULL);
+        set_meta_charset((IUnknown*)elem, "utf-8");
         IHTMLElement_Release(elem);
     }
 
@@ -7268,6 +7395,8 @@ static void test_elems2(IHTMLDocument2 *doc)
         test_form_put_encoding((IUnknown*)elem, E_INVALIDARG, "image/png");
         test_form_encoding((IUnknown*)elem, "multipart/form-data");
         test_form_elements((IUnknown*)elem);
+        test_form_reset((IUnknown*)elem);
+        test_form_target((IUnknown*)elem);
         IHTMLElement_Release(elem);
     }
 

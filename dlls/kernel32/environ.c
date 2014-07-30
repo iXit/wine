@@ -176,6 +176,8 @@ DWORD WINAPI GetEnvironmentVariableA( LPCSTR name, LPSTR value, DWORD size )
         return 0;
     }
 
+    /* limit the size to sane values */
+    size = min(size, 32767);
     if (!(valueW = HeapAlloc(GetProcessHeap(), 0, size * sizeof(WCHAR))))
         return 0;
 
@@ -488,4 +490,24 @@ void ENV_CopyStartupInformation(void)
     startup_infoA.hStdError            = rupp->hStdError;
 
     RtlReleasePebLock();
+}
+
+/***********************************************************************
+ *              GetFirmwareEnvironmentVariableA         (KERNEL32.@)
+ */
+DWORD WINAPI GetFirmwareEnvironmentVariableA(LPCSTR name, LPCSTR guid, PVOID buffer, DWORD size)
+{
+    FIXME("stub: %s %s %p %u\n", debugstr_a(name), debugstr_a(guid), buffer, size);
+    SetLastError(ERROR_INVALID_FUNCTION);
+    return 0;
+}
+
+/***********************************************************************
+ *              GetFirmwareEnvironmentVariableA         (KERNEL32.@)
+ */
+DWORD WINAPI GetFirmwareEnvironmentVariableW(LPCWSTR name, LPCWSTR guid, PVOID buffer, DWORD size)
+{
+    FIXME("stub: %s %s %p %u\n", debugstr_w(name), debugstr_w(guid), buffer, size);
+    SetLastError(ERROR_INVALID_FUNCTION);
+    return 0;
 }

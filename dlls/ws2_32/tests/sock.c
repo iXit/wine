@@ -5454,6 +5454,7 @@ static void test_WSARecv(void)
 
     send(src, "test message", sizeof("test message"), 0);
     thread = CreateThread(NULL, 0, recv_thread, &dest, 0, &id);
+    WaitForSingleObject(thread, 3000);
     CloseHandle(thread);
 
 end:
@@ -6833,6 +6834,7 @@ static void test_completion_port(void)
     GUID acceptExGuid = WSAID_ACCEPTEX;
     LPFN_ACCEPTEX pAcceptEx = NULL;
 
+    memset(buf, 0, sizeof(buf));
     previous_port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
     ok( previous_port != NULL, "Failed to create completion port %u\n", GetLastError());
 

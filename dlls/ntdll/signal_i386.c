@@ -32,7 +32,6 @@
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
-
 #ifdef HAVE_SYS_PARAM_H
 # include <sys/param.h>
 #endif
@@ -43,16 +42,17 @@
 #  include <sys/syscall.h>
 # endif
 #endif
-
 #ifdef HAVE_SYS_VM86_H
 # include <sys/vm86.h>
 #endif
-
 #ifdef HAVE_SYS_SIGNAL_H
 # include <sys/signal.h>
 #endif
 #ifdef HAVE_SYS_SYSCTL_H
 # include <sys/sysctl.h>
+#endif
+#ifdef HAVE_SYS_UCONTEXT_H
+# include <sys/ucontext.h>
 #endif
 
 #include "ntstatus.h"
@@ -100,44 +100,58 @@ typedef struct
  * signal context platform-specific definitions
  */
 
-#ifdef __ANDROID__
+#ifdef __linux__
+
+#ifndef HAVE_SYS_UCONTEXT_H
+
+enum
+{
+    REG_GS, REG_FS, REG_ES, REG_DS, REG_EDI, REG_ESI, REG_EBP, REG_ESP,
+    REG_EBX, REG_EDX, REG_ECX, REG_EAX, REG_TRAPNO, REG_ERR, REG_EIP,
+    REG_CS, REG_EFL, REG_UESP, REG_SS, NGREG
+};
+
+typedef int greg_t;
+typedef greg_t gregset_t[NGREG];
+
+struct _libc_fpreg
+{
+    unsigned short significand[4];
+    unsigned short exponent;
+};
+
+struct _libc_fpstate
+{
+    unsigned long cw;
+    unsigned long sw;
+    unsigned long tag;
+    unsigned long ipoff;
+    unsigned long cssel;
+    unsigned long dataoff;
+    unsigned long datasel;
+    struct _libc_fpreg _st[8];
+    unsigned long status;
+};
+
+typedef struct _libc_fpstate* fpregset_t;
+
+typedef struct
+{
+    gregset_t     gregs;
+    fpregset_t    fpregs;
+    unsigned long oldmask;
+    unsigned long cr2;
+} mcontext_t;
 
 typedef struct ucontext
 {
     unsigned long     uc_flags;
     struct ucontext  *uc_link;
     stack_t           uc_stack;
-    struct sigcontext uc_mcontext;
+    mcontext_t        uc_mcontext;
     sigset_t          uc_sigmask;
-} SIGCONTEXT;
-
-#define EAX_sig(context)     ((context)->uc_mcontext.eax)
-#define EBX_sig(context)     ((context)->uc_mcontext.ebx)
-#define ECX_sig(context)     ((context)->uc_mcontext.ecx)
-#define EDX_sig(context)     ((context)->uc_mcontext.edx)
-#define ESI_sig(context)     ((context)->uc_mcontext.esi)
-#define EDI_sig(context)     ((context)->uc_mcontext.edi)
-#define EBP_sig(context)     ((context)->uc_mcontext.ebp)
-#define ESP_sig(context)     ((context)->uc_mcontext.esp)
-
-#define CS_sig(context)      ((context)->uc_mcontext.cs)
-#define DS_sig(context)      ((context)->uc_mcontext.ds)
-#define ES_sig(context)      ((context)->uc_mcontext.es)
-#define SS_sig(context)      ((context)->uc_mcontext.ss)
-#define FS_sig(context)      ((context)->uc_mcontext.fs)
-#define GS_sig(context)      ((context)->uc_mcontext.gs)
-
-#define EFL_sig(context)     ((context)->uc_mcontext.eflags)
-#define EIP_sig(context)     ((context)->uc_mcontext.eip)
-#define TRAP_sig(context)    ((context)->uc_mcontext.trapno)
-#define ERROR_sig(context)   ((context)->uc_mcontext.err)
-
-#define FPU_sig(context)     ((FLOATING_SAVE_AREA*)((context)->uc_mcontext.fpstate))
-#define FPUX_sig(context)    (FPU_sig(context) && !((context)->uc_mcontext.fpstate->status >> 16) ? (XMM_SAVE_AREA32 *)(FPU_sig(context) + 1) : NULL)
-
-#elif defined (__linux__)
-
-typedef ucontext_t SIGCONTEXT;
+} ucontext_t;
+#endif /* HAVE_SYS_UCONTEXT_H */
 
 #define EAX_sig(context)     ((context)->uc_mcontext.gregs[REG_EAX])
 #define EBX_sig(context)     ((context)->uc_mcontext.gregs[REG_EBX])
@@ -213,10 +227,18 @@ __ASM_GLOBAL_FUNC(vm86_enter,
 # define __HAVE_VM86
 #endif
 
+#ifdef __ANDROID__
+/* custom signal restorer since we may have unmapped the one in vdso, and bionic doesn't check for that */
+void rt_sigreturn(void);
+__ASM_GLOBAL_FUNC( rt_sigreturn,
+                   "movl $173,%eax\n\t"  /* NR_rt_sigreturn */
+                   "int $0x80" );
+#endif
+
 #elif defined (__BSDI__)
 
 #include <machine/frame.h>
-typedef struct trapframe SIGCONTEXT;
+typedef struct trapframe ucontext_t;
 
 #define EAX_sig(context)     ((context)->tf_eax)
 #define EBX_sig(context)     ((context)->tf_ebx)
@@ -243,36 +265,32 @@ typedef struct trapframe SIGCONTEXT;
 
 #include <machine/trap.h>
 
-typedef struct sigcontext SIGCONTEXT;
+#define EAX_sig(context)     ((context)->uc_mcontext.mc_eax)
+#define EBX_sig(context)     ((context)->uc_mcontext.mc_ebx)
+#define ECX_sig(context)     ((context)->uc_mcontext.mc_ecx)
+#define EDX_sig(context)     ((context)->uc_mcontext.mc_edx)
+#define ESI_sig(context)     ((context)->uc_mcontext.mc_esi)
+#define EDI_sig(context)     ((context)->uc_mcontext.mc_edi)
+#define EBP_sig(context)     ((context)->uc_mcontext.mc_ebp)
 
-#define EAX_sig(context)     ((context)->sc_eax)
-#define EBX_sig(context)     ((context)->sc_ebx)
-#define ECX_sig(context)     ((context)->sc_ecx)
-#define EDX_sig(context)     ((context)->sc_edx)
-#define ESI_sig(context)     ((context)->sc_esi)
-#define EDI_sig(context)     ((context)->sc_edi)
-#define EBP_sig(context)     ((context)->sc_ebp)
+#define CS_sig(context)      ((context)->uc_mcontext.mc_cs)
+#define DS_sig(context)      ((context)->uc_mcontext.mc_ds)
+#define ES_sig(context)      ((context)->uc_mcontext.mc_es)
+#define FS_sig(context)      ((context)->uc_mcontext.mc_fs)
+#define GS_sig(context)      ((context)->uc_mcontext.mc_gs)
+#define SS_sig(context)      ((context)->uc_mcontext.mc_ss)
 
-#define CS_sig(context)      ((context)->sc_cs)
-#define DS_sig(context)      ((context)->sc_ds)
-#define ES_sig(context)      ((context)->sc_es)
-#define FS_sig(context)      ((context)->sc_fs)
-#define GS_sig(context)      ((context)->sc_gs)
-#define SS_sig(context)      ((context)->sc_ss)
+#define TRAP_sig(context)    ((context)->uc_mcontext.mc_trapno)
+#define ERROR_sig(context)   ((context)->uc_mcontext.mc_err)
+#define EFL_sig(context)     ((context)->uc_mcontext.mc_eflags)
 
-#define TRAP_sig(context)    ((context)->sc_trapno)
-#define ERROR_sig(context)   ((context)->sc_err)
-#define EFL_sig(context)     ((context)->sc_eflags)
-
-#define EIP_sig(context)     ((context)->sc_eip)
-#define ESP_sig(context)     ((context)->sc_esp)
+#define EIP_sig(context)     ((context)->uc_mcontext.mc_eip)
+#define ESP_sig(context)     ((context)->uc_mcontext.mc_esp)
 
 #define FPU_sig(context)     NULL  /* FIXME */
 #define FPUX_sig(context)    NULL  /* FIXME */
 
 #elif defined (__OpenBSD__)
-
-typedef struct sigcontext SIGCONTEXT;
 
 #define EAX_sig(context)     ((context)->sc_eax)
 #define EBX_sig(context)     ((context)->sc_ebx)
@@ -306,11 +324,6 @@ typedef struct sigcontext SIGCONTEXT;
 
 #ifdef _SCO_DS
 #include <sys/regset.h>
-#endif
-#include <sys/ucontext.h>
-typedef struct ucontext SIGCONTEXT;
-
-#ifdef _SCO_DS
 #define gregs regs
 #endif
 
@@ -351,9 +364,6 @@ typedef struct ucontext SIGCONTEXT;
 #define FPUX_sig(context)    NULL  /* FIXME */
 
 #elif defined (__APPLE__)
-# include <sys/ucontext.h>
-
-typedef ucontext_t SIGCONTEXT;
 
 /* work around silly renaming of struct members in OS X 10.5 */
 #if __DARWIN_UNIX03 && defined(_STRUCT_X86_EXCEPTION_STATE32)
@@ -401,11 +411,6 @@ typedef ucontext_t SIGCONTEXT;
 #endif
 
 #elif defined(__NetBSD__)
-# include <sys/ucontext.h>
-# include <sys/types.h>
-# include <signal.h>
-
-typedef ucontext_t SIGCONTEXT;
 
 #define EAX_sig(context)       ((context)->uc_mcontext.__gregs[_REG_EAX])
 #define EBX_sig(context)       ((context)->uc_mcontext.__gregs[_REG_EBX])
@@ -435,7 +440,6 @@ typedef ucontext_t SIGCONTEXT;
 #define T_XMMFLT T_XMM
 
 #elif defined(__GNU__)
-typedef ucontext_t SIGCONTEXT;
 
 #define EAX_sig(context)     ((context)->uc_mcontext.gregs[REG_EAX])
 #define EBX_sig(context)     ((context)->uc_mcontext.gregs[REG_EBX])
@@ -552,7 +556,7 @@ static inline int dispatch_signal(unsigned int sig)
  *
  * Get the trap code for a signal.
  */
-static inline enum i386_trap_code get_trap_code( const SIGCONTEXT *sigcontext )
+static inline enum i386_trap_code get_trap_code( const ucontext_t *sigcontext )
 {
 #ifdef TRAP_sig
     return TRAP_sig(sigcontext);
@@ -566,7 +570,7 @@ static inline enum i386_trap_code get_trap_code( const SIGCONTEXT *sigcontext )
  *
  * Get the error code for a signal.
  */
-static inline WORD get_error_code( const SIGCONTEXT *sigcontext )
+static inline WORD get_error_code( const ucontext_t *sigcontext )
 {
 #ifdef ERROR_sig
     return ERROR_sig(sigcontext);
@@ -951,7 +955,7 @@ __ASM_GLOBAL_FUNC( clear_alignment_flag,
  * Handler initialization when the full context is not needed.
  * Return the stack pointer to use for pushing the exception data.
  */
-static inline void *init_handler( const SIGCONTEXT *sigcontext, WORD *fs, WORD *gs )
+static inline void *init_handler( const ucontext_t *sigcontext, WORD *fs, WORD *gs )
 {
     TEB *teb = get_current_teb();
 
@@ -1113,7 +1117,7 @@ static void fpux_to_fpu( FLOATING_SAVE_AREA *fpu, const XMM_SAVE_AREA32 *fpux )
  *
  * Build a context structure from the signal info.
  */
-static inline void save_context( CONTEXT *context, const SIGCONTEXT *sigcontext, WORD fs, WORD gs )
+static inline void save_context( CONTEXT *context, const ucontext_t *sigcontext, WORD fs, WORD gs )
 {
     struct ntdll_thread_data * const regs = ntdll_get_thread_data();
     FLOATING_SAVE_AREA *fpu = FPU_sig(sigcontext);
@@ -1165,7 +1169,7 @@ static inline void save_context( CONTEXT *context, const SIGCONTEXT *sigcontext,
  *
  * Restore the signal info from the context.
  */
-static inline void restore_context( const CONTEXT *context, SIGCONTEXT *sigcontext )
+static inline void restore_context( const CONTEXT *context, ucontext_t *sigcontext )
 {
     struct ntdll_thread_data * const regs = ntdll_get_thread_data();
     FLOATING_SAVE_AREA *fpu = FPU_sig(sigcontext);
@@ -1658,7 +1662,7 @@ static BOOL check_atl_thunk( EXCEPTION_RECORD *rec, CONTEXT *context )
  *
  * Setup the exception record and context on the thread stack.
  */
-static EXCEPTION_RECORD *setup_exception_record( SIGCONTEXT *sigcontext, void *stack_ptr,
+static EXCEPTION_RECORD *setup_exception_record( ucontext_t *sigcontext, void *stack_ptr,
                                                  WORD fs, WORD gs, raise_func func )
 {
     struct stack_layout
@@ -1760,7 +1764,7 @@ static EXCEPTION_RECORD *setup_exception_record( SIGCONTEXT *sigcontext, void *s
  * sigcontext so that the return from the signal handler will call
  * the raise function.
  */
-static EXCEPTION_RECORD *setup_exception( SIGCONTEXT *sigcontext, raise_func func )
+static EXCEPTION_RECORD *setup_exception( ucontext_t *sigcontext, raise_func func )
 {
     WORD fs, gs;
     void *stack = init_handler( sigcontext, &fs, &gs );
@@ -1953,7 +1957,7 @@ static void segv_handler( int signal, siginfo_t *siginfo, void *sigcontext )
 {
     WORD fs, gs;
     EXCEPTION_RECORD *rec;
-    SIGCONTEXT *context = sigcontext;
+    ucontext_t *context = sigcontext;
     void *stack = init_handler( sigcontext, &fs, &gs );
 
     /* check for page fault inside the thread stack */
@@ -2035,7 +2039,7 @@ static void segv_handler( int signal, siginfo_t *siginfo, void *sigcontext )
  */
 static void trap_handler( int signal, siginfo_t *siginfo, void *sigcontext )
 {
-    SIGCONTEXT *context = sigcontext;
+    ucontext_t *context = sigcontext;
     EXCEPTION_RECORD *rec = setup_exception( context, raise_trap_exception );
 
     switch(get_trap_code(context))
@@ -2061,7 +2065,7 @@ static void trap_handler( int signal, siginfo_t *siginfo, void *sigcontext )
 static void fpe_handler( int signal, siginfo_t *siginfo, void *sigcontext )
 {
     CONTEXT *win_context;
-    SIGCONTEXT *context = sigcontext;
+    ucontext_t *context = sigcontext;
     EXCEPTION_RECORD *rec = setup_exception( context, raise_generic_exception );
 
     win_context = get_exception_context( rec );
@@ -2327,7 +2331,10 @@ void signal_init_process(void)
 #ifdef SA_ONSTACK
     sig_act.sa_flags |= SA_ONSTACK;
 #endif
-
+#ifdef __ANDROID__
+    sig_act.sa_flags |= SA_RESTORER;
+    sig_act.sa_restorer = rt_sigreturn;
+#endif
     sig_act.sa_sigaction = int_handler;
     if (sigaction( SIGINT, &sig_act, NULL ) == -1) goto error;
     sig_act.sa_sigaction = fpe_handler;

@@ -166,7 +166,7 @@ static HRESULT WINAPI StgStreamImpl_Read(
     /*
      * Advance the pointer for the number of positions read.
      */
-    This->currentPosition.u.LowPart += *pcbRead;
+    This->currentPosition.QuadPart += *pcbRead;
   }
 
   TRACE("<-- %08x\n", res);
@@ -247,12 +247,12 @@ static HRESULT WINAPI StgStreamImpl_Write(
   /*
    * Advance the position pointer for the number of positions written.
    */
-  This->currentPosition.u.LowPart += *pcbWritten;
+  This->currentPosition.QuadPart += *pcbWritten;
 
   if (SUCCEEDED(res))
     res = StorageBaseImpl_Flush(This->parentStorage);
 
-  TRACE("<-- S_OK, written %u\n", *pcbWritten);
+  TRACE("<-- %08x, written %u\n", res, *pcbWritten);
   return res;
 }
 

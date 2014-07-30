@@ -206,7 +206,7 @@ static const struct message parent_expand_seq[] = {
 };
 
 static const struct message parent_expand_kb_seq[] = {
-    { WM_NOTIFY, sent|id|optional, 0, 0, TVN_KEYDOWN },
+    { WM_NOTIFY, sent|id, 0, 0, TVN_KEYDOWN },
     { WM_NOTIFY, sent|id, 0, 0, TVN_ITEMEXPANDINGA },
     { WM_NOTIFY, sent|id, 0, 0, TVN_ITEMEXPANDEDA },
     { WM_CHANGEUISTATE, sent|optional },
@@ -221,7 +221,7 @@ static const struct message parent_collapse_2nd_kb_seq[] = {
 };
 
 static const struct message parent_expand_empty_kb_seq[] = {
-    { WM_NOTIFY, sent|id|optional, 0, 0, TVN_KEYDOWN },
+    { WM_NOTIFY, sent|id, 0, 0, TVN_KEYDOWN },
     { WM_CHANGEUISTATE, sent|optional },
     { 0 }
 };
@@ -1034,7 +1034,6 @@ static LRESULT CALLBACK parent_wnd_proc(HWND hWnd, UINT message, WPARAM wParam, 
         message != WM_GETICON &&
         message != WM_DEVICECHANGE)
     {
-        trace("parent: %p, %04x, %08lx, %08lx\n", hWnd, message, wParam, lParam);
         add_message(sequences, PARENT_SEQ_INDEX, &msg);
     }
 

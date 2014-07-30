@@ -465,7 +465,8 @@ static void InternetReadFile_test(int flags, const test_data_t *test)
     char *post_data = NULL;
     BOOL res, on_async = TRUE;
     CHAR buffer[4000];
-    DWORD length, exlen = 0, post_len = 0;
+    WCHAR wbuffer[4000];
+    DWORD length, length2, index, exlen = 0, post_len = 0;
     const char *types[2] = { "*", NULL };
     HINTERNET hi, hic = 0, hor = 0;
 
@@ -626,21 +627,82 @@ static void InternetReadFile_test(int flags, const test_data_t *test)
     ok(res, "InternetQueryOptionA(INTERNET_OPTION_URL) failed with error %d\n", GetLastError());
 
     length = sizeof(buffer)-1;
+    memset(buffer, 0x77, sizeof(buffer));
     res = HttpQueryInfoA(hor,HTTP_QUERY_RAW_HEADERS,buffer,&length,0x0);
     ok(res, "HttpQueryInfoA(HTTP_QUERY_RAW_HEADERS) failed with error %d\n", GetLastError());
-    buffer[length]=0;
+    /* show that the function writes data past the length returned */
+    ok(buffer[length-2], "Expected any header character, got 0x00\n");
+    ok(!buffer[length-1], "Expected 0x00, got %02X\n", buffer[length-1]);
+    ok(!buffer[length], "Expected 0x00, got %02X\n", buffer[length]);
+    ok(buffer[length+1] == 0x77, "Expected 0x77, got %02X\n", buffer[length+1]);
+
+    length2 = length;
+    res = HttpQueryInfoA(hor,HTTP_QUERY_RAW_HEADERS,buffer,&length2,0x0);
+    ok(!res, "Expected 0x00, got %d\n", res);
+    ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER, "Unexpected last error: %d\n", GetLastError());
+    ok(length2 == length+1, "Expected %d, got %d\n", length+1, length2);
+    /* the in length of the buffer must be +1 but the length returned does not count this */
+    length2 = length+1;
+    memset(buffer, 0x77, sizeof(buffer));
+    res = HttpQueryInfoA(hor,HTTP_QUERY_RAW_HEADERS,buffer,&length2,0x0);
+    ok(res, "HttpQueryInfoA(HTTP_QUERY_RAW_HEADERS) failed with error %d\n", GetLastError());
+    ok(buffer[length2] == 0x00, "Expected 0x00, got %02X\n", buffer[length2]);
+    ok(buffer[length2+1] == 0x77, "Expected 0x77, got %02X\n", buffer[length2+1]);
+    ok(length2 == length, "Value should not have changed: %d != %d\n", length2, length);
+
+    length = sizeof(wbuffer)-sizeof(WCHAR);
+    memset(wbuffer, 0x77, sizeof(wbuffer));
+    res = HttpQueryInfoW(hor, HTTP_QUERY_RAW_HEADERS, wbuffer, &length, 0x0);
+    ok(res, "HttpQueryInfoW(HTTP_QUERY_RAW_HEADERS) failed with error %d\n", GetLastError());
+    ok(length % sizeof(WCHAR) == 0, "Expected that length is a multiple of sizeof(WCHAR), got %d.\n", length);
+    length /= sizeof(WCHAR);
+    /* show that the function writes data past the length returned */
+    ok(wbuffer[length-2], "Expected any header character, got 0x0000\n");
+    ok(!wbuffer[length-1], "Expected 0x0000, got %04X\n", wbuffer[length-1]);
+    ok(!wbuffer[length], "Expected 0x0000, got %04X\n", wbuffer[length]);
+    ok(wbuffer[length+1] == 0x7777 || broken(wbuffer[length+1] != 0x7777),
+       "Expected 0x7777, got %04X\n", wbuffer[length+1]);
+
+    length2 = length*sizeof(WCHAR);
+    res = HttpQueryInfoW(hor,HTTP_QUERY_RAW_HEADERS,wbuffer,&length2,0x0);
+    ok(!res, "Expected 0x00, got %d\n", res);
+    ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER, "Unexpected last error: %d\n", GetLastError());
+    ok(length2 % sizeof(WCHAR) == 0, "Expected that length is a multiple of sizeof(WCHAR), got %d.\n", length2);
+    length2 /= sizeof(WCHAR);
+    ok(length2 == length+1, "Expected %d, got %d\n", length+1, length2);
+    /* the in length of the buffer must be +1 but the length returned does not count this */
+    length2 = (length+1)*sizeof(WCHAR);
+    memset(wbuffer, 0x77, sizeof(wbuffer));
+    res = HttpQueryInfoW(hor,HTTP_QUERY_RAW_HEADERS,wbuffer,&length2,0x0);
+    ok(res, "HttpQueryInfoW(HTTP_QUERY_RAW_HEADERS) failed with error %d\n", GetLastError());
+    ok(length2 % sizeof(WCHAR) == 0, "Expected that length is a multiple of sizeof(WCHAR), got %d.\n", length2);
+    length2 /= sizeof(WCHAR);
+    ok(!wbuffer[length2], "Expected 0x0000, got %04X\n", wbuffer[length2]);
+    ok(wbuffer[length2+1] == 0x7777, "Expected 0x7777, got %04X\n", wbuffer[length2+1]);
+    ok(length2 == length, "Value should not have changed: %d != %d\n", length2, length);
 
     length = sizeof(buffer);
     res = InternetQueryOptionA(hor, INTERNET_OPTION_URL, buffer, &length);
     ok(res, "InternetQueryOptionA(INTERNET_OPTION_URL) failed: %u\n", GetLastError());
     ok(!strcmp(buffer, test->redirected_url), "Wrong URL %s\n", buffer);
 
+    index = 0;
+    length = 0;
+    SetLastError(0xdeadbeef);
+    ok(HttpQueryInfoA(hor,HTTP_QUERY_CONTENT_LENGTH,NULL,&length,&index) == FALSE,"Query worked\n");
+    if(test->flags & TESTF_COMPRESSED)
+        ok(GetLastError() == ERROR_HTTP_HEADER_NOT_FOUND,
+           "expected ERROR_HTTP_HEADER_NOT_FOUND, got %u\n", GetLastError());
+    ok(index == 0, "Index was incremented\n");
+
+    index = 0;
     length = 16;
-    res = HttpQueryInfoA(hor,HTTP_QUERY_CONTENT_LENGTH,&buffer,&length,0x0);
+    res = HttpQueryInfoA(hor,HTTP_QUERY_CONTENT_LENGTH,&buffer,&length,&index);
     trace("Option HTTP_QUERY_CONTENT_LENGTH -> %i  %s  (%u)\n",res,buffer,GetLastError());
     if(test->flags & TESTF_COMPRESSED)
         ok(!res && GetLastError() == ERROR_HTTP_HEADER_NOT_FOUND,
            "expected ERROR_HTTP_HEADER_NOT_FOUND, got %x (%u)\n", res, GetLastError());
+    ok(!res || index == 1, "Index was not incremented although result is %x (index = %u)\n", res, index);
 
     length = 100;
     res = HttpQueryInfoA(hor,HTTP_QUERY_CONTENT_TYPE,buffer,&length,0x0);
@@ -1594,6 +1656,8 @@ static void HttpHeaders_test(void)
     strcpy(buffer,"Warning");
     ok(HttpQueryInfoA(hRequest,HTTP_QUERY_CUSTOM|HTTP_QUERY_FLAG_REQUEST_HEADERS,
                 buffer,&len,&index) == FALSE,"Query succeeded on a too small buffer\n");
+    ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER, "Unexpected last error: %d\n", GetLastError());
+    ok(index == 0, "Index was incremented\n");
     ok(strcmp(buffer,"Warning")==0, "incorrect string was returned(%s)\n",buffer); /* string not touched */
     ok(len == 6, "Invalid length (exp. 6, got %d)\n", len); /* unlike success, the length includes the NULL-terminator */
 
@@ -1947,7 +2011,7 @@ static const char *send_buffer;
 static DWORD CALLBACK server_thread(LPVOID param)
 {
     struct server_info *si = param;
-    int r, c, i, on, count = 0;
+    int r, c = -1, i, on, count = 0;
     SOCKET s;
     struct sockaddr_in sa;
     char buffer[0x100];
@@ -1983,7 +2047,8 @@ static DWORD CALLBACK server_thread(LPVOID param)
 
     do
     {
-        c = accept(s, NULL, NULL);
+        if(c == -1)
+            c = accept(s, NULL, NULL);
 
         memset(buffer, 0, sizeof buffer);
         for(i=0; i<(sizeof buffer-1); i++)
@@ -2189,6 +2254,16 @@ static DWORD CALLBACK server_thread(LPVOID param)
             else
                 send(c, notokmsg, sizeof(notokmsg)-1, 0);
         }
+        if (strstr(buffer, "HEAD /test_head")) {
+            static const char head_response[] =
+                "HTTP/1.1 200 OK\r\n"
+                "Connection: Keep-Alive\r\n"
+                "Content-Length: 100\r\n"
+                "\r\n";
+
+            send(c, head_response, sizeof(head_response), 0);
+            continue;
+        }
         if (strstr(buffer, "GET /send_from_buffer"))
             send(c, send_buffer, strlen(send_buffer), 0);
         if (strstr(buffer, "/test_cache_control_verb"))
@@ -2203,6 +2278,7 @@ static DWORD CALLBACK server_thread(LPVOID param)
 
         shutdown(c, 2);
         closesocket(c);
+        c = -1;
     } while (!last_request);
 
     closesocket(s);
@@ -3603,6 +3679,45 @@ static void test_response_without_headers(int port)
     InternetCloseHandle(hi);
 }
 
+static void test_head_request(int port)
+{
+    DWORD len, content_length;
+    HINTERNET ses, con, req;
+    BYTE buf[100];
+    BOOL ret;
+
+    ses = InternetOpenA("winetest", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    ok(ses != NULL, "InternetOpen failed\n");
+
+    con = InternetConnectA(ses, "localhost", port, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
+    ok(con != NULL, "InternetConnect failed\n");
+
+    req = HttpOpenRequestA(con, "HEAD", "/test_head", NULL, NULL, NULL, INTERNET_FLAG_KEEP_CONNECTION, 0);
+    ok(req != NULL, "HttpOpenRequest failed\n");
+
+    ret = HttpSendRequestA(req, NULL, 0, NULL, 0);
+    ok(ret, "HttpSendRequest failed: %u\n", GetLastError());
+
+    len = sizeof(content_length);
+    content_length = -1;
+    ret = HttpQueryInfoA(req, HTTP_QUERY_FLAG_NUMBER|HTTP_QUERY_CONTENT_LENGTH, &content_length, &len, 0);
+    ok(ret, "HttpQueryInfo dailed: %u\n", GetLastError());
+    ok(len == sizeof(DWORD), "len = %u\n", len);
+    ok(content_length == 100, "content_length = %u\n", content_length);
+
+    len = -1;
+    ret = InternetReadFile(req, buf, sizeof(buf), &len);
+    ok(ret, "InternetReadFile failed: %u\n", GetLastError());
+
+    len = -1;
+    ret = InternetReadFile(req, buf, sizeof(buf), &len);
+    ok(ret, "InternetReadFile failed: %u\n", GetLastError());
+
+    InternetCloseHandle(req);
+    InternetCloseHandle(con);
+    InternetCloseHandle(ses);
+}
+
 static void test_HttpQueryInfo(int port)
 {
     HINTERNET hi, hc, hr;
@@ -4016,6 +4131,7 @@ static void test_http_connection(void)
     test_connection_closing(si.port);
     test_cache_control_verb(si.port);
     test_successive_HttpSendRequest(si.port);
+    test_head_request(si.port);
 
     /* send the basic request again to shutdown the server thread */
     test_basic_request(si.port, "GET", "/quit");

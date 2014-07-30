@@ -91,7 +91,7 @@ static HRESULT WINAPI NSTCEvents_fnQueryInterface(
 
     if(This->qi_enable_events && IsEqualIID(riid, &IID_INameSpaceTreeControlEvents))
     {
-        IUnknown_AddRef(iface);
+        INameSpaceTreeControlEvents_AddRef(iface);
         *ppvObject = iface;
         return S_OK;
     }
@@ -690,14 +690,16 @@ static BOOL test_initialization(void)
     }
 
     /* Some "random" interfaces */
+
+    /* Next three are supported on Vista/2k8, but not on newer versions */
     hr = INameSpaceTreeControl_QueryInterface(pnstc, &IID_IOleInPlaceObject, (void**)&punk);
-    ok(hr == E_NOINTERFACE || hr == S_OK /* vista, w2k8 */, "Got (0x%08x)\n", hr);
+    ok(hr == E_NOINTERFACE || broken(hr == S_OK) /* vista, w2k8 */, "Got (0x%08x)\n", hr);
     if(SUCCEEDED(hr)) IUnknown_Release(punk);
     hr = INameSpaceTreeControl_QueryInterface(pnstc, &IID_IOleInPlaceActiveObject, (void**)&punk);
-    ok(hr == E_NOINTERFACE || hr == S_OK /* vista, w2k8 */, "Got (0x%08x)\n", hr);
+    ok(hr == E_NOINTERFACE || broken(hr == S_OK) /* vista, w2k8 */, "Got (0x%08x)\n", hr);
     if(SUCCEEDED(hr)) IUnknown_Release(punk);
     hr = INameSpaceTreeControl_QueryInterface(pnstc, &IID_IOleInPlaceObjectWindowless, (void**)&punk);
-    ok(hr == E_NOINTERFACE || hr == S_OK /* vista, w2k8 */, "Got (0x%08x)\n", hr);
+    ok(hr == E_NOINTERFACE || broken(hr == S_OK) /* vista, w2k8 */, "Got (0x%08x)\n", hr);
     if(SUCCEEDED(hr)) IUnknown_Release(punk);
 
     hr = INameSpaceTreeControl_QueryInterface(pnstc, &IID_IOleInPlaceUIWindow, (void**)&punk);
@@ -1168,6 +1170,11 @@ static void test_basics(void)
     hr = INameSpaceTreeControl_InsertRoot(pnstc, 5, psidesktop, 0, 0, NULL);
     ok(hr == S_OK, "Got 0x%08x\n", hr);
 
+    roots[0] = psitestdir2;
+    roots[1] = psidesktop;
+    roots[2] = psidesktop2;
+    roots[3] = psitestdir;
+    roots[4] = psitestdir2;
     roots[5] = psidesktop;
     roots[6] = NULL;
     verify_root_order(pnstc, roots);
@@ -1175,6 +1182,9 @@ static void test_basics(void)
     hr = INameSpaceTreeControl_InsertRoot(pnstc, 3, psitestdir2, 0, 0, NULL);
     ok(hr == S_OK, "Got 0x%08x\n", hr);
 
+    roots[0] = psitestdir2;
+    roots[1] = psidesktop;
+    roots[2] = psidesktop2;
     roots[3] = psitestdir2;
     roots[4] = psitestdir;
     roots[5] = psitestdir2;
@@ -1185,6 +1195,13 @@ static void test_basics(void)
     hr = INameSpaceTreeControl_AppendRoot(pnstc, psitestdir2, 0, 0, NULL);
     ok(hr == S_OK, "Got 0x%08x\n", hr);
 
+    roots[0] = psitestdir2;
+    roots[1] = psidesktop;
+    roots[2] = psidesktop2;
+    roots[3] = psitestdir2;
+    roots[4] = psitestdir;
+    roots[5] = psitestdir2;
+    roots[6] = psidesktop;
     roots[7] = psitestdir2;
     roots[8] = NULL;
     verify_root_order(pnstc, roots);
@@ -1819,37 +1836,27 @@ static void test_events(void)
     /* First, respond with E_NOINTERFACE to all QI's */
     pnstceimpl->qi_enable_events = FALSE;
     pnstceimpl->qi_called_count = 0;
-    cookie1 = 0xDEADBEEF;
+    cookie1 = 1;
     hr = INameSpaceTreeControl_TreeAdvise(pnstc, (IUnknown*)pnstce, &cookie1);
     ok(hr == E_FAIL, "Got (0x%08x)\n", hr);
     ok(cookie1 == 0, "cookie now (0x%08x)\n", cookie1);
-    todo_wine
-    {
-        ok(pnstceimpl->qi_called_count == 7 || pnstceimpl->qi_called_count == 4 /* Vista */,
-           "QueryInterface called %d times.\n",
-           pnstceimpl->qi_called_count);
-    }
+    ok(pnstceimpl->qi_called_count > 1, "got %d\n", pnstceimpl->qi_called_count);
     ok(pnstceimpl->ref == 1, "refcount was %d\n", pnstceimpl->ref);
 
     /* Accept query for IID_INameSpaceTreeControlEvents */
     pnstceimpl->qi_enable_events = TRUE;
     pnstceimpl->qi_called_count = 0;
-    cookie1 = 0xDEADBEEF;
+    cookie1 = 0;
     hr = INameSpaceTreeControl_TreeAdvise(pnstc, (IUnknown*)pnstce, &cookie1);
     ok(hr == S_OK, "Got (0x%08x)\n", hr);
     ok(cookie1 == 1, "cookie now (0x%08x)\n", cookie1);
-    todo_wine
-    {
-        ok(pnstceimpl->qi_called_count == 7 || pnstceimpl->qi_called_count == 4 /* Vista */,
-           "QueryInterface called %d times.\n",
-           pnstceimpl->qi_called_count);
-    }
+    ok(pnstceimpl->qi_called_count > 1, "got %d\n", pnstceimpl->qi_called_count);
     ok(pnstceimpl->ref == 2, "refcount was %d\n", pnstceimpl->ref);
 
     /* A second time, query interface will not be called at all. */
     pnstceimpl->qi_enable_events = TRUE;
     pnstceimpl->qi_called_count = 0;
-    cookie2 = 0xDEADBEEF;
+    cookie2 = 1;
     hr = INameSpaceTreeControl_TreeAdvise(pnstc, (IUnknown*)pnstce, &cookie2);
     ok(hr == E_FAIL, "Got (0x%08x)\n", hr);
     ok(cookie2 == 0, "cookie now (0x%08x)\n", cookie2);
@@ -1860,7 +1867,7 @@ static void test_events(void)
     /* Using another "instance" does not help. */
     pnstceimpl2->qi_enable_events = TRUE;
     pnstceimpl2->qi_called_count = 0;
-    cookie2 = 0xDEADBEEF;
+    cookie2 = 1;
     hr = INameSpaceTreeControl_TreeAdvise(pnstc, (IUnknown*)pnstce2, &cookie2);
     ok(hr == E_FAIL, "Got (0x%08x)\n", hr);
     ok(cookie2 == 0, "cookie now (0x%08x)\n", cookie2);
@@ -1893,12 +1900,8 @@ static void test_events(void)
     ok(hr == S_OK, "Got (0x%08x)\n", hr);
     ok(cookie2 == 1, "Cookie is %d\n", cookie2);
     ok(cookie1 == cookie2, "Old cookie differs from old cookie.\n");
-    todo_wine
-    {
-        ok(pnstceimpl->qi_called_count == 7 || pnstceimpl->qi_called_count == 4 /* Vista */,
-           "QueryInterface called %d times.\n",
-           pnstceimpl->qi_called_count);
-    }
+    /* several kinds of callbacks are queried for */
+    ok(pnstceimpl->qi_called_count > 1, "got %d\n", pnstceimpl->qi_called_count);
     ok(pnstceimpl->ref == 2, "refcount was %d\n", pnstceimpl->ref);
 
     /* Initialize the control */
@@ -2237,7 +2240,7 @@ static void test_events(void)
     itemstate = 0xDEADBEEF;
     hr = INameSpaceTreeControl_GetItemState(pnstc, psidesktop, 0xffff, &itemstate);
     ok(hr == S_OK, "Got (0x%08x)\n", hr);
-    ok(itemstate == (NSTCIS_BOLD), "itemstate is 0x%08x\n", itemstate);
+    ok(itemstate == NSTCIS_BOLD, "itemstate is 0x%08x\n", itemstate);
     ok_no_events(pnstceimpl);
 
     hr = INameSpaceTreeControl_RemoveAllRoots(pnstc);
@@ -2420,9 +2423,7 @@ START_TEST(nstc)
         test_events();
     }
     else
-    {
         win_skip("No NamespaceTreeControl (or instantiation failed).\n");
-    }
 
     destroy_window();
     OleUninitialize();

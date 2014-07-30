@@ -2037,14 +2037,12 @@ struct wined3d_resource
 };
 
 void resource_cleanup(struct wined3d_resource *resource) DECLSPEC_HIDDEN;
-DWORD resource_get_priority(const struct wined3d_resource *resource) DECLSPEC_HIDDEN;
 HRESULT resource_init(struct wined3d_resource *resource, struct wined3d_device *device,
         enum wined3d_resource_type type, const struct wined3d_format *format,
         enum wined3d_multisample_type multisample_type, UINT multisample_quality,
         DWORD usage, enum wined3d_pool pool, UINT width, UINT height, UINT depth, UINT size,
         void *parent, const struct wined3d_parent_ops *parent_ops,
         const struct wined3d_resource_ops *resource_ops) DECLSPEC_HIDDEN;
-DWORD resource_set_priority(struct wined3d_resource *resource, DWORD priority) DECLSPEC_HIDDEN;
 void resource_unload(struct wined3d_resource *resource) DECLSPEC_HIDDEN;
 BOOL wined3d_resource_allocate_sysmem(struct wined3d_resource *resource) DECLSPEC_HIDDEN;
 void wined3d_resource_free_sysmem(struct wined3d_resource *resource) DECLSPEC_HIDDEN;
@@ -2212,7 +2210,6 @@ struct fbo_entry
 struct wined3d_surface_ops
 {
     HRESULT (*surface_private_setup)(struct wined3d_surface *surface);
-    void (*surface_realize_palette)(struct wined3d_surface *surface);
     void (*surface_unmap)(struct wined3d_surface *surface);
 };
 
@@ -2222,7 +2219,6 @@ struct wined3d_surface
     const struct wined3d_surface_ops *surface_ops;
     struct wined3d_texture *container;
     struct wined3d_swapchain *swapchain;
-    struct wined3d_palette *palette; /* D3D7 style palette handling */
     DWORD draw_binding, map_binding;
     void *user_memory;
     DWORD locations;
@@ -2349,8 +2345,6 @@ enum wined3d_conversion_type
     WINED3D_CT_RGB32_888,
     WINED3D_CT_CK_ARGB32,
 };
-
-void d3dfmt_p8_init_palette(const struct wined3d_surface *surface, BYTE table[256][4]) DECLSPEC_HIDDEN;
 
 struct wined3d_sampler
 {
@@ -2594,6 +2588,7 @@ void buffer_get_memory(struct wined3d_buffer *buffer, struct wined3d_context *co
 BYTE *buffer_get_sysmem(struct wined3d_buffer *This, struct wined3d_context *context) DECLSPEC_HIDDEN;
 void buffer_internal_preload(struct wined3d_buffer *buffer, struct wined3d_context *context,
         const struct wined3d_state *state) DECLSPEC_HIDDEN;
+void buffer_mark_used(struct wined3d_buffer *buffer) DECLSPEC_HIDDEN;
 
 struct wined3d_rendertarget_view
 {
@@ -2624,6 +2619,7 @@ struct wined3d_swapchain
     struct wined3d_gamma_ramp orig_gamma;
     BOOL render_to_fbo;
     const struct wined3d_format *ds_format;
+    struct wined3d_palette *palette;
 
     LONG prev_time, frames;   /* Performance tracking */
 

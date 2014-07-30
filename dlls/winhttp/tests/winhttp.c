@@ -20,9 +20,7 @@
 
 #define COBJMACROS
 #include <stdarg.h>
-#include <stdlib.h>
 #include <windef.h>
-#include <winbase.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <winhttp.h>
@@ -1774,13 +1772,6 @@ static const char noauthmsg[] =
 "Server: winetest\r\n"
 "Connection: close\r\n"
 "WWW-Authenticate: Basic realm=\"placebo\"\r\n"
-"\r\n";
-
-static const char proxymsg[] =
-"HTTP/1.1 407 Proxy Authentication Required\r\n"
-"Server: winetest\r\n"
-"Proxy-Connection: close\r\n"
-"Proxy-Authenticate: Basic realm=\"placebo\"\r\n"
 "\r\n";
 
 struct server_info

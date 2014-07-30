@@ -436,6 +436,7 @@ void WCMD_choice (const WCHAR * args) {
 static BOOL WCMD_AppendEOF(WCHAR *filename)
 {
     HANDLE h;
+    DWORD bytes_written;
 
     char eof = '\x1a';
 
@@ -448,7 +449,7 @@ static BOOL WCMD_AppendEOF(WCHAR *filename)
       return FALSE;
     } else {
       SetFilePointer (h, 0, NULL, FILE_END);
-      if (!WriteFile(h, &eof, 1, NULL, NULL)) {
+      if (!WriteFile(h, &eof, 1, &bytes_written, NULL)) {
         WINE_ERR("Failed to append EOF to %s (%d)\n", wine_dbgstr_w(filename), GetLastError());
         CloseHandle(h);
         return FALSE;
@@ -874,7 +875,7 @@ void WCMD_copy(WCHAR * args) {
     if (thiscopy->binarycopy == -1) thiscopy->binarycopy = !anyconcats;
 
     /* Convert to fully qualified path/filename in srcpath, file filenamepart pointing
-       to where the filename portion begins (used for wildcart expansion.              */
+       to where the filename portion begins (used for wildcard expansion).             */
     GetFullPathNameW(thiscopy->name, sizeof(srcpath)/sizeof(WCHAR), srcpath, &filenamepart);
     WINE_TRACE("Full src name is '%s'\n", wine_dbgstr_w(srcpath));
 

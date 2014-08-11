@@ -622,6 +622,8 @@ typedef DWORD FLONG;
 #define DBG_TERMINATE_THREAD        ((DWORD) 0x40010003)
 #define DBG_TERMINATE_PROCESS       ((DWORD) 0x40010004)
 #define DBG_CONTROL_C               ((DWORD) 0x40010005)
+#define DBG_PRINTEXCEPTION_C        ((DWORD) 0x40010006)
+#define DBG_RIPEXCEPTION            ((DWORD) 0x40010007)
 #define DBG_CONTROL_BREAK           ((DWORD) 0x40010008)
 #define DBG_COMMAND_EXCEPTION       ((DWORD) 0x40010009)
 #define DBG_EXCEPTION_NOT_HANDLED   ((DWORD) 0x80010001)
@@ -3685,6 +3687,19 @@ typedef enum _TOKEN_INFORMATION_CLASS {
   TokenUIAccess,
   TokenMandatoryPolicy,
   TokenLogonSid,
+  TokenIsAppContainer,
+  TokenCapabilities,
+  TokenAppContainerSid,
+  TokenAppContainerNumber,
+  TokenUserClaimAttributes,
+  TokenDeviceClaimAttributes,
+  TokenRestrictedUserClaimAttributes,
+  TokenRestrictedDeviceClaimAttributes,
+  TokenDeviceGroups,
+  TokenRestrictedDeviceGroups,
+  TokenSecurityAttributes,
+  TokenIsRestricted,
+  TokenProcessTrustLevel,
   MaxTokenInfoClass
 } TOKEN_INFORMATION_CLASS;
 
@@ -4409,6 +4424,10 @@ typedef struct _TOKEN_ELEVATION {
 typedef struct _TOKEN_MANDATORY_LABEL {
   SID_AND_ATTRIBUTES Label;
 } TOKEN_MANDATORY_LABEL, * PTOKEN_MANDATORY_LABEL;
+
+typedef struct _TOKEN_APPCONTAINER_INFORMATION {
+  PSID TokenAppContainer;
+} TOKEN_APPCONTAINER_INFORMATION, * PTOKEN_APPCONTAINER_INFORMATION;
 
 /*
  *	ACLs of NT

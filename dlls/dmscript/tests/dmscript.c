@@ -175,6 +175,64 @@ static void test_COM_scripttrack(void)
     while (IDirectMusicTrack_Release(dmt));
 }
 
+static void test_dmscript(void)
+{
+    IDirectMusicScript *dms;
+    IPersistStream *ps;
+    CLSID class;
+    ULARGE_INTEGER size;
+    HRESULT hr;
+
+    hr = CoCreateInstance(&CLSID_DirectMusicScript, NULL, CLSCTX_INPROC_SERVER,
+            &IID_IDirectMusicScript, (void**)&dms);
+    ok(hr == S_OK, "DirectMusicScript create failed: %08x, expected S_OK\n", hr);
+
+    /* Unimplemented IPersistStream methods */
+    hr = IDirectMusicScript_QueryInterface(dms, &IID_IPersistStream, (void**)&ps);
+    ok(hr == S_OK, "QueryInterface for IID_IPersistStream failed: %08x\n", hr);
+    hr = IPersistStream_GetClassID(ps, &class);
+    ok(hr == E_NOTIMPL, "IPersistStream_GetClassID failed: %08x\n", hr);
+    hr = IPersistStream_IsDirty(ps);
+    ok(hr == S_FALSE, "IPersistStream_IsDirty failed: %08x\n", hr);
+    hr = IPersistStream_GetSizeMax(ps, &size);
+    ok(hr == E_NOTIMPL, "IPersistStream_GetSizeMax failed: %08x\n", hr);
+    hr = IPersistStream_Save(ps, NULL, TRUE);
+    ok(hr == E_NOTIMPL, "IPersistStream_Save failed: %08x\n", hr);
+
+    while (IDirectMusicScript_Release(dms));
+}
+
+static void test_scripttrack(void)
+{
+    IDirectMusicTrack *dmt;
+    IPersistStream *ps;
+    CLSID class;
+    ULARGE_INTEGER size;
+    HRESULT hr;
+
+    hr = CoCreateInstance(&CLSID_DirectMusicScriptTrack, NULL, CLSCTX_INPROC_SERVER,
+            &IID_IDirectMusicTrack, (void**)&dmt);
+    ok(hr == S_OK, "DirectMusicScriptTrack create failed: %08x, expected S_OK\n", hr);
+
+    /* IPersistStream */
+    hr = IDirectMusicTrack_QueryInterface(dmt, &IID_IPersistStream, (void**)&ps);
+    ok(hr == S_OK, "QueryInterface for IID_IPersistStream failed: %08x\n", hr);
+    hr = IPersistStream_GetClassID(ps, &class);
+    todo_wine ok(hr == S_OK, "IPersistStream_GetClassID failed: %08x\n", hr);
+    todo_wine ok(IsEqualGUID(&class, &CLSID_DirectMusicScriptTrack),
+            "Expected class CLSID_DirectMusicScriptTrack got %s\n", wine_dbgstr_guid(&class));
+
+    /* Unimplemented IPersistStream methods */
+    hr = IPersistStream_IsDirty(ps);
+    todo_wine ok(hr == S_FALSE, "IPersistStream_IsDirty failed: %08x\n", hr);
+    hr = IPersistStream_GetSizeMax(ps, &size);
+    ok(hr == E_NOTIMPL, "IPersistStream_GetSizeMax failed: %08x\n", hr);
+    hr = IPersistStream_Save(ps, NULL, TRUE);
+    ok(hr == E_NOTIMPL, "IPersistStream_Save failed: %08x\n", hr);
+
+    while (IDirectMusicTrack_Release(dmt));
+}
+
 START_TEST(dmscript)
 {
     CoInitialize(NULL);
@@ -187,6 +245,8 @@ START_TEST(dmscript)
     }
     test_COM();
     test_COM_scripttrack();
+    test_dmscript();
+    test_scripttrack();
 
     CoUninitialize();
 }

@@ -301,11 +301,6 @@ static void *d3d8_get_object(struct d3d8_handle_table *t, DWORD handle, enum d3d
     return entry->object;
 }
 
-static inline struct d3d8_device *impl_from_IDirect3DDevice8(IDirect3DDevice8 *iface)
-{
-    return CONTAINING_RECORD(iface, struct d3d8_device, IDirect3DDevice8_iface);
-}
-
 static HRESULT WINAPI d3d8_device_QueryInterface(IDirect3DDevice8 *iface, REFIID riid, void **out)
 {
     TRACE("iface %p, riid %s, out %p.\n",
@@ -388,13 +383,18 @@ static HRESULT WINAPI d3d8_device_TestCooperativeLevel(IDirect3DDevice8 *iface)
 
     TRACE("iface %p.\n", iface);
 
-    if (device->lost)
-    {
-        TRACE("Device is lost.\n");
-        return D3DERR_DEVICENOTRESET;
-    }
+    TRACE("device state: %#x.\n", device->device_state);
 
-    return D3D_OK;
+    switch (device->device_state)
+    {
+        default:
+        case D3D8_DEVICE_STATE_OK:
+            return D3D_OK;
+        case D3D8_DEVICE_STATE_LOST:
+            return D3DERR_DEVICELOST;
+        case D3D8_DEVICE_STATE_NOT_RESET:
+            return D3DERR_DEVICENOTRESET;
+    }
 }
 
 static UINT WINAPI d3d8_device_GetAvailableTextureMem(IDirect3DDevice8 *iface)
@@ -641,11 +641,11 @@ static HRESULT WINAPI d3d8_device_Reset(IDirect3DDevice8 *iface,
             NULL, reset_enum_callback, TRUE)))
     {
         wined3d_device_set_render_state(device->wined3d_device, WINED3D_RS_POINTSIZE_MIN, 0);
-        device->lost = FALSE;
+        device->device_state = D3D8_DEVICE_STATE_OK;
     }
     else
     {
-        device->lost = TRUE;
+        device->device_state = D3D8_DEVICE_STATE_NOT_RESET;
     }
     wined3d_mutex_unlock();
 
@@ -660,6 +660,9 @@ static HRESULT WINAPI d3d8_device_Present(IDirect3DDevice8 *iface, const RECT *s
 
     TRACE("iface %p, src_rect %s, dst_rect %s, dst_window_override %p, dirty_region %p.\n",
             iface, wine_dbgstr_rect(src_rect), wine_dbgstr_rect(dst_rect), dst_window_override, dirty_region);
+
+    if (device->device_state != D3D8_DEVICE_STATE_OK)
+        return D3DERR_DEVICELOST;
 
     wined3d_mutex_lock();
     hr = wined3d_device_present(device->wined3d_device, src_rect, dst_rect,
@@ -2921,6 +2924,18 @@ static void CDECL device_parent_mode_changed(struct wined3d_device_parent *devic
     TRACE("device_parent %p.\n", device_parent);
 }
 
+static void CDECL device_parent_activate(struct wined3d_device_parent *device_parent, BOOL activate)
+{
+    struct d3d8_device *device = device_from_device_parent(device_parent);
+
+    TRACE("device_parent %p, activate %#x.\n", device_parent, activate);
+
+    if (!activate)
+        InterlockedCompareExchange(&device->device_state, D3D8_DEVICE_STATE_LOST, D3D8_DEVICE_STATE_OK);
+    else
+        InterlockedCompareExchange(&device->device_state, D3D8_DEVICE_STATE_NOT_RESET, D3D8_DEVICE_STATE_LOST);
+}
+
 static HRESULT CDECL device_parent_surface_created(struct wined3d_device_parent *device_parent,
         void *container_parent, struct wined3d_surface *surface, void **parent,
         const struct wined3d_parent_ops **parent_ops)
@@ -3034,6 +3049,7 @@ static const struct wined3d_device_parent_ops d3d8_wined3d_device_parent_ops =
 {
     device_parent_wined3d_device_created,
     device_parent_mode_changed,
+    device_parent_activate,
     device_parent_surface_created,
     device_parent_volume_created,
     device_parent_create_swapchain_surface,

@@ -957,8 +957,19 @@ static HRESULT WINAPI drive_get_TotalSize(IDrive *iface, VARIANT *v)
 static HRESULT WINAPI drive_get_VolumeName(IDrive *iface, BSTR *name)
 {
     struct drive *This = impl_from_IDrive(iface);
-    FIXME("(%p)->(%p): stub\n", This, name);
-    return E_NOTIMPL;
+    WCHAR nameW[MAX_PATH+1];
+    BOOL ret;
+
+    TRACE("(%p)->(%p)\n", This, name);
+
+    if (!name)
+        return E_POINTER;
+
+    *name = NULL;
+    ret = GetVolumeInformationW(This->root, nameW, sizeof(nameW)/sizeof(WCHAR), NULL, NULL, NULL, NULL, 0);
+    if (ret)
+        *name = SysAllocString(nameW);
+    return ret ? S_OK : E_FAIL;
 }
 
 static HRESULT WINAPI drive_put_VolumeName(IDrive *iface, BSTR name)
@@ -971,15 +982,33 @@ static HRESULT WINAPI drive_put_VolumeName(IDrive *iface, BSTR name)
 static HRESULT WINAPI drive_get_FileSystem(IDrive *iface, BSTR *fs)
 {
     struct drive *This = impl_from_IDrive(iface);
-    FIXME("(%p)->(%p): stub\n", This, fs);
-    return E_NOTIMPL;
+    WCHAR nameW[MAX_PATH+1];
+    BOOL ret;
+
+    TRACE("(%p)->(%p)\n", This, fs);
+
+    if (!fs)
+        return E_POINTER;
+
+    *fs = NULL;
+    ret = GetVolumeInformationW(This->root, NULL, 0, NULL, NULL, NULL, nameW, sizeof(nameW)/sizeof(WCHAR));
+    if (ret)
+        *fs = SysAllocString(nameW);
+    return ret ? S_OK : E_FAIL;
 }
 
 static HRESULT WINAPI drive_get_SerialNumber(IDrive *iface, LONG *serial)
 {
     struct drive *This = impl_from_IDrive(iface);
-    FIXME("(%p)->(%p): stub\n", This, serial);
-    return E_NOTIMPL;
+    BOOL ret;
+
+    TRACE("(%p)->(%p)\n", This, serial);
+
+    if (!serial)
+        return E_POINTER;
+
+    ret = GetVolumeInformationW(This->root, NULL, 0, (DWORD*)serial, NULL, NULL, NULL, 0);
+    return ret ? S_OK : E_FAIL;
 }
 
 static HRESULT WINAPI drive_get_IsReady(IDrive *iface, VARIANT_BOOL *ready)
@@ -1101,7 +1130,7 @@ static HANDLE start_enumeration(const WCHAR *path, WIN32_FIND_DATAW *data, BOOL 
 
     strcpyW(pathW, path);
     len = strlenW(pathW);
-    if (pathW[len-1] != '\\')
+    if (len && pathW[len-1] != '\\')
         strcatW(pathW, bsW);
     strcatW(pathW, allW);
     handle = FindFirstFileW(pathW, data);
@@ -2937,12 +2966,19 @@ static HRESULT WINAPI filesys_BuildPath(IFileSystem3 *iface, BSTR Path,
     return S_OK;
 }
 
-static HRESULT WINAPI filesys_GetDriveName(IFileSystem3 *iface, BSTR Path,
-                                            BSTR *pbstrResult)
+static HRESULT WINAPI filesys_GetDriveName(IFileSystem3 *iface, BSTR path, BSTR *drive)
 {
-    FIXME("%p %s %p\n", iface, debugstr_w(Path), pbstrResult);
+    TRACE("(%p)->(%s %p)\n", iface, debugstr_w(path), drive);
 
-    return E_NOTIMPL;
+    if (!drive)
+        return E_POINTER;
+
+    *drive = NULL;
+
+    if (path && strlenW(path) > 1 && path[1] == ':')
+        *drive = SysAllocStringLen(path, 2);
+
+    return S_OK;
 }
 
 static inline DWORD get_parent_folder_name(const WCHAR *path, DWORD len)

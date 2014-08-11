@@ -236,6 +236,14 @@ static const struct ID3D10Texture2DVtbl d3d10_texture2d_vtbl =
     d3d10_texture2d_GetDesc,
 };
 
+struct d3d10_texture2d *unsafe_impl_from_ID3D10Texture2D(ID3D10Texture2D *iface)
+{
+    if (!iface)
+        return NULL;
+    assert(iface->lpVtbl == &d3d10_texture2d_vtbl);
+    return CONTAINING_RECORD(iface, struct d3d10_texture2d, ID3D10Texture2D_iface);
+}
+
 static const struct wined3d_parent_ops d3d10_texture2d_wined3d_parent_ops =
 {
     d3d10_texture2d_wined3d_object_released,
@@ -253,6 +261,7 @@ HRESULT d3d10_texture2d_init(struct d3d10_texture2d *texture, struct d3d10_devic
 
     if (desc->MipLevels == 1 && desc->ArraySize == 1)
     {
+        DXGI_SURFACE_DESC surface_desc;
         IWineDXGIDevice *wine_device;
 
         if (FAILED(hr = ID3D10Device1_QueryInterface(&device->ID3D10Device1_iface, &IID_IWineDXGIDevice,
@@ -262,7 +271,12 @@ HRESULT d3d10_texture2d_init(struct d3d10_texture2d *texture, struct d3d10_devic
             return E_FAIL;
         }
 
-        hr = IWineDXGIDevice_create_surface(wine_device, NULL, 0, NULL,
+        surface_desc.Width = desc->Width;
+        surface_desc.Height = desc->Height;
+        surface_desc.Format = desc->Format;
+        surface_desc.SampleDesc = desc->SampleDesc;
+
+        hr = IWineDXGIDevice_create_surface(wine_device, &surface_desc, 0, NULL,
                 (IUnknown *)&texture->ID3D10Texture2D_iface, (void **)&texture->dxgi_surface);
         IWineDXGIDevice_Release(wine_device);
         if (FAILED(hr))

@@ -2245,7 +2245,7 @@ void context_apply_blit_state(struct wined3d_context *context, const struct wine
         {
             wined3d_texture_load(rt->container, context, FALSE);
 
-            context_apply_fbo_state_blit(context, GL_FRAMEBUFFER, rt, NULL, rt->draw_binding);
+            context_apply_fbo_state_blit(context, GL_FRAMEBUFFER, rt, NULL, rt->resource.draw_binding);
             if (rt->resource.format->id != WINED3DFMT_NULL)
                 rt_mask = 1;
             else
@@ -2330,7 +2330,7 @@ BOOL context_apply_clear_state(struct wined3d_context *context, const struct win
                     ++i;
                 }
                 context_apply_fbo_state(context, GL_FRAMEBUFFER, context->blit_targets, fb->depth_stencil,
-                        rt_count ? rts[0]->draw_binding : WINED3D_LOCATION_TEXTURE_RGB);
+                        rt_count ? rts[0]->resource.draw_binding : WINED3D_LOCATION_TEXTURE_RGB);
             }
             else
             {
@@ -2436,7 +2436,7 @@ void context_state_fb(struct wined3d_context *context, const struct wined3d_stat
         else
         {
             context_apply_fbo_state(context, GL_FRAMEBUFFER, fb->render_targets, fb->depth_stencil,
-                    fb->render_targets[0]->draw_binding);
+                    fb->render_targets[0]->resource.draw_binding);
         }
     }
 
@@ -2725,7 +2725,6 @@ static BOOL fixed_get_input(BYTE usage, BYTE usage_idx, unsigned int *regnum)
     return TRUE;
 }
 
-/* FIXME: Separate buffer loading from declaration decoding */
 /* Context activation is done by the caller. */
 void context_stream_info_from_declaration(struct wined3d_context *context,
         const struct wined3d_state *state, struct wined3d_stream_info *stream_info)
@@ -2734,11 +2733,9 @@ void context_stream_info_from_declaration(struct wined3d_context *context,
     struct wined3d_vertex_declaration *declaration = state->vertex_declaration;
     BOOL use_vshader = use_vs(state);
     unsigned int i;
-    WORD map;
 
     stream_info->use_map = 0;
     stream_info->swizzle_map = 0;
-    stream_info->all_vbo = 1;
     stream_info->position_transformed = declaration->position_transformed;
 
     /* Translate the declaration into strided data. */
@@ -2746,38 +2743,14 @@ void context_stream_info_from_declaration(struct wined3d_context *context,
     {
         const struct wined3d_vertex_declaration_element *element = &declaration->elements[i];
         const struct wined3d_stream_state *stream = &state->streams[element->input_slot];
-        struct wined3d_buffer *buffer = stream->buffer;
-        struct wined3d_bo_address data;
         BOOL stride_used;
         unsigned int idx;
-        DWORD stride;
 
         TRACE("%p Element %p (%u of %u).\n", declaration->elements,
                 element, i + 1, declaration->element_count);
 
-        if (!buffer) continue;
-
-        stride = stream->stride;
-        TRACE("Stream %u in buffer %p.\n", element->input_slot, buffer);
-        buffer_get_memory(buffer, context, &data);
-
-        /* Can't use vbo's if the base vertex index is negative. OpenGL doesn't accept negative offsets
-         * (or rather offsets bigger than the vbo, because the pointer is unsigned), so use system memory
-         * sources. In most sane cases the pointer - offset will still be > 0, otherwise it will wrap
-         * around to some big value. Hope that with the indices, the driver wraps it back internally. If
-         * not, drawStridedSlow is needed, including a vertex buffer path. */
-        if (state->load_base_vertex_index < 0)
-        {
-            WARN_(d3d_perf)("load_base_vertex_index is < 0 (%d), not using VBOs.\n",
-                    state->load_base_vertex_index);
-            data.buffer_object = 0;
-            data.addr = buffer_get_sysmem(buffer, context);
-            if ((UINT_PTR)data.addr < -state->load_base_vertex_index * stride)
-            {
-                FIXME("System memory vertex data load offset is negative!\n");
-            }
-        }
-        data.addr += element->offset;
+        if (!stream->buffer)
+            continue;
 
         TRACE("offset %u input_slot %u usage_idx %d.\n", element->offset, element->input_slot, element->usage_idx);
 
@@ -2814,16 +2787,15 @@ void context_stream_info_from_declaration(struct wined3d_context *context,
         if (stride_used)
         {
             TRACE("Load %s array %u [usage %s, usage_idx %u, "
-                    "input_slot %u, offset %u, stride %u, format %s, buffer_object %u].\n",
+                    "input_slot %u, offset %u, stride %u, format %s].\n",
                     use_vshader ? "shader": "fixed function", idx,
                     debug_d3ddeclusage(element->usage), element->usage_idx, element->input_slot,
-                    element->offset, stride, debug_d3dformat(element->format->id), data.buffer_object);
-
-            data.addr += stream->offset;
+                    element->offset, stream->stride, debug_d3dformat(element->format->id));
 
             stream_info->elements[idx].format = element->format;
-            stream_info->elements[idx].data = data;
-            stream_info->elements[idx].stride = stride;
+            stream_info->elements[idx].data.buffer_object = 0;
+            stream_info->elements[idx].data.addr = (BYTE *)NULL + stream->offset + element->offset;
+            stream_info->elements[idx].stride = stream->stride;
             stream_info->elements[idx].stream_idx = element->input_slot;
 
             if (!context->gl_info->supported[ARB_VERTEX_ARRAY_BGRA]
@@ -2834,35 +2806,6 @@ void context_stream_info_from_declaration(struct wined3d_context *context,
             stream_info->use_map |= 1 << idx;
         }
     }
-
-    /* Preload the vertex buffers. */
-    context->num_buffer_queries = 0;
-    for (i = 0, map = stream_info->use_map; map; map >>= 1, ++i)
-    {
-        struct wined3d_stream_info_element *element;
-        struct wined3d_buffer *buffer;
-
-        if (!(map & 1))
-            continue;
-
-        element = &stream_info->elements[i];
-        buffer = state->streams[element->stream_idx].buffer;
-        buffer_internal_preload(buffer, context, state);
-
-        /* If the preload dropped the buffer object, update the stream info. */
-        if (buffer->buffer_object != element->data.buffer_object)
-        {
-            element->data.buffer_object = 0;
-            element->data.addr = buffer_get_sysmem(buffer, context)
-                    + (ptrdiff_t)element->data.addr;
-        }
-
-        if (!buffer->buffer_object)
-            stream_info->all_vbo = 0;
-
-        if (buffer->query)
-            context->buffer_queries[context->num_buffer_queries++] = buffer->query;
-    }
 }
 
 /* Context activation is done by the caller. */
@@ -2872,9 +2815,57 @@ static void context_update_stream_info(struct wined3d_context *context, const st
     const struct wined3d_d3d_info *d3d_info = context->d3d_info;
     struct wined3d_stream_info *stream_info = &context->stream_info;
     DWORD prev_all_vbo = stream_info->all_vbo;
+    unsigned int i;
+    WORD map;
 
-    TRACE("============================= Vertex Declaration =============================\n");
     context_stream_info_from_declaration(context, state, stream_info);
+
+    stream_info->all_vbo = 1;
+    context->num_buffer_queries = 0;
+    for (i = 0, map = stream_info->use_map; map; map >>= 1, ++i)
+    {
+        struct wined3d_stream_info_element *element;
+        struct wined3d_bo_address data;
+        struct wined3d_buffer *buffer;
+
+        if (!(map & 1))
+            continue;
+
+        element = &stream_info->elements[i];
+        buffer = state->streams[element->stream_idx].buffer;
+
+        /* We can't use VBOs if the base vertex index is negative. OpenGL
+         * doesn't accept negative offsets (or rather offsets bigger than the
+         * VBO, because the pointer is unsigned), so use system memory
+         * sources. In most sane cases the pointer - offset will still be > 0,
+         * otherwise it will wrap around to some big value. Hope that with the
+         * indices the driver wraps it back internally. If not,
+         * drawStridedSlow is needed, including a vertex buffer path. */
+        if (state->load_base_vertex_index < 0)
+        {
+            WARN_(d3d_perf)("load_base_vertex_index is < 0 (%d), not using VBOs.\n",
+                    state->load_base_vertex_index);
+            element->data.buffer_object = 0;
+            element->data.addr += (ULONG_PTR)buffer_get_sysmem(buffer, context);
+            if ((UINT_PTR)element->data.addr < -state->load_base_vertex_index * element->stride)
+                FIXME("System memory vertex data load offset is negative!\n");
+        }
+        else
+        {
+            buffer_internal_preload(buffer, context, state);
+            buffer_get_memory(buffer, context, &data);
+            element->data.buffer_object = data.buffer_object;
+            element->data.addr += (ULONG_PTR)data.addr;
+        }
+
+        if (!element->data.buffer_object)
+            stream_info->all_vbo = 0;
+
+        if (buffer->query)
+            context->buffer_queries[context->num_buffer_queries++] = buffer->query;
+
+        TRACE("Load array %u {%#x:%p}.\n", i, element->data.buffer_object, element->data.addr);
+    }
 
     if (use_vs(state))
     {
@@ -2957,7 +2948,8 @@ BOOL context_apply_draw_state(struct wined3d_context *context, struct wined3d_de
     const struct wined3d_state *state = &device->state;
     const struct StateEntry *state_table = context->state_table;
     const struct wined3d_fb_state *fb = state->fb;
-    unsigned int i;
+    unsigned int i, j;
+    WORD map;
 
     if (!context_validate_rt_config(context->gl_info->limits.buffers,
             fb->render_targets, fb->depth_stencil))
@@ -2974,13 +2966,32 @@ BOOL context_apply_draw_state(struct wined3d_context *context, struct wined3d_de
     context_update_tex_unit_map(context, state);
     context_preload_textures(context, state);
     if (isStateDirty(context, STATE_VDECL) || isStateDirty(context, STATE_STREAMSRC))
+    {
         context_update_stream_info(context, state);
+    }
+    else
+    {
+        for (i = 0, map = context->stream_info.use_map; map; map >>= 1, ++i)
+        {
+            if (map & 1)
+                buffer_mark_used(state->streams[context->stream_info.elements[i].stream_idx].buffer);
+        }
+    }
     if (state->index_buffer)
     {
         if (context->stream_info.all_vbo)
             buffer_internal_preload(state->index_buffer, context, state);
         else
             buffer_get_sysmem(state->index_buffer, context);
+    }
+
+    for (i = 0; i < WINED3D_SHADER_TYPE_COUNT; ++i)
+    {
+        for (j = 0; j < WINED3D_MAX_CBS; ++j)
+        {
+            if (state->cb[i][j])
+                buffer_internal_preload(state->cb[i][j], context, state);
+        }
     }
 
     for (i = 0; i < context->numDirtyEntries; ++i)

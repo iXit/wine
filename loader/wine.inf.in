@@ -204,12 +204,12 @@ HKCR,lnkfile\shellex\ContextMenuHandlers\{00021401-0000-0000-C000-000000000046},
 HKCR,MediaFoundation,,16
 HKCR,Msi.Package,,2,"Windows Installer Package"
 HKCR,Msi.Package\DefaultIcon,,2,"msiexec.exe"
-HKCR,Msi.Package\shell\Open\command,,2,"msiexec /i ""%1"""
-HKCR,Msi.Package\shell\Repair\command,,2,"msiexec /f ""%1"""
-HKCR,Msi.Package\shell\Uninstall\command,,2,"msiexec /x ""%1"""
+HKCR,Msi.Package\shell\Open\command,,2,"%11%\msiexec.exe /i ""%1"""
+HKCR,Msi.Package\shell\Repair\command,,2,"%11%\msiexec.exe /f ""%1"""
+HKCR,Msi.Package\shell\Uninstall\command,,2,"%11%\msiexec.exe /x ""%1"""
 HKCR,Msi.Patch,,2,"Windows Installer Patch"
 HKCR,Msi.Patch\DefaultIcon,,2,"msiexec.exe"
-HKCR,Msi.Patch\shell\Open\command,,2,"msiexec /p ""%1"""
+HKCR,Msi.Patch\shell\Open\command,,2,"%11%\msiexec.exe /p ""%1"""
 HKCR,rtffile,,2,"Rich Text Document"
 HKCR,rtffile\shell\open\command,,2,"%11%\wordpad.exe %1"
 HKCR,rtffile\shell\print\command,,2,"%11%\wordpad.exe /p %1"
@@ -640,6 +640,7 @@ HKLM,Software\Microsoft\Shared Tools\MSInfo,,16
 HKLM,Software\Microsoft\SystemCertificates,,16
 HKLM,Software\Microsoft\TermServLicensing,,16
 HKLM,Software\Microsoft\Transaction Server,,16
+HKLM,Software\Microsoft\WBEM,"Installation Directory",2,"%11%\wbem"
 HKLM,Software\Policies,,16
 HKLM,Software\Registered Applications,,16
 HKLM,System\CurrentControlSet\Control\Lsa,,16
@@ -2754,7 +2755,7 @@ HKLM,%CurrentVersionNT%\Time Zones\Iran Standard Time,"TZI",1,2e,ff,ff,ff,00,00,
 HKLM,%CurrentVersionNT%\Time Zones\Israel Standard Time,"Display",,"Asia/Jerusalem"
 HKLM,%CurrentVersionNT%\Time Zones\Israel Standard Time,"Dlt",,"Israel Daylight Time"
 HKLM,%CurrentVersionNT%\Time Zones\Israel Standard Time,"Std",,"Israel Standard Time"
-HKLM,%CurrentVersionNT%\Time Zones\Israel Standard Time,"TZI",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,00,00,01,00,02,00,00,00,00,00,00,00,00,00,03,00,05,00,05,00,02,00,00,00,00,00,00,00
+HKLM,%CurrentVersionNT%\Time Zones\Israel Standard Time,"TZI",1,88,ff,ff,ff,00,00,00,00,c4,ff,ff,ff,00,00,0a,00,00,00,05,00,02,00,00,00,00,00,00,00,00,00,03,00,05,00,05,00,02,00,00,00,00,00,00,00
 HKLM,%CurrentVersionNT%\Time Zones\Jordan Standard Time,"Display",,"Asia/Amman"
 HKLM,%CurrentVersionNT%\Time Zones\Jordan Standard Time,"Dlt",,"Jordan Daylight Time"
 HKLM,%CurrentVersionNT%\Time Zones\Jordan Standard Time,"Std",,"Jordan Standard Time"

@@ -1045,7 +1045,6 @@ typedef struct COPYFILE2_EXTENDED_PARAMETERS
 #define WAIT_ABANDONED		STATUS_ABANDONED_WAIT_0
 #define WAIT_ABANDONED_0	STATUS_ABANDONED_WAIT_0
 #define WAIT_IO_COMPLETION	STATUS_USER_APC
-#define WAIT_TIMEOUT		STATUS_TIMEOUT
 #define STILL_ACTIVE            STATUS_PENDING
 
 #define FILE_BEGIN              0
@@ -2072,7 +2071,7 @@ WINBASEAPI VOID        WINAPI GlobalUnfix(HGLOBAL);
 WINBASEAPI BOOL        WINAPI GlobalUnlock(HGLOBAL);
 WINBASEAPI BOOL        WINAPI GlobalUnWire(HGLOBAL);
 WINBASEAPI LPVOID      WINAPI GlobalWire(HGLOBAL);
-#define                       HasOverlappedCompleted(lpOverlapped) ((lpOverlapped)->Internal != STATUS_PENDING)
+#define                       HasOverlappedIoCompleted(lpOverlapped) ((lpOverlapped)->Internal != STATUS_PENDING)
 WINBASEAPI LPVOID      WINAPI HeapAlloc(HANDLE,DWORD,SIZE_T) __WINE_ALLOC_SIZE(3);
 WINBASEAPI SIZE_T      WINAPI HeapCompact(HANDLE,DWORD);
 WINBASEAPI HANDLE      WINAPI HeapCreate(DWORD,SIZE_T,SIZE_T);
@@ -2412,6 +2411,7 @@ WINBASEAPI BOOL        WINAPI UnlockFile(HANDLE,DWORD,DWORD,DWORD,DWORD);
 WINBASEAPI BOOL        WINAPI UnlockFileEx(HANDLE,DWORD,DWORD,DWORD,LPOVERLAPPED);
 #define                       UnlockSegment(handle) GlobalUnfix((HANDLE)(handle))
 WINBASEAPI BOOL        WINAPI UnmapViewOfFile(LPCVOID);
+WINBASEAPI HRESULT     WINAPI UnregisterApplicationRestart(void);
 WINBASEAPI BOOL        WINAPI UnregisterWait(HANDLE);
 WINBASEAPI BOOL        WINAPI UnregisterWaitEx(HANDLE,HANDLE);
 WINBASEAPI BOOL        WINAPI UpdateResourceA(HANDLE,LPCSTR,LPCSTR,WORD,LPVOID,DWORD);

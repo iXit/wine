@@ -2361,7 +2361,7 @@ LONG WINAPI DocumentPropertiesA(HWND hWnd,HANDLE hPrinter,
                                 LPSTR pDeviceName, LPDEVMODEA pDevModeOutput,
 				LPDEVMODEA pDevModeInput,DWORD fMode )
 {
-    LPSTR lpName = pDeviceName;
+    LPSTR lpName = pDeviceName, dupname = NULL;
     static CHAR port[] = "LPT1:";
     LONG ret;
 
@@ -2376,7 +2376,7 @@ LONG WINAPI DocumentPropertiesA(HWND hWnd,HANDLE hPrinter,
                 SetLastError(ERROR_INVALID_HANDLE);
 		return -1;
 	}
-	lpName = strdupWtoA(lpNameW);
+	lpName = dupname = strdupWtoA(lpNameW);
     }
 
     if (!GDI_CallExtDeviceMode16)
@@ -2385,14 +2385,15 @@ LONG WINAPI DocumentPropertiesA(HWND hWnd,HANDLE hPrinter,
                                                          (LPCSTR)102 );
         if (!GDI_CallExtDeviceMode16) {
 		ERR("No CallExtDeviceMode16?\n");
-		return -1;
+		ret = -1;
+		goto end;
 	}
     }
     ret = GDI_CallExtDeviceMode16(hWnd, pDevModeOutput, lpName, port,
 				  pDevModeInput, NULL, fMode);
 
-    if(!pDeviceName)
-        HeapFree(GetProcessHeap(),0,lpName);
+end:
+    HeapFree(GetProcessHeap(), 0, dupname);
     return ret;
 }
 
@@ -2530,6 +2531,7 @@ BOOL WINAPI OpenPrinterA(LPSTR lpPrinterName,HANDLE *phPrinter,
  */
 BOOL WINAPI OpenPrinterW(LPWSTR lpPrinterName,HANDLE *phPrinter, LPPRINTER_DEFAULTSW pDefault)
 {
+    HKEY key;
 
     TRACE("(%s, %p, %p)\n", debugstr_w(lpPrinterName), phPrinter, pDefault);
 
@@ -2542,12 +2544,10 @@ BOOL WINAPI OpenPrinterW(LPWSTR lpPrinterName,HANDLE *phPrinter, LPPRINTER_DEFAU
     /* Get the unique handle of the printer or Printserver */
     *phPrinter = get_opened_printer_entry(lpPrinterName, pDefault);
 
-    if (*phPrinter)
+    if (*phPrinter && WINSPOOL_GetOpenedPrinterRegKey( *phPrinter, &key ) == ERROR_SUCCESS)
     {
-        HKEY key;
         DWORD deleting = 0, size = sizeof( deleting ), type;
         DWORD status;
-        WINSPOOL_GetOpenedPrinterRegKey( *phPrinter, &key );
         RegQueryValueExW( key, May_Delete_Value, NULL, &type, (LPBYTE)&deleting, &size );
         WaitForSingleObject( init_mutex, INFINITE );
         status = get_dword_from_reg( key, StatusW );

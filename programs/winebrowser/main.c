@@ -309,15 +309,69 @@ done:
     return ret;
 }
 
-static IUri *convert_file_uri(IUri *uri)
+static WCHAR *encode_unix_path(const char *src)
+{
+    const char *tmp_src;
+    WCHAR *dst, *tmp_dst;
+    const char safe_chars[] = "/-_.~@&=+$,:";
+    const char hex_digits[] = "0123456789ABCDEF";
+    const WCHAR schema[] = {'f','i','l','e',':','/','/',0};
+    int len = sizeof(schema)/sizeof(schema[0]);
+
+    tmp_src = src;
+
+    while (*tmp_src != 0)
+    {
+        if ((*tmp_src >= 'a' && *tmp_src <= 'z') ||
+            (*tmp_src >= 'A' && *tmp_src <= 'Z') ||
+            (*tmp_src >= '0' && *tmp_src <= '9') ||
+            strchr(safe_chars, *tmp_src))
+            len += 1;
+        else
+            len += 3;
+        tmp_src++;
+    }
+
+    dst = HeapAlloc(GetProcessHeap(), 0, len*sizeof(WCHAR));
+
+    if (!dst)
+        return NULL;
+
+    strcpyW(dst, schema);
+
+    tmp_src = src;
+    tmp_dst = dst + strlenW(dst);
+
+    while (*tmp_src != 0)
+    {
+        if ((*tmp_src >= 'a' && *tmp_src <= 'z') ||
+            (*tmp_src >= 'A' && *tmp_src <= 'Z') ||
+            (*tmp_src >= '0' && *tmp_src <= '9') ||
+            strchr(safe_chars, *tmp_src))
+        {
+            *tmp_dst++ = *tmp_src;
+        }
+        else
+        {
+            *tmp_dst++ = '%';
+            *tmp_dst++ = hex_digits[*(unsigned char*)(tmp_src) / 16];
+            *tmp_dst++ = hex_digits[*tmp_src & 0xf];
+        }
+        tmp_src++;
+    }
+
+    *tmp_dst = 0;
+
+    return dst;
+}
+
+static WCHAR *convert_file_uri(IUri *uri)
 {
     wine_get_unix_file_name_t wine_get_unix_file_name_ptr;
-    IUriBuilder *uri_builder;
     struct stat dummy;
     WCHAR *new_path;
     char *unixpath;
     BSTR filename;
-    IUri *new_uri;
     HRESULT hres;
 
     /* check if the argument is a local file */
@@ -330,15 +384,13 @@ static IUri *convert_file_uri(IUri *uri)
     if(FAILED(hres))
         return NULL;
 
+    WINE_TRACE("Windows path: %s\n", wine_dbgstr_w(filename));
+
     unixpath = wine_get_unix_file_name_ptr(filename);
     SysFreeString(filename);
     if(unixpath && stat(unixpath, &dummy) >= 0) {
-        int len;
-
-        len = MultiByteToWideChar(CP_UNIXCP, 0, unixpath, -1, NULL, 0);
-        new_path = HeapAlloc(GetProcessHeap(), 0, len*sizeof(WCHAR));
-        if(new_path)
-            MultiByteToWideChar(CP_UNIXCP, 0, unixpath, -1, new_path, len);
+        WINE_TRACE("Unix path: %s\n", wine_dbgstr_a(unixpath));
+        new_path = encode_unix_path(unixpath);
         HeapFree(GetProcessHeap(), 0, unixpath);
     }else {
         WINE_WARN("File %s does not exist\n", wine_dbgstr_a(unixpath));
@@ -346,19 +398,9 @@ static IUri *convert_file_uri(IUri *uri)
         new_path = NULL;
     }
 
-    hres = CreateIUriBuilder(uri, 0, 0, &uri_builder);
-    if(SUCCEEDED(hres) && new_path)
-        hres = IUriBuilder_SetPath(uri_builder, new_path);
-    HeapFree(GetProcessHeap(), 0, new_path);
-    if(FAILED(hres))
-        return NULL;
+    WINE_TRACE("New path: %s\n", wine_dbgstr_w(new_path));
 
-    hres = IUriBuilder_CreateUri(uri_builder, 0, 0, 0, &new_uri);
-    IUriBuilder_Release(uri_builder);
-    if(FAILED(hres))
-        return NULL;
-
-    return new_uri;
+    return new_path;
 }
 
 /*****************************************************************************
@@ -370,7 +412,7 @@ int wmain(int argc, WCHAR *argv[])
     static const WCHAR nohomeW[] = {'-','n','o','h','o','m','e',0};
 
     WCHAR *url = argv[1];
-    BSTR display_uri;
+    BSTR display_uri = NULL;
     DWORD scheme;
     IUri *uri;
     HRESULT hres;
@@ -398,18 +440,14 @@ int wmain(int argc, WCHAR *argv[])
     IUri_GetScheme(uri, &scheme);
 
     if(scheme == URL_SCHEME_FILE) {
-        IUri *file_uri;
-
-        file_uri = convert_file_uri(uri);
-        if(file_uri) {
-            IUri_Release(uri);
-            uri = file_uri;
-        }else {
+        display_uri = convert_file_uri(uri);
+        if(!display_uri) {
             WINE_ERR("Failed to convert file URL to unix path\n");
         }
     }
 
-    hres = IUri_GetDisplayUri(uri, &display_uri);
+    if (!display_uri)
+        hres = IUri_GetDisplayUri(uri, &display_uri);
     IUri_Release(uri);
     if(FAILED(hres))
         return -1;

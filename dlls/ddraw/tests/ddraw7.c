@@ -1,6 +1,6 @@
 /*
  * Copyright 2006, 2012-2014 Stefan Dösinger for CodeWeavers
- * Copyright 2011 Henri Verbeet for CodeWeavers
+ * Copyright 2011-2014 Henri Verbeet for CodeWeavers
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -948,7 +948,7 @@ static void test_surface_interface_mismatch(void)
     hr = IDirectDrawSurface7_QueryInterface(surface, &IID_IDirectDrawSurface3, (void **)&surface3);
     ok(SUCCEEDED(hr), "Failed to QI IDirectDrawSurface3, hr %#x.\n", hr);
 
-    if (FAILED(hr = IDirectDraw7_QueryInterface(ddraw, &IID_IDirect3D7, (void **)&d3d)))
+    if (FAILED(IDirectDraw7_QueryInterface(ddraw, &IID_IDirect3D7, (void **)&d3d)))
     {
         skip("D3D interface is not available, skipping test.\n");
         goto cleanup;
@@ -3876,6 +3876,7 @@ static void test_block_formats_creation(void)
     DWORD num_fourcc_codes = 0, *fourcc_codes;
     DDSURFACEDESC2 ddsd;
     DDCAPS hal_caps;
+    void *mem;
 
     static const struct
     {
@@ -3884,19 +3885,20 @@ static void test_block_formats_creation(void)
         DWORD support_flag;
         unsigned int block_width;
         unsigned int block_height;
+        unsigned int block_size;
         BOOL create_size_checked, overlay;
     }
     formats[] =
     {
-        {MAKEFOURCC('D','X','T','1'), "D3DFMT_DXT1", SUPPORT_DXT1, 4, 4, TRUE,  FALSE},
-        {MAKEFOURCC('D','X','T','2'), "D3DFMT_DXT2", SUPPORT_DXT2, 4, 4, TRUE,  FALSE},
-        {MAKEFOURCC('D','X','T','3'), "D3DFMT_DXT3", SUPPORT_DXT3, 4, 4, TRUE,  FALSE},
-        {MAKEFOURCC('D','X','T','4'), "D3DFMT_DXT4", SUPPORT_DXT4, 4, 4, TRUE,  FALSE},
-        {MAKEFOURCC('D','X','T','5'), "D3DFMT_DXT5", SUPPORT_DXT5, 4, 4, TRUE,  FALSE},
-        {MAKEFOURCC('Y','U','Y','2'), "D3DFMT_YUY2", SUPPORT_YUY2, 2, 1, FALSE, TRUE },
-        {MAKEFOURCC('U','Y','V','Y'), "D3DFMT_UYVY", SUPPORT_UYVY, 2, 1, FALSE, TRUE },
+        {MAKEFOURCC('D','X','T','1'), "D3DFMT_DXT1", SUPPORT_DXT1, 4, 4, 8,  TRUE,  FALSE},
+        {MAKEFOURCC('D','X','T','2'), "D3DFMT_DXT2", SUPPORT_DXT2, 4, 4, 16, TRUE,  FALSE},
+        {MAKEFOURCC('D','X','T','3'), "D3DFMT_DXT3", SUPPORT_DXT3, 4, 4, 16, TRUE,  FALSE},
+        {MAKEFOURCC('D','X','T','4'), "D3DFMT_DXT4", SUPPORT_DXT4, 4, 4, 16, TRUE,  FALSE},
+        {MAKEFOURCC('D','X','T','5'), "D3DFMT_DXT5", SUPPORT_DXT5, 4, 4, 16, TRUE,  FALSE},
+        {MAKEFOURCC('Y','U','Y','2'), "D3DFMT_YUY2", SUPPORT_YUY2, 2, 1, 4,  FALSE, TRUE },
+        {MAKEFOURCC('U','Y','V','Y'), "D3DFMT_UYVY", SUPPORT_UYVY, 2, 1, 4,  FALSE, TRUE },
     };
-    const struct
+    static const struct
     {
         DWORD caps, caps2;
         const char *name;
@@ -3926,6 +3928,36 @@ static void test_block_formats_creation(void)
             DDSCAPS_TEXTURE, DDSCAPS2_TEXTUREMANAGE,
             "managed texture", FALSE
         }
+    };
+    enum size_type
+    {
+        SIZE_TYPE_ZERO,
+        SIZE_TYPE_PITCH,
+        SIZE_TYPE_SIZE,
+    };
+    static const struct
+    {
+        DWORD flags;
+        enum size_type size_type;
+        int rel_size;
+        HRESULT hr;
+    }
+    user_mem_tests[] =
+    {
+        {DDSD_LINEARSIZE,                               SIZE_TYPE_ZERO,   0, DD_OK},
+        {DDSD_LINEARSIZE,                               SIZE_TYPE_SIZE,   0, DD_OK},
+        {DDSD_PITCH,                                    SIZE_TYPE_ZERO,   0, DD_OK},
+        {DDSD_PITCH,                                    SIZE_TYPE_PITCH,  0, DD_OK},
+        {DDSD_LPSURFACE,                                SIZE_TYPE_ZERO,   0, DDERR_INVALIDPARAMS},
+        {DDSD_LPSURFACE | DDSD_LINEARSIZE,              SIZE_TYPE_ZERO,   0, DDERR_INVALIDPARAMS},
+        {DDSD_LPSURFACE | DDSD_LINEARSIZE,              SIZE_TYPE_PITCH,  0, DDERR_INVALIDPARAMS},
+        {DDSD_LPSURFACE | DDSD_LINEARSIZE,              SIZE_TYPE_SIZE,   0, DD_OK},
+        {DDSD_LPSURFACE | DDSD_LINEARSIZE,              SIZE_TYPE_SIZE,   1, DD_OK},
+        {DDSD_LPSURFACE | DDSD_LINEARSIZE,              SIZE_TYPE_SIZE,  -1, DDERR_INVALIDPARAMS},
+        {DDSD_LPSURFACE | DDSD_PITCH,                   SIZE_TYPE_ZERO,   0, DDERR_INVALIDPARAMS},
+        {DDSD_LPSURFACE | DDSD_PITCH,                   SIZE_TYPE_PITCH,  0, DDERR_INVALIDPARAMS},
+        {DDSD_LPSURFACE | DDSD_PITCH,                   SIZE_TYPE_SIZE,   0, DDERR_INVALIDPARAMS},
+        {DDSD_LPSURFACE | DDSD_PITCH | DDSD_LINEARSIZE, SIZE_TYPE_SIZE,   0, DDERR_INVALIDPARAMS},
     };
 
     window = CreateWindowA("static", "ddraw_test", WS_OVERLAPPEDWINDOW,
@@ -3970,6 +4002,8 @@ static void test_block_formats_creation(void)
     hal_caps.dwSize = sizeof(hal_caps);
     hr = IDirectDraw7_GetCaps(ddraw, &hal_caps, NULL);
     ok(SUCCEEDED(hr), "Failed to get caps, hr %#x.\n", hr);
+
+    mem = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 2 * 2 * 16 + 1);
 
     for (i = 0; i < sizeof(formats) / sizeof(*formats); i++)
     {
@@ -4037,8 +4071,64 @@ static void test_block_formats_creation(void)
                 }
             }
         }
+
+        if (formats[i].overlay)
+            continue;
+
+        for (j = 0; j < sizeof(user_mem_tests) / sizeof(*user_mem_tests); ++j)
+        {
+            memset(&ddsd, 0, sizeof(ddsd));
+            ddsd.dwSize = sizeof(ddsd);
+            ddsd.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_PIXELFORMAT | user_mem_tests[j].flags;
+            ddsd.ddsCaps.dwCaps = DDSCAPS_SYSTEMMEMORY | DDSCAPS_TEXTURE;
+
+            switch (user_mem_tests[j].size_type)
+            {
+                case SIZE_TYPE_ZERO:
+                    U1(ddsd).dwLinearSize = 0;
+                    break;
+
+                case SIZE_TYPE_PITCH:
+                    U1(ddsd).dwLinearSize = 2 * formats[i].block_size;
+                    break;
+
+                case SIZE_TYPE_SIZE:
+                    U1(ddsd).dwLinearSize = 2 * 2 * formats[i].block_size;
+                    break;
+            }
+            U1(ddsd).dwLinearSize += user_mem_tests[j].rel_size;
+
+            ddsd.lpSurface = mem;
+            U4(ddsd).ddpfPixelFormat.dwSize = sizeof(U4(ddsd).ddpfPixelFormat);
+            U4(ddsd).ddpfPixelFormat.dwFlags = DDPF_FOURCC;
+            U4(ddsd).ddpfPixelFormat.dwFourCC = formats[i].fourcc;
+            ddsd.dwWidth = 8;
+            ddsd.dwHeight = 8;
+
+            hr = IDirectDraw7_CreateSurface(ddraw, &ddsd, &surface, NULL);
+            ok(hr == user_mem_tests[j].hr, "Test %u: Got unexpected hr %#x, format %s.\n", j, hr, formats[i].name);
+
+            if (FAILED(hr))
+                continue;
+
+            memset(&ddsd, 0, sizeof(ddsd));
+            ddsd.dwSize = sizeof(ddsd);
+            hr = IDirectDrawSurface7_GetSurfaceDesc(surface, &ddsd);
+            ok(SUCCEEDED(hr), "Test %u: Failed to get surface desc, hr %#x.\n", j, hr);
+            ok(ddsd.dwFlags == (DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_PIXELFORMAT | DDSD_LINEARSIZE),
+                    "Test %u: Got unexpected flags %#x.\n", j, ddsd.dwFlags);
+            if (user_mem_tests[j].flags & DDSD_LPSURFACE)
+                ok(U1(ddsd).dwLinearSize == ~0u, "Test %u: Got unexpected linear size %#x.\n",
+                        j, U1(ddsd).dwLinearSize);
+            else
+                ok(U1(ddsd).dwLinearSize == 2 * 2 * formats[i].block_size,
+                        "Test %u: Got unexpected linear size %#x, expected %#x.\n",
+                        j, U1(ddsd).dwLinearSize, 2 * 2 * formats[i].block_size);
+            IDirectDrawSurface7_Release(surface);
+        }
     }
 
+    HeapFree(GetProcessHeap(), 0, mem);
 cleanup:
     IDirectDraw7_Release(ddraw);
     IDirect3DDevice7_Release(device);
@@ -4370,7 +4460,7 @@ static void test_rt_caps(void)
     hr = IDirectDraw7_SetCooperativeLevel(ddraw, window, DDSCL_NORMAL);
     ok(SUCCEEDED(hr), "Failed to set cooperative level, hr %#x.\n", hr);
 
-    if (FAILED(hr = IDirectDraw7_QueryInterface(ddraw, &IID_IDirect3D7, (void **)&d3d)))
+    if (FAILED(IDirectDraw7_QueryInterface(ddraw, &IID_IDirect3D7, (void **)&d3d)))
     {
         skip("D3D interface is not available, skipping test.\n");
         goto done;
@@ -4778,7 +4868,7 @@ static void test_surface_lock(void)
     hr = IDirectDraw7_SetCooperativeLevel(ddraw, window, DDSCL_NORMAL);
     ok(SUCCEEDED(hr), "Failed to set cooperative level, hr %#x.\n", hr);
 
-    if (FAILED(hr = IDirectDraw7_QueryInterface(ddraw, &IID_IDirect3D7, (void **)&d3d)))
+    if (FAILED(IDirectDraw7_QueryInterface(ddraw, &IID_IDirect3D7, (void **)&d3d)))
     {
         skip("D3D interface is not available, skipping test.\n");
         goto done;
@@ -5598,14 +5688,13 @@ static void test_primary_palette(void)
             0, 0, 640, 480, 0, 0, 0, 0);
     ddraw = create_ddraw();
     ok(!!ddraw, "Failed to create a ddraw object.\n");
-    if (FAILED(hr = IDirectDraw7_SetDisplayMode(ddraw, 640, 480, 8, 0, 0)))
+    if (FAILED(IDirectDraw7_SetDisplayMode(ddraw, 640, 480, 8, 0, 0)))
     {
         win_skip("Failed to set 8 bpp display mode, skipping test.\n");
         IDirectDraw7_Release(ddraw);
         DestroyWindow(window);
         return;
     }
-    ok(SUCCEEDED(hr), "Failed to set display mode, hr %#x.\n", hr);
     hr = IDirectDraw7_SetCooperativeLevel(ddraw, window, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
     ok(SUCCEEDED(hr), "Failed to set cooperative level, hr %#x.\n", hr);
 
@@ -5733,7 +5822,7 @@ static void test_surface_attachment(void)
     U2(surface_desc).dwMipMapCount = 3;
     surface_desc.dwWidth = 128;
     surface_desc.dwHeight = 128;
-    if (FAILED(hr = IDirectDraw7_CreateSurface(ddraw, &surface_desc, &surface1, NULL)))
+    if (FAILED(IDirectDraw7_CreateSurface(ddraw, &surface_desc, &surface1, NULL)))
     {
         skip("Failed to create a texture, skipping tests.\n");
         IDirectDraw7_Release(ddraw);
@@ -6297,36 +6386,45 @@ static void test_create_surface_pitch(void)
         DWORD pitch_in;
         HRESULT hr;
         DWORD flags_out;
-        DWORD pitch_out;
+        DWORD pitch_out32;
+        DWORD pitch_out64;
     }
     test_data[] =
     {
-        {DDSCAPS_VIDEOMEMORY,   0,                              0,      DD_OK,
-                                DDSD_PITCH,                     0x100},
-        {DDSCAPS_VIDEOMEMORY,   DDSD_PITCH,                     0x104,  DD_OK,
-                                DDSD_PITCH,                     0x100},
-        {DDSCAPS_VIDEOMEMORY,   DDSD_PITCH,                     0x0f8,  DD_OK,
-                                DDSD_PITCH,                     0x100},
-        {DDSCAPS_VIDEOMEMORY,   DDSD_LPSURFACE | DDSD_PITCH,    0x100,  DDERR_INVALIDCAPS,
-                                0,                              0    },
-        {DDSCAPS_SYSTEMMEMORY,  0,                              0,      DD_OK,
-                                DDSD_PITCH,                     0x100},
-        {DDSCAPS_SYSTEMMEMORY,  DDSD_PITCH,                     0x104,  DD_OK,
-                                DDSD_PITCH,                     0x100},
-        {DDSCAPS_SYSTEMMEMORY,  DDSD_PITCH,                     0x0f8,  DD_OK,
-                                DDSD_PITCH,                     0x100},
-        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE,                 0,      DDERR_INVALIDPARAMS,
-                                0,                              0    },
-        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE | DDSD_PITCH,    0x100,  DD_OK,
-                                DDSD_PITCH,                     0x100},
-        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE | DDSD_PITCH,    0x0fe,  DDERR_INVALIDPARAMS,
-                                0,                              0    },
-        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE | DDSD_PITCH,    0x0fc,  DD_OK,
-                                DDSD_PITCH,                     0x0fc},
-        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE | DDSD_PITCH,    0x0f8,  DDERR_INVALIDPARAMS,
-                                0,                              0    },
+        {DDSCAPS_VIDEOMEMORY,   0,                                              0,      DD_OK,
+                                DDSD_PITCH,                                     0x100,  0x100},
+        {DDSCAPS_VIDEOMEMORY,   DDSD_PITCH,                                     0x104,  DD_OK,
+                                DDSD_PITCH,                                     0x100,  0x100},
+        {DDSCAPS_VIDEOMEMORY,   DDSD_PITCH,                                     0x0f8,  DD_OK,
+                                DDSD_PITCH,                                     0x100,  0x100},
+        {DDSCAPS_VIDEOMEMORY,   DDSD_LPSURFACE | DDSD_PITCH,                    0x100,  DDERR_INVALIDCAPS,
+                                0,                                              0,      0    },
+        {DDSCAPS_SYSTEMMEMORY,  0,                                              0,      DD_OK,
+                                DDSD_PITCH,                                     0x100,  0x0fc},
+        {DDSCAPS_SYSTEMMEMORY,  DDSD_PITCH,                                     0x104,  DD_OK,
+                                DDSD_PITCH,                                     0x100,  0x0fc},
+        {DDSCAPS_SYSTEMMEMORY,  DDSD_PITCH,                                     0x0f8,  DD_OK,
+                                DDSD_PITCH,                                     0x100,  0x0fc},
+        {DDSCAPS_SYSTEMMEMORY,  DDSD_PITCH | DDSD_LINEARSIZE,                   0,      DD_OK,
+                                DDSD_PITCH,                                     0x100,  0x0fc},
+        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE,                                 0,      DDERR_INVALIDPARAMS,
+                                0,                                              0,      0    },
+        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE | DDSD_PITCH,                    0x100,  DD_OK,
+                                DDSD_PITCH,                                     0x100,  0x100},
+        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE | DDSD_PITCH,                    0x0fe,  DDERR_INVALIDPARAMS,
+                                0,                                              0,      0    },
+        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE | DDSD_PITCH,                    0x0fc,  DD_OK,
+                                DDSD_PITCH,                                     0x0fc,  0x0fc},
+        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE | DDSD_PITCH,                    0x0f8,  DDERR_INVALIDPARAMS,
+                                0,                                              0,      0    },
+        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE | DDSD_LINEARSIZE,               0x100,  DDERR_INVALIDPARAMS,
+                                0,                                              0,      0    },
+        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE | DDSD_LINEARSIZE,               0x3f00, DDERR_INVALIDPARAMS,
+                                0,                                              0,      0    },
+        {DDSCAPS_SYSTEMMEMORY,  DDSD_LPSURFACE | DDSD_PITCH | DDSD_LINEARSIZE,  0x100,  DD_OK,
+                                DDSD_PITCH,                                     0x100,  0x100},
     };
-    DWORD flags_mask = DDSD_PITCH | DDSD_LPSURFACE;
+    DWORD flags_mask = DDSD_PITCH | DDSD_LPSURFACE | DDSD_LINEARSIZE;
 
     window = CreateWindowA("static", "ddraw_test", WS_OVERLAPPEDWINDOW,
             0, 0, 640, 480, 0, 0, 0, 0);
@@ -6366,9 +6464,14 @@ static void test_create_surface_pitch(void)
         ok((surface_desc.dwFlags & flags_mask) == test_data[i].flags_out,
                 "Test %u: Got unexpected flags %#x, expected %#x.\n",
                 i, surface_desc.dwFlags & flags_mask, test_data[i].flags_out);
-        ok(U1(surface_desc).lPitch == test_data[i].pitch_out,
-                "Test %u: Got unexpected pitch %u, expected %u.\n",
-                i, U1(surface_desc).lPitch, test_data[i].pitch_out);
+        if (sizeof(void *) != sizeof(DWORD) && test_data[i].pitch_out32 != test_data[i].pitch_out64)
+            todo_wine ok(U1(surface_desc).lPitch == test_data[i].pitch_out64,
+                    "Test %u: Got unexpected pitch %u, expected %u.\n",
+                    i, U1(surface_desc).lPitch, test_data[i].pitch_out64);
+        else
+            ok(U1(surface_desc).lPitch == test_data[i].pitch_out32,
+                    "Test %u: Got unexpected pitch %u, expected %u.\n",
+                    i, U1(surface_desc).lPitch, test_data[i].pitch_out32);
 
         IDirectDrawSurface7_Release(surface);
     }
@@ -6577,10 +6680,10 @@ static void test_p8_rgb_blit(void)
     HRESULT hr;
     PALETTEENTRY palette_entries[256];
     unsigned int x;
-    static const BYTE src_data[] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0xff, 0x80};
+    static const BYTE src_data[] = {0x10, 0x1, 0x2, 0x3, 0x4, 0x5, 0xff, 0x80};
     static const D3DCOLOR expected[] =
     {
-        0x00000000, 0x00010101, 0x00020202, 0x00030303,
+        0x00101010, 0x00010101, 0x00020202, 0x00030303,
         0x00040404, 0x00050505, 0x00ffffff, 0x00808080,
     };
     D3DCOLOR color;
@@ -6593,10 +6696,10 @@ static void test_p8_rgb_blit(void)
     ok(SUCCEEDED(hr), "Failed to set cooperative level, hr %#x.\n", hr);
 
     memset(palette_entries, 0, sizeof(palette_entries));
-    palette_entries[0].peRed = 0xff;
     palette_entries[1].peGreen = 0xff;
     palette_entries[2].peBlue = 0xff;
     palette_entries[3].peFlags = 0xff;
+    palette_entries[4].peRed = 0xff;
     hr = IDirectDraw7_CreatePalette(ddraw, DDPCAPS_8BIT | DDPCAPS_ALLOW256,
             palette_entries, &palette, NULL);
     ok(SUCCEEDED(hr), "Failed to create palette, hr %#x.\n", hr);
@@ -6863,7 +6966,7 @@ static void test_palette_gdi(void)
     refcount = IDirectDrawSurface7_Release(surface);
     ok(!refcount, "Got unexpected refcount %u.\n", refcount);
 
-    if (FAILED(hr = IDirectDraw7_SetDisplayMode(ddraw, 640, 480, 8, 0, 0)))
+    if (FAILED(IDirectDraw7_SetDisplayMode(ddraw, 640, 480, 8, 0, 0)))
     {
         win_skip("Failed to set 8 bpp display mode, skipping test.\n");
         IDirectDrawPalette_Release(palette);
@@ -7035,14 +7138,13 @@ static void test_palette_alpha(void)
             0, 0, 640, 480, 0, 0, 0, 0);
     ddraw = create_ddraw();
     ok(!!ddraw, "Failed to create a ddraw object.\n");
-    if (FAILED(hr = IDirectDraw7_SetDisplayMode(ddraw, 640, 480, 8, 0, 0)))
+    if (FAILED(IDirectDraw7_SetDisplayMode(ddraw, 640, 480, 8, 0, 0)))
     {
         win_skip("Failed to set 8 bpp display mode, skipping test.\n");
         IDirectDraw7_Release(ddraw);
         DestroyWindow(window);
         return;
     }
-    ok(SUCCEEDED(hr), "Failed to set display mode, hr %#x.\n", hr);
     hr = IDirectDraw7_SetCooperativeLevel(ddraw, window, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
     ok(SUCCEEDED(hr), "Failed to set cooperative level, hr %#x.\n", hr);
 
@@ -7160,6 +7262,313 @@ static void test_palette_alpha(void)
     DestroyWindow(window);
 }
 
+static void test_vb_writeonly(void)
+{
+    IDirect3DDevice7 *device;
+    IDirect3D7 *d3d;
+    IDirect3DVertexBuffer7 *buffer;
+    HWND window;
+    HRESULT hr;
+    D3DVERTEXBUFFERDESC desc;
+    void *ptr;
+    static const struct vec4 quad[] =
+    {
+        {  0.0f, 480.0f, 0.0f, 1.0f},
+        {  0.0f,   0.0f, 0.0f, 1.0f},
+        {640.0f, 480.0f, 0.0f, 1.0f},
+        {640.0f,   0.0f, 0.0f, 1.0f},
+    };
+
+    window = CreateWindowA("static", "ddraw_test", WS_OVERLAPPEDWINDOW,
+            0, 0, 640, 480, 0, 0, 0, 0);
+
+    if (!(device = create_device(window, DDSCL_NORMAL)))
+    {
+        skip("Failed to create a 3D device, skipping test.\n");
+        DestroyWindow(window);
+        return;
+    }
+
+    hr = IDirect3DDevice7_GetDirect3D(device, &d3d);
+    ok(SUCCEEDED(hr), "Failed to get d3d interface, hr %#x.\n", hr);
+
+    memset(&desc, 0, sizeof(desc));
+    desc.dwSize = sizeof(desc);
+    desc.dwCaps = D3DVBCAPS_WRITEONLY;
+    desc.dwFVF = D3DFVF_XYZRHW;
+    desc.dwNumVertices = sizeof(quad) / sizeof(*quad);
+    hr = IDirect3D7_CreateVertexBuffer(d3d, &desc, &buffer, 0);
+    ok(SUCCEEDED(hr), "Failed to create vertex buffer, hr %#x.\n", hr);
+
+    hr = IDirect3DVertexBuffer7_Lock(buffer, DDLOCK_DISCARDCONTENTS, &ptr, NULL);
+    ok(SUCCEEDED(hr), "Failed to lock vertex buffer, hr %#x.\n", hr);
+    memcpy(ptr, quad, sizeof(quad));
+    hr = IDirect3DVertexBuffer7_Unlock(buffer);
+    ok(SUCCEEDED(hr), "Failed to unlock vertex buffer, hr %#x.\n", hr);
+
+    hr = IDirect3DDevice7_BeginScene(device);
+    ok(SUCCEEDED(hr), "Failed to begin scene, hr %#x.\n", hr);
+    hr = IDirect3DDevice7_DrawPrimitiveVB(device, D3DPT_TRIANGLESTRIP, buffer, 0, 4, 0);
+    ok(SUCCEEDED(hr), "Failed to draw, hr %#x.\n", hr);
+    hr = IDirect3DDevice7_EndScene(device);
+    ok(SUCCEEDED(hr), "Failed to end scene, hr %#x.\n", hr);
+
+    hr = IDirect3DVertexBuffer7_Lock(buffer, 0, &ptr, NULL);
+    ok(SUCCEEDED(hr), "Failed to lock vertex buffer, hr %#x.\n", hr);
+    ok (!memcmp(ptr, quad, sizeof(quad)), "Got unexpected vertex buffer data.\n");
+    hr = IDirect3DVertexBuffer7_Unlock(buffer);
+    ok(SUCCEEDED(hr), "Failed to unlock vertex buffer, hr %#x.\n", hr);
+
+    hr = IDirect3DVertexBuffer7_Lock(buffer, DDLOCK_READONLY, &ptr, NULL);
+    ok(SUCCEEDED(hr), "Failed to lock vertex buffer, hr %#x.\n", hr);
+    ok (!memcmp(ptr, quad, sizeof(quad)), "Got unexpected vertex buffer data.\n");
+    hr = IDirect3DVertexBuffer7_Unlock(buffer);
+    ok(SUCCEEDED(hr), "Failed to unlock vertex buffer, hr %#x.\n", hr);
+
+    IDirect3DVertexBuffer7_Release(buffer);
+    IDirect3D7_Release(d3d);
+    IDirect3DDevice7_Release(device);
+    DestroyWindow(window);
+}
+
+static void test_lost_device(void)
+{
+    IDirectDrawSurface7 *surface;
+    DDSURFACEDESC2 surface_desc;
+    IDirectDraw7 *ddraw;
+    ULONG refcount;
+    HWND window;
+    HRESULT hr;
+    BOOL ret;
+
+    window = CreateWindowA("static", "ddraw_test", WS_OVERLAPPEDWINDOW,
+            0, 0, 640, 480, 0, 0, 0, 0);
+    ddraw = create_ddraw();
+    ok(!!ddraw, "Failed to create a ddraw object.\n");
+    hr = IDirectDraw7_SetCooperativeLevel(ddraw, window, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
+    ok(SUCCEEDED(hr), "Failed to set cooperative level, hr %#x.\n", hr);
+
+    memset(&surface_desc, 0, sizeof(surface_desc));
+    surface_desc.dwSize = sizeof(surface_desc);
+    surface_desc.dwFlags = DDSD_CAPS | DDSD_BACKBUFFERCOUNT;
+    surface_desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_COMPLEX | DDSCAPS_FLIP;
+    surface_desc.dwBackBufferCount = 1;
+    hr = IDirectDraw7_CreateSurface(ddraw, &surface_desc, &surface, NULL);
+    ok(SUCCEEDED(hr), "Failed to create surface, hr %#x.\n", hr);
+
+    hr = IDirectDraw7_TestCooperativeLevel(ddraw);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_IsLost(surface);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_Flip(surface, NULL, DDFLIP_WAIT);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+
+    ret = SetForegroundWindow(GetDesktopWindow());
+    ok(ret, "Failed to set foreground window.\n");
+    hr = IDirectDraw7_TestCooperativeLevel(ddraw);
+    ok(hr == DDERR_NOEXCLUSIVEMODE, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_IsLost(surface);
+    todo_wine ok(hr == DDERR_SURFACELOST, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_Flip(surface, NULL, DDFLIP_WAIT);
+    todo_wine ok(hr == DDERR_SURFACELOST, "Got unexpected hr %#x.\n", hr);
+
+    ret = SetForegroundWindow(window);
+    ok(ret, "Failed to set foreground window.\n");
+    hr = IDirectDraw7_TestCooperativeLevel(ddraw);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_IsLost(surface);
+    todo_wine ok(hr == DDERR_SURFACELOST, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_Flip(surface, NULL, DDFLIP_WAIT);
+    todo_wine ok(hr == DDERR_SURFACELOST, "Got unexpected hr %#x.\n", hr);
+
+    hr = IDirectDraw7_RestoreAllSurfaces(ddraw);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDraw7_TestCooperativeLevel(ddraw);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_IsLost(surface);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_Flip(surface, NULL, DDFLIP_WAIT);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+
+    hr = IDirectDraw7_SetCooperativeLevel(ddraw, window, DDSCL_NORMAL);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDraw7_TestCooperativeLevel(ddraw);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_IsLost(surface);
+    ok(hr == DDERR_SURFACELOST, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_Flip(surface, NULL, DDFLIP_WAIT);
+    ok(hr == DDERR_SURFACELOST, "Got unexpected hr %#x.\n", hr);
+
+    /* Trying to restore the primary will crash, probably because flippable
+     * surfaces can't exist in DDSCL_NORMAL. */
+    IDirectDrawSurface7_Release(surface);
+    memset(&surface_desc, 0, sizeof(surface_desc));
+    surface_desc.dwSize = sizeof(surface_desc);
+    surface_desc.dwFlags = DDSD_CAPS;
+    surface_desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
+    hr = IDirectDraw7_CreateSurface(ddraw, &surface_desc, &surface, NULL);
+    ok(SUCCEEDED(hr), "Failed to create surface, hr %#x.\n", hr);
+
+    hr = IDirectDraw7_TestCooperativeLevel(ddraw);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_IsLost(surface);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+
+    ret = SetForegroundWindow(GetDesktopWindow());
+    ok(ret, "Failed to set foreground window.\n");
+    hr = IDirectDraw7_TestCooperativeLevel(ddraw);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_IsLost(surface);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+
+    ret = SetForegroundWindow(window);
+    ok(ret, "Failed to set foreground window.\n");
+    hr = IDirectDraw7_TestCooperativeLevel(ddraw);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_IsLost(surface);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+
+    hr = IDirectDraw7_SetCooperativeLevel(ddraw, window, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDraw7_TestCooperativeLevel(ddraw);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_IsLost(surface);
+    ok(hr == DDERR_SURFACELOST, "Got unexpected hr %#x.\n", hr);
+
+    hr = IDirectDraw7_RestoreAllSurfaces(ddraw);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDraw7_TestCooperativeLevel(ddraw);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_IsLost(surface);
+    ok(hr == DD_OK, "Got unexpected hr %#x.\n", hr);
+
+    IDirectDrawSurface7_Release(surface);
+    refcount = IDirectDraw7_Release(ddraw);
+    ok(!refcount, "Got unexpected refcount %u.\n", refcount);
+    DestroyWindow(window);
+}
+
+static void test_resource_priority(void)
+{
+    IDirectDrawSurface7 *surface, *mipmap;
+    DDSURFACEDESC2 surface_desc;
+    IDirectDraw7 *ddraw;
+    ULONG refcount;
+    HWND window;
+    HRESULT hr;
+    DDSCAPS2 caps = {DDSCAPS_COMPLEX, 0, 0, 0};
+    DDCAPS hal_caps;
+    DWORD needed_caps = DDSCAPS_TEXTURE | DDSCAPS_VIDEOMEMORY | DDSCAPS_MIPMAP;
+    unsigned int i;
+    DWORD priority;
+    static const struct
+    {
+        DWORD caps, caps2;
+        const char *name;
+        HRESULT hr;
+        /* SetPriority on offscreenplain surfaces crashes on AMD GPUs on Win7. */
+        BOOL crash;
+    }
+    test_data[] =
+    {
+        {DDSCAPS_TEXTURE | DDSCAPS_VIDEOMEMORY, 0, "vidmem texture", DDERR_INVALIDPARAMS, FALSE},
+        {DDSCAPS_TEXTURE | DDSCAPS_SYSTEMMEMORY, 0, "sysmem texture", DDERR_INVALIDPARAMS, FALSE},
+        {DDSCAPS_TEXTURE, DDSCAPS2_TEXTUREMANAGE, "managed texture", DD_OK, FALSE},
+        {DDSCAPS_TEXTURE, DDSCAPS2_D3DTEXTUREMANAGE, "managed texture", DD_OK, FALSE},
+        {DDSCAPS_OFFSCREENPLAIN | DDSCAPS_VIDEOMEMORY, 0, "vidmem offscreenplain", DDERR_INVALIDOBJECT, TRUE},
+        {DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY, 0, "sysmem offscreenplain", DDERR_INVALIDOBJECT, TRUE},
+    };
+
+    window = CreateWindowA("static", "ddraw_test", WS_OVERLAPPEDWINDOW,
+            0, 0, 640, 480, 0, 0, 0, 0);
+    ddraw = create_ddraw();
+    ok(!!ddraw, "Failed to create a ddraw object.\n");
+    hr = IDirectDraw7_SetCooperativeLevel(ddraw, window, DDSCL_NORMAL);
+    ok(SUCCEEDED(hr), "Failed to set cooperative level, hr %#x.\n", hr);
+
+    memset(&hal_caps, 0, sizeof(hal_caps));
+    hal_caps.dwSize = sizeof(hal_caps);
+    hr = IDirectDraw7_GetCaps(ddraw, &hal_caps, NULL);
+    ok(SUCCEEDED(hr), "Failed to get caps, hr %#x.\n", hr);
+    if ((hal_caps.ddsCaps.dwCaps & needed_caps) != needed_caps
+            || !(hal_caps.ddsCaps.dwCaps & DDSCAPS2_TEXTUREMANAGE))
+    {
+        skip("Required surface types not supported, skipping test.\n");
+        goto done;
+    }
+
+    for (i = 0; i < sizeof(test_data) / sizeof(*test_data); i++)
+    {
+        memset(&surface_desc, 0, sizeof(surface_desc));
+        surface_desc.dwSize = sizeof(surface_desc);
+        surface_desc.dwFlags = DDSD_WIDTH | DDSD_HEIGHT | DDSD_CAPS;
+        surface_desc.dwWidth = 32;
+        surface_desc.dwHeight = 32;
+        surface_desc.ddsCaps.dwCaps = test_data[i].caps;
+        surface_desc.ddsCaps.dwCaps2 = test_data[i].caps2;
+        hr = IDirectDraw7_CreateSurface(ddraw, &surface_desc, &surface, NULL);
+        ok(SUCCEEDED(hr), "Failed to create surface, hr %#x, type %s.\n", hr, test_data[i].name);
+
+        /* Priority == NULL segfaults. */
+        priority = 0xdeadbeef;
+        hr = IDirectDrawSurface7_GetPriority(surface, &priority);
+        ok(hr == test_data[i].hr, "Got unexpected hr %#x, type %s.\n", hr, test_data[i].name);
+        if (SUCCEEDED(test_data[i].hr))
+            ok(priority == 0, "Got unexpected priority %u, type %s.\n", priority, test_data[i].name);
+        else
+            ok(priority == 0xdeadbeef, "Got unexpected priority %u, type %s.\n", priority, test_data[i].name);
+
+        if (!test_data[i].crash)
+        {
+            hr = IDirectDrawSurface7_SetPriority(surface, 1);
+            ok(hr == test_data[i].hr, "Got unexpected hr %#x, type %s.\n", hr, test_data[i].name);
+            hr = IDirectDrawSurface7_GetPriority(surface, &priority);
+            ok(hr == test_data[i].hr, "Got unexpected hr %#x, type %s.\n", hr, test_data[i].name);
+            if (SUCCEEDED(test_data[i].hr))
+            {
+                ok(priority == 1, "Got unexpected priority %u, type %s.\n", priority, test_data[i].name);
+                hr = IDirectDrawSurface7_SetPriority(surface, 2);
+                ok(hr == test_data[i].hr, "Got unexpected hr %#x, type %s.\n", hr, test_data[i].name);
+            }
+            else
+                ok(priority == 0xdeadbeef, "Got unexpected priority %u, type %s.\n", priority, test_data[i].name);
+        }
+
+        IDirectDrawSurface7_Release(surface);
+    }
+
+    memset(&surface_desc, 0, sizeof(surface_desc));
+    surface_desc.dwSize = sizeof(surface_desc);
+    surface_desc.dwFlags = DDSD_WIDTH | DDSD_HEIGHT | DDSD_CAPS | DDSD_MIPMAPCOUNT;
+    surface_desc.dwWidth = 32;
+    surface_desc.dwHeight = 32;
+    surface_desc.ddsCaps.dwCaps = DDSCAPS_TEXTURE | DDSCAPS_COMPLEX | DDSCAPS_MIPMAP;
+    surface_desc.ddsCaps.dwCaps2 = DDSCAPS2_TEXTUREMANAGE;
+    U2(surface_desc).dwMipMapCount = 2;
+    hr = IDirectDraw7_CreateSurface(ddraw, &surface_desc, &surface, NULL);
+    ok(SUCCEEDED(hr), "Failed to create surface, hr %#x.\n", hr);
+    hr = IDirectDrawSurface7_GetAttachedSurface(surface, &caps, &mipmap);
+    ok(SUCCEEDED(hr), "Failed to get attached surface, hr %#x.\n", hr);
+
+    priority = 0xdeadbeef;
+    hr = IDirectDrawSurface7_GetPriority(mipmap, &priority);
+    ok(hr == DDERR_INVALIDPARAMS, "Got unexpected hr %#x, type managed mipmap.\n", hr);
+    ok(priority == 0xdeadbeef, "Got unexpected priority %u, type managed mipmap.\n", priority);
+    /* SetPriority on the mipmap surface crashes. */
+    hr = IDirectDrawSurface7_GetPriority(surface, &priority);
+    ok(SUCCEEDED(hr), "Failed to get priority, hr %#x.\n", hr);
+    ok(priority == 0, "Got unexpected priority %u, type managed mipmap.\n", priority);
+
+    IDirectDrawSurface7_Release(mipmap);
+    refcount = IDirectDrawSurface7_Release(surface);
+    ok(!refcount, "Got unexpected refcount %u.\n", refcount);
+
+done:
+    refcount = IDirectDraw7_Release(ddraw);
+    ok(!refcount, "Got unexpected refcount %u.\n", refcount);
+    DestroyWindow(window);
+}
+
 START_TEST(ddraw7)
 {
     HMODULE module = GetModuleHandleA("ddraw.dll");
@@ -7229,4 +7638,7 @@ START_TEST(ddraw7)
     test_material();
     test_palette_gdi();
     test_palette_alpha();
+    test_vb_writeonly();
+    test_lost_device();
+    test_resource_priority();
 }

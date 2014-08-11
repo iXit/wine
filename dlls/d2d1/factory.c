@@ -144,10 +144,20 @@ static HRESULT STDMETHODCALLTYPE d2d_factory_CreateStrokeStyle(ID2D1Factory *ifa
         const D2D1_STROKE_STYLE_PROPERTIES *desc, const float *dashes, UINT32 dash_count,
         ID2D1StrokeStyle **stroke_style)
 {
-    FIXME("iface %p, desc %p, dashes %p, dash_count %u, stroke_style %p stub!\n",
+    struct d2d_stroke_style *object;
+
+    TRACE("iface %p, desc %p, dashes %p, dash_count %u, stroke_style %p.\n",
             iface, desc, dashes, dash_count, stroke_style);
 
-    return E_NOTIMPL;
+    if (!(object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*object))))
+        return E_OUTOFMEMORY;
+
+    d2d_stroke_style_init(object, iface, desc, dashes, dash_count);
+
+    TRACE("Created stroke style %p.\n", object);
+    *stroke_style = &object->ID2D1StrokeStyle_iface;
+
+    return S_OK;
 }
 
 static HRESULT STDMETHODCALLTYPE d2d_factory_CreateDrawingStateBlock(ID2D1Factory *iface,
@@ -253,4 +263,23 @@ HRESULT WINAPI D2D1CreateFactory(D2D1_FACTORY_TYPE factory_type, REFIID iid,
     ID2D1Factory_Release(&object->ID2D1Factory_iface);
 
     return hr;
+}
+
+void WINAPI D2D1MakeRotateMatrix(float angle, D2D1_POINT_2F center, D2D1_MATRIX_3X2_F *matrix)
+{
+    float theta, sin_theta, cos_theta;
+
+    TRACE("angle %.8e, center {%.8e, %.8e}, matrix %p.\n", angle, center.x, center.y, matrix);
+
+    theta = angle * (M_PI / 180.0f);
+    sin_theta = sinf(theta);
+    cos_theta = cosf(theta);
+
+    /* translate(center) * rotate(theta) * translate(-center) */
+    matrix->_11 = cos_theta;
+    matrix->_12 = sin_theta;
+    matrix->_21 = -sin_theta;
+    matrix->_22 = cos_theta;
+    matrix->_31 = center.x - center.x * cos_theta + center.y * sin_theta;
+    matrix->_32 = center.y - center.x * sin_theta - center.y * cos_theta;
 }

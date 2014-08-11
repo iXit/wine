@@ -514,7 +514,14 @@ static void STDMETHODCALLTYPE d3d10_device_CopySubresourceRegion(ID3D10Device1 *
 static void STDMETHODCALLTYPE d3d10_device_CopyResource(ID3D10Device1 *iface,
         ID3D10Resource *dst_resource, ID3D10Resource *src_resource)
 {
-    FIXME("iface %p, dst_resource %p, src_resource %p stub!\n", iface, dst_resource, src_resource);
+    struct wined3d_resource *wined3d_dst_resource, *wined3d_src_resource;
+    struct d3d10_device *device = impl_from_ID3D10Device(iface);
+
+    TRACE("iface %p, dst_resource %p, src_resource %p.\n", iface, dst_resource, src_resource);
+
+    wined3d_dst_resource = wined3d_resource_from_resource(dst_resource);
+    wined3d_src_resource = wined3d_resource_from_resource(src_resource);
+    wined3d_device_copy_resource(device->wined3d_device, wined3d_dst_resource, wined3d_src_resource);
 }
 
 static void STDMETHODCALLTYPE d3d10_device_UpdateSubresource(ID3D10Device1 *iface,
@@ -1007,9 +1014,12 @@ static void STDMETHODCALLTYPE d3d10_device_RSGetScissorRects(ID3D10Device1 *ifac
 
 static HRESULT STDMETHODCALLTYPE d3d10_device_GetDeviceRemovedReason(ID3D10Device1 *iface)
 {
-    FIXME("iface %p stub!\n", iface);
+    TRACE("iface %p.\n", iface);
 
-    return E_NOTIMPL;
+    /* In the current implementation the device is never removed, so we can
+     * just return S_OK here. */
+
+    return S_OK;
 }
 
 static HRESULT STDMETHODCALLTYPE d3d10_device_SetExceptionMode(ID3D10Device1 *iface, UINT flags)
@@ -1932,6 +1942,11 @@ static void CDECL device_parent_mode_changed(struct wined3d_device_parent *devic
     TRACE("device_parent %p.\n", device_parent);
 }
 
+static void CDECL device_parent_activate(struct wined3d_device_parent *device_parent, BOOL activate)
+{
+    TRACE("device_parent %p, activate %#x.\n", device_parent, activate);
+}
+
 static HRESULT CDECL device_parent_surface_created(struct wined3d_device_parent *device_parent,
         void *container_parent, struct wined3d_surface *surface, void **parent,
         const struct wined3d_parent_ops **parent_ops)
@@ -2030,6 +2045,7 @@ static const struct wined3d_device_parent_ops d3d10_wined3d_device_parent_ops =
 {
     device_parent_wined3d_device_created,
     device_parent_mode_changed,
+    device_parent_activate,
     device_parent_surface_created,
     device_parent_volume_created,
     device_parent_create_swapchain_surface,

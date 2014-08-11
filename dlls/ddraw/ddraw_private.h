@@ -58,6 +58,12 @@ struct FvfToDecl
 
 #define DDRAW_STRIDE_ALIGNMENT  8
 
+enum ddraw_device_state
+{
+    DDRAW_DEVICE_STATE_OK,
+    DDRAW_DEVICE_STATE_LOST,
+};
+
 struct ddraw
 {
     /* Interfaces */
@@ -77,6 +83,7 @@ struct ddraw
     struct wined3d *wined3d;
     struct wined3d_device *wined3d_device;
     DWORD flags;
+    LONG device_state;
 
     struct ddraw_surface *primary;
     RECT primary_lock;
@@ -200,6 +207,8 @@ HRESULT ddraw_surface_create(struct ddraw *ddraw, const DDSURFACEDESC2 *surface_
 HRESULT ddraw_surface_init(struct ddraw_surface *surface, struct ddraw *ddraw, struct ddraw_texture *texture,
         struct wined3d_surface *wined3d_surface, const struct wined3d_parent_ops **parent_ops) DECLSPEC_HIDDEN;
 ULONG ddraw_surface_release_iface(struct ddraw_surface *This) DECLSPEC_HIDDEN;
+HRESULT ddraw_surface_update_frontbuffer(struct ddraw_surface *surface,
+        const RECT *rect, BOOL read) DECLSPEC_HIDDEN;
 
 static inline struct ddraw_surface *impl_from_IDirect3DTexture(IDirect3DTexture *iface)
 {
@@ -574,6 +583,13 @@ void DDSD_to_DDSD2(const DDSURFACEDESC *in, DDSURFACEDESC2 *out) DECLSPEC_HIDDEN
 void DDSD2_to_DDSD(const DDSURFACEDESC2 *in, DDSURFACEDESC *out) DECLSPEC_HIDDEN;
 
 void multiply_matrix(D3DMATRIX *dst, const D3DMATRIX *src1, const D3DMATRIX *src2) DECLSPEC_HIDDEN;
+
+static inline BOOL format_is_compressed(const DDPIXELFORMAT *format)
+{
+    return (format->dwFlags & DDPF_FOURCC) && (format->dwFourCC == WINED3DFMT_DXT1
+            || format->dwFourCC == WINED3DFMT_DXT2 || format->dwFourCC == WINED3DFMT_DXT3
+            || format->dwFourCC == WINED3DFMT_DXT4 || format->dwFourCC == WINED3DFMT_DXT5);
+}
 
 static inline BOOL format_is_paletteindexed(const DDPIXELFORMAT *fmt)
 {

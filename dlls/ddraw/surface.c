@@ -40,7 +40,7 @@ static inline struct ddraw_surface *impl_from_IDirectDrawGammaControl(IDirectDra
  * applications from drawing to the screen while we've locked the frontbuffer.
  * We'd like to do this in wined3d instead, but for that to work wined3d needs
  * to support windowless rendering first. */
-static HRESULT ddraw_surface_update_frontbuffer(struct ddraw_surface *surface, const RECT *rect, BOOL read)
+HRESULT ddraw_surface_update_frontbuffer(struct ddraw_surface *surface, const RECT *rect, BOOL read)
 {
     HDC surface_dc, screen_dc;
     int x, y, w, h;
@@ -473,17 +473,15 @@ static HRESULT ddraw_surface_set_palette(struct ddraw_surface *surface, IDirectD
             prev->flags &= ~DDPCAPS_PRIMARYSURFACE;
         if (palette_impl)
             palette_impl->flags |= DDPCAPS_PRIMARYSURFACE;
-        /* Update the wined3d frontbuffer if this is the primary. */
-        if (surface->ddraw->wined3d_frontbuffer)
-            wined3d_surface_set_palette(surface->ddraw->wined3d_frontbuffer,
-                    palette_impl ? palette_impl->wineD3DPalette : NULL);
+        wined3d_swapchain_set_palette(surface->ddraw->wined3d_swapchain,
+                palette_impl ? palette_impl->wineD3DPalette : NULL);
+        ddraw_surface_update_frontbuffer(surface, NULL, FALSE);
     }
     if (palette_impl)
         IDirectDrawPalette_AddRef(&palette_impl->IDirectDrawPalette_iface);
     if (prev)
         IDirectDrawPalette_Release(&prev->IDirectDrawPalette_iface);
     surface->palette = palette_impl;
-    wined3d_surface_set_palette(surface->wined3d_surface, palette_impl ? palette_impl->wineD3DPalette : NULL);
 
     wined3d_mutex_unlock();
 
@@ -1228,6 +1226,9 @@ static HRESULT WINAPI ddraw_surface7_Flip(IDirectDrawSurface7 *iface, IDirectDra
 
     if (src == iface || !(dst_impl->surface_desc.ddsCaps.dwCaps & (DDSCAPS_FRONTBUFFER | DDSCAPS_OVERLAY)))
         return DDERR_NOTFLIPPABLE;
+
+    if (IDirectDrawSurface7_IsLost(iface) == DDERR_SURFACELOST)
+        return DDERR_SURFACELOST;
 
     wined3d_mutex_lock();
 
@@ -2228,63 +2229,63 @@ static HRESULT WINAPI ddraw_surface1_GetCaps(IDirectDrawSurface *iface, DDSCAPS 
     return hr;
 }
 
-/*****************************************************************************
- * IDirectDrawSurface7::SetPriority
- *
- * Sets a texture priority for managed textures.
- *
- * Params:
- *  Priority: The new priority
- *
- * Returns:
- *  DD_OK on success
- *  For more details, see IWineD3DSurface::SetPriority
- *
- *****************************************************************************/
-static HRESULT WINAPI ddraw_surface7_SetPriority(IDirectDrawSurface7 *iface, DWORD Priority)
+static HRESULT WINAPI ddraw_surface7_SetPriority(IDirectDrawSurface7 *iface, DWORD priority)
 {
     struct ddraw_surface *surface = impl_from_IDirectDrawSurface7(iface);
+    DWORD managed = DDSCAPS2_TEXTUREMANAGE | DDSCAPS2_D3DTEXTUREMANAGE;
     HRESULT hr;
+    struct wined3d_resource *resource;
 
-    TRACE("iface %p, priority %u.\n", iface, Priority);
+    TRACE("iface %p, priority %u.\n", iface, priority);
 
     wined3d_mutex_lock();
-    hr = wined3d_surface_set_priority(surface->wined3d_surface, Priority);
+    /* No need to check for offscreen plain surfaces or mipmap sublevels. SetPriority
+     * calls on such surfaces segfault on Windows. */
+    if (!(surface->surface_desc.ddsCaps.dwCaps2 & managed))
+    {
+        WARN("Called on non-managed texture returning DDERR_INVALIDPARAMS.\n");
+        hr = DDERR_INVALIDPARAMS;
+    }
+    else
+    {
+        resource = wined3d_texture_get_resource(surface->wined3d_texture);
+        wined3d_resource_set_priority(resource, priority);
+        hr = DD_OK;
+    }
     wined3d_mutex_unlock();
 
     return hr;
 }
 
-/*****************************************************************************
- * IDirectDrawSurface7::GetPriority
- *
- * Returns the surface's priority
- *
- * Params:
- *  Priority: Address of a variable to write the priority to
- *
- * Returns:
- *  D3D_OK on success
- *  DDERR_INVALIDPARAMS if Priority == NULL
- *  For more details, see IWineD3DSurface::GetPriority
- *
- *****************************************************************************/
-static HRESULT WINAPI ddraw_surface7_GetPriority(IDirectDrawSurface7 *iface, DWORD *Priority)
+static HRESULT WINAPI ddraw_surface7_GetPriority(IDirectDrawSurface7 *iface, DWORD *priority)
 {
     struct ddraw_surface *surface = impl_from_IDirectDrawSurface7(iface);
+    const struct wined3d_resource *resource;
+    DWORD managed = DDSCAPS2_TEXTUREMANAGE | DDSCAPS2_D3DTEXTUREMANAGE;
+    HRESULT hr;
 
-    TRACE("iface %p, priority %p.\n", iface, Priority);
-
-    if(!Priority)
-    {
-        return DDERR_INVALIDPARAMS;
-    }
+    TRACE("iface %p, priority %p.\n", iface, priority);
 
     wined3d_mutex_lock();
-    *Priority = wined3d_surface_get_priority(surface->wined3d_surface);
+    if (surface->surface_desc.ddsCaps.dwCaps & DDSCAPS_OFFSCREENPLAIN)
+    {
+        WARN("Called on offscreenplain surface, returning DDERR_INVALIDOBJECT.\n");
+        hr = DDERR_INVALIDOBJECT;
+    }
+    else if (!(surface->surface_desc.ddsCaps.dwCaps2 & managed) || !surface->wined3d_texture)
+    {
+        WARN("Called on non-managed texture or mipmap sublevel, returning DDERR_INVALIDPARAMS.\n");
+        hr = DDERR_INVALIDPARAMS;
+    }
+    else
+    {
+        resource = wined3d_texture_get_resource(surface->wined3d_texture);
+        *priority = wined3d_resource_get_priority(resource);
+        hr = DD_OK;
+    }
     wined3d_mutex_unlock();
 
-    return DD_OK;
+    return hr;
 }
 
 /*****************************************************************************
@@ -4514,6 +4515,11 @@ static HRESULT WINAPI ddraw_surface7_GetPalette(IDirectDrawSurface7 *iface, IDir
 
     if (!palette)
         return DDERR_INVALIDPARAMS;
+    if (IDirectDrawSurface7_IsLost(iface) == DDERR_SURFACELOST)
+    {
+        WARN("Surface lost, returning DDERR_SURFACELOST.\n");
+        return DDERR_SURFACELOST;
+    }
 
     wined3d_mutex_lock();
     if ((palette_impl = surface->palette))
@@ -4704,6 +4710,11 @@ static HRESULT WINAPI ddraw_surface7_SetPalette(IDirectDrawSurface7 *iface, IDir
 
     if (surface->surface_desc.ddsCaps.dwCaps2 & DDSCAPS2_MIPMAPSUBLEVEL)
         return DDERR_NOTONMIPMAPSUBLEVEL;
+    if (IDirectDrawSurface7_IsLost(iface) == DDERR_SURFACELOST)
+    {
+        WARN("Surface lost, returning DDERR_SURFACELOST.\n");
+        return DDERR_SURFACELOST;
+    }
 
     return ddraw_surface_set_palette(surface, palette);
 }
@@ -4714,6 +4725,12 @@ static HRESULT WINAPI ddraw_surface4_SetPalette(IDirectDrawSurface4 *iface, IDir
 
     TRACE("iface %p, palette %p.\n", iface, palette);
 
+    if (IDirectDrawSurface4_IsLost(iface) == DDERR_SURFACELOST)
+    {
+        WARN("Surface lost, returning DDERR_SURFACELOST.\n");
+        return DDERR_SURFACELOST;
+    }
+
     return ddraw_surface_set_palette(surface, palette);
 }
 
@@ -4722,6 +4739,12 @@ static HRESULT WINAPI ddraw_surface3_SetPalette(IDirectDrawSurface3 *iface, IDir
     struct ddraw_surface *surface = impl_from_IDirectDrawSurface3(iface);
 
     TRACE("iface %p, palette %p.\n", iface, palette);
+
+    if (IDirectDrawSurface3_IsLost(iface) == DDERR_SURFACELOST)
+    {
+        WARN("Surface lost, returning DDERR_SURFACELOST.\n");
+        return DDERR_SURFACELOST;
+    }
 
     return ddraw_surface_set_palette(surface, palette);
 }
@@ -4732,6 +4755,12 @@ static HRESULT WINAPI ddraw_surface2_SetPalette(IDirectDrawSurface2 *iface, IDir
 
     TRACE("iface %p, palette %p.\n", iface, palette);
 
+    if (IDirectDrawSurface2_IsLost(iface) == DDERR_SURFACELOST)
+    {
+        WARN("Surface lost, returning DDERR_SURFACELOST.\n");
+        return DDERR_SURFACELOST;
+    }
+
     return ddraw_surface_set_palette(surface, palette);
 }
 
@@ -4740,6 +4769,12 @@ static HRESULT WINAPI ddraw_surface1_SetPalette(IDirectDrawSurface *iface, IDire
     struct ddraw_surface *surface = impl_from_IDirectDrawSurface(iface);
 
     TRACE("iface %p, palette %p.\n", iface, palette);
+
+    if (IDirectDrawSurface_IsLost(iface) == DDERR_SURFACELOST)
+    {
+        WARN("Surface lost, returning DDERR_SURFACELOST.\n");
+        return DDERR_SURFACELOST;
+    }
 
     return ddraw_surface_set_palette(surface, palette);
 }
@@ -5886,11 +5921,30 @@ HRESULT ddraw_surface_create(struct ddraw *ddraw, const DDSURFACEDESC2 *surface_
             return DDERR_INVALIDPARAMS;
         }
 
-        if (!(desc->dwFlags & DDSD_PITCH))
+        if (format_is_compressed(&desc->u4.ddpfPixelFormat))
         {
-            WARN("User memory surfaces should explicitly specify the pitch.\n");
-            HeapFree(GetProcessHeap(), 0, texture);
-            return DDERR_INVALIDPARAMS;
+            if (version != 4 && (desc->dwFlags & DDSD_PITCH))
+            {
+                WARN("Pitch specified on a compressed user memory surface.\n");
+                HeapFree(GetProcessHeap(), 0, texture);
+                return DDERR_INVALIDPARAMS;
+            }
+
+            if (!(desc->dwFlags & (DDSD_LINEARSIZE | DDSD_PITCH)))
+            {
+                WARN("Compressed user memory surfaces should explicitly specify the linear size.\n");
+                HeapFree(GetProcessHeap(), 0, texture);
+                return DDERR_INVALIDPARAMS;
+            }
+        }
+        else
+        {
+            if (!(desc->dwFlags & DDSD_PITCH))
+            {
+                WARN("User memory surfaces should explicitly specify the pitch.\n");
+                HeapFree(GetProcessHeap(), 0, texture);
+                return DDERR_INVALIDPARAMS;
+            }
         }
     }
 
@@ -6112,42 +6166,63 @@ HRESULT ddraw_surface_init(struct ddraw_surface *surface, struct ddraw *ddraw, s
     desc->dwHeight = wined3d_desc.height;
     surface->first_attached = surface;
 
-    /* Anno 1602 stores the pitch right after surface creation, so make sure
-     * it's there. TODO: Test other fourcc formats. */
-    if (wined3d_desc.format == WINED3DFMT_DXT1 || wined3d_desc.format == WINED3DFMT_DXT2
-            || wined3d_desc.format == WINED3DFMT_DXT3 || wined3d_desc.format == WINED3DFMT_DXT4
-            || wined3d_desc.format == WINED3DFMT_DXT5)
+    if (format_is_compressed(&desc->u4.ddpfPixelFormat))
     {
-        surface->surface_desc.dwFlags |= DDSD_LINEARSIZE;
-        if (wined3d_desc.format == WINED3DFMT_DXT1)
-            surface->surface_desc.u1.dwLinearSize = max(4, desc->dwWidth) * max(4, desc->dwHeight) / 2;
+        if (desc->dwFlags & DDSD_LPSURFACE)
+        {
+            if ((desc->dwFlags & DDSD_LINEARSIZE)
+                    && desc->u1.dwLinearSize < wined3d_surface_get_pitch(wined3d_surface) * ((desc->dwHeight + 3) / 4))
+            {
+                WARN("Invalid linear size %u specified.\n", desc->u1.dwLinearSize);
+                return DDERR_INVALIDPARAMS;
+            }
+
+            if (FAILED(hr = wined3d_surface_update_desc(wined3d_surface, wined3d_desc.width,
+                    wined3d_desc.height, wined3d_desc.format, WINED3D_MULTISAMPLE_NONE, 0,
+                    desc->lpSurface, 0)))
+            {
+                ERR("Failed to set surface memory, hr %#x.\n", hr);
+                return hr;
+            }
+
+            desc->dwFlags |= DDSD_LINEARSIZE;
+            desc->dwFlags &= ~(DDSD_LPSURFACE | DDSD_PITCH);
+            desc->u1.dwLinearSize = ~0u;
+        }
         else
-            surface->surface_desc.u1.dwLinearSize = max(4, desc->dwWidth) * max(4, desc->dwHeight);
-    }
-    else if (!(desc->dwFlags & DDSD_LPSURFACE))
-    {
-        desc->dwFlags |= DDSD_PITCH;
-        desc->u1.lPitch = wined3d_surface_get_pitch(wined3d_surface);
-    }
-
-    if (desc->dwFlags & DDSD_LPSURFACE)
-    {
-        if (desc->u1.lPitch < wined3d_calculate_format_pitch(ddraw->wined3d, WINED3DADAPTER_DEFAULT,
-                wined3d_desc.format, wined3d_desc.width) || desc->u1.lPitch & 3)
         {
-            WARN("Invalid pitch %u specified.\n", desc->u1.lPitch);
-            return DDERR_INVALIDPARAMS;
+            desc->dwFlags |= DDSD_LINEARSIZE;
+            desc->dwFlags &= ~DDSD_PITCH;
+            desc->u1.dwLinearSize = wined3d_surface_get_pitch(wined3d_surface) * ((desc->dwHeight + 3) / 4);
         }
-
-        if (FAILED(hr = wined3d_surface_update_desc(wined3d_surface, wined3d_desc.width,
-                wined3d_desc.height, wined3d_desc.format, WINED3D_MULTISAMPLE_NONE, 0,
-                desc->lpSurface, desc->u1.lPitch)))
+    }
+    else
+    {
+        if (desc->dwFlags & DDSD_LPSURFACE)
         {
-            ERR("Failed to set surface memory, hr %#x.\n", hr);
-            return hr;
-        }
+            if (desc->u1.lPitch < wined3d_calculate_format_pitch(ddraw->wined3d, WINED3DADAPTER_DEFAULT,
+                    wined3d_desc.format, wined3d_desc.width) || desc->u1.lPitch & 3)
+            {
+                WARN("Invalid pitch %u specified.\n", desc->u1.lPitch);
+                return DDERR_INVALIDPARAMS;
+            }
 
-        desc->dwFlags &= ~DDSD_LPSURFACE;
+            if (FAILED(hr = wined3d_surface_update_desc(wined3d_surface, wined3d_desc.width,
+                    wined3d_desc.height, wined3d_desc.format, WINED3D_MULTISAMPLE_NONE, 0,
+                    desc->lpSurface, desc->u1.lPitch)))
+            {
+                ERR("Failed to set surface memory, hr %#x.\n", hr);
+                return hr;
+            }
+
+            desc->dwFlags &= ~(DDSD_LPSURFACE | DDSD_LINEARSIZE);
+        }
+        else
+        {
+            desc->dwFlags |= DDSD_PITCH;
+            desc->dwFlags &= ~DDSD_LINEARSIZE;
+            desc->u1.lPitch = wined3d_surface_get_pitch(wined3d_surface);
+        }
     }
 
     wined3d_surface_incref(wined3d_surface);

@@ -1666,6 +1666,8 @@ static BOOL process_state_property(MSIPACKAGE* package, int level,
 {
     LPWSTR override;
     MSIFEATURE *feature;
+    BOOL remove = !strcmpW(property, szRemove);
+    BOOL reinstall = !strcmpW(property, szReinstall);
 
     override = msi_dup_property( package->db, property );
     if (!override)
@@ -1673,18 +1675,18 @@ static BOOL process_state_property(MSIPACKAGE* package, int level,
 
     LIST_FOR_EACH_ENTRY( feature, &package->features, MSIFEATURE, entry )
     {
-        if (strcmpW( property, szRemove ) && !is_feature_selected( feature, level ))
+        if (feature->Level <= 0)
             continue;
 
-        if (!strcmpW(property, szReinstall)) state = feature->Installed;
+        if (reinstall)
+            state = (feature->Installed == INSTALLSTATE_ABSENT ? INSTALLSTATE_UNKNOWN : feature->Installed);
+        else if (remove)
+            state = (feature->Installed == INSTALLSTATE_ABSENT ? INSTALLSTATE_UNKNOWN : INSTALLSTATE_ABSENT);
 
         if (!strcmpiW( override, szAll ))
         {
-            if (feature->Installed != state)
-            {
-                feature->Action = state;
-                feature->ActionRequest = state;
-            }
+            feature->Action = state;
+            feature->ActionRequest = state;
         }
         else
         {
@@ -1698,11 +1700,8 @@ static BOOL process_state_property(MSIPACKAGE* package, int level,
                 if ((ptr2 && strlenW(feature->Feature) == len && !strncmpW(ptr, feature->Feature, len))
                     || (!ptr2 && !strcmpW(ptr, feature->Feature)))
                 {
-                    if (feature->Installed != state)
-                    {
-                        feature->Action = state;
-                        feature->ActionRequest = state;
-                    }
+                    feature->Action = state;
+                    feature->ActionRequest = state;
                     break;
                 }
                 if (ptr2)
@@ -1839,6 +1838,8 @@ UINT MSI_SetFeatureStates(MSIPACKAGE *package)
         {
             FeatureList *fl;
 
+            if (!is_feature_selected( feature, level )) continue;
+
             LIST_FOR_EACH_ENTRY( fl, &feature->Children, FeatureList, entry )
             {
                 if (fl->feature->Attributes & msidbFeatureAttributesFollowParent &&
@@ -1862,8 +1863,6 @@ UINT MSI_SetFeatureStates(MSIPACKAGE *package)
         TRACE("examining feature %s (level %d installed %d request %d action %d)\n",
               debugstr_w(feature->Feature), feature->Level, feature->Installed,
               feature->ActionRequest, feature->Action);
-
-        if (!is_feature_selected( feature, level )) continue;
 
         /* features with components that have compressed files are made local */
         LIST_FOR_EACH_ENTRY( cl, &feature->Components, ComponentList, entry )
@@ -4891,6 +4890,8 @@ static UINT ACTION_PublishFeatures(MSIPACKAGE *package)
         INT size;
         BOOL absent = FALSE;
         MSIRECORD *uirow;
+
+        if (feature->Level <= 0) continue;
 
         if (feature->Action != INSTALLSTATE_LOCAL &&
             feature->Action != INSTALLSTATE_SOURCE &&

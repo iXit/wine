@@ -59,6 +59,7 @@
 #define MSVCRT__MAX_FNAME  256
 #define MSVCRT__MAX_EXT    256
 
+typedef unsigned char  MSVCRT_bool;
 typedef unsigned short MSVCRT_wchar_t;
 typedef unsigned short MSVCRT_wint_t;
 typedef unsigned short MSVCRT_wctype_t;
@@ -260,7 +261,7 @@ typedef void  (__cdecl *free_func_t)(void*);
 
 /* Setup and teardown multi threaded locks */
 extern void msvcrt_init_mt_locks(void) DECLSPEC_HIDDEN;
-extern void msvcrt_free_mt_locks(void) DECLSPEC_HIDDEN;
+extern void msvcrt_free_locks(void) DECLSPEC_HIDDEN;
 
 extern void msvcrt_init_exception(void*) DECLSPEC_HIDDEN;
 extern BOOL msvcrt_init_locale(void) DECLSPEC_HIDDEN;
@@ -739,6 +740,7 @@ struct MSVCRT__stat64 {
 #define MSVCRT__IOERR    0x0020
 #define MSVCRT__IOSTRG   0x0040
 #define MSVCRT__IORW     0x0080
+#define MSVCRT__USERBUF  0x0100
 #define MSVCRT__IOCOMMIT 0x4000
 
 #define MSVCRT__S_IEXEC  0x0040

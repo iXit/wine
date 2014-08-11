@@ -106,38 +106,46 @@ static void surface_cleanup(struct wined3d_surface *surface)
 void surface_update_draw_binding(struct wined3d_surface *surface)
 {
     if (!surface_is_offscreen(surface) || wined3d_settings.offscreen_rendering_mode != ORM_FBO)
-        surface->draw_binding = WINED3D_LOCATION_DRAWABLE;
+        surface->resource.draw_binding = WINED3D_LOCATION_DRAWABLE;
     else if (surface->resource.multisample_type)
-        surface->draw_binding = WINED3D_LOCATION_RB_MULTISAMPLE;
+        surface->resource.draw_binding = WINED3D_LOCATION_RB_MULTISAMPLE;
     else
-        surface->draw_binding = WINED3D_LOCATION_TEXTURE_RGB;
+        surface->resource.draw_binding = WINED3D_LOCATION_TEXTURE_RGB;
+}
+
+void surface_get_drawable_size(const struct wined3d_surface *surface, const struct wined3d_context *context,
+        unsigned int *width, unsigned int *height)
+{
+    if (surface->swapchain)
+    {
+        /* The drawable size of an onscreen drawable is the surface size.
+         * (Actually: The window size, but the surface is created in window
+         * size.) */
+        *width = context->current_rt->resource.width;
+        *height = context->current_rt->resource.height;
+    }
+    else if (wined3d_settings.offscreen_rendering_mode == ORM_BACKBUFFER)
+    {
+        const struct wined3d_swapchain *swapchain = context->swapchain;
+
+        /* The drawable size of a backbuffer / aux buffer offscreen target is
+         * the size of the current context's drawable, which is the size of
+         * the back buffer of the swapchain the active context belongs to. */
+        *width = swapchain->desc.backbuffer_width;
+        *height = swapchain->desc.backbuffer_height;
+    }
+    else
+    {
+        /* The drawable size of an FBO target is the OpenGL texture size,
+         * which is the power of two size. */
+        *width = context->current_rt->pow2Width;
+        *height = context->current_rt->pow2Height;
+    }
 }
 
 void surface_set_swapchain(struct wined3d_surface *surface, struct wined3d_swapchain *swapchain)
 {
     TRACE("surface %p, swapchain %p.\n", surface, swapchain);
-
-    if (swapchain)
-    {
-        surface->get_drawable_size = get_drawable_size_swapchain;
-    }
-    else
-    {
-        switch (wined3d_settings.offscreen_rendering_mode)
-        {
-            case ORM_FBO:
-                surface->get_drawable_size = get_drawable_size_fbo;
-                break;
-
-            case ORM_BACKBUFFER:
-                surface->get_drawable_size = get_drawable_size_backbuffer;
-                break;
-
-            default:
-                ERR("Unhandled offscreen rendering mode %#x.\n", wined3d_settings.offscreen_rendering_mode);
-                return;
-        }
-    }
 
     surface->swapchain = swapchain;
     surface_update_draw_binding(surface);
@@ -146,24 +154,6 @@ void surface_set_swapchain(struct wined3d_surface *surface, struct wined3d_swapc
 void surface_set_container(struct wined3d_surface *surface, struct wined3d_texture *container)
 {
     TRACE("surface %p, container %p.\n", surface, container);
-
-    if (!surface->swapchain)
-    {
-        switch (wined3d_settings.offscreen_rendering_mode)
-        {
-            case ORM_FBO:
-                surface->get_drawable_size = get_drawable_size_fbo;
-                break;
-
-            case ORM_BACKBUFFER:
-                surface->get_drawable_size = get_drawable_size_backbuffer;
-                break;
-
-            default:
-                ERR("Unhandled offscreen rendering mode %#x.\n", wined3d_settings.offscreen_rendering_mode);
-                return;
-        }
-    }
 
     surface->container = container;
     surface_update_draw_binding(surface);
@@ -498,7 +488,6 @@ static HRESULT surface_create_dib_section(struct wined3d_surface *surface)
     /* Now allocate a DC. */
     surface->hDC = CreateCompatibleDC(0);
     SelectObject(surface->hDC, surface->dib.DIBsection);
-    TRACE("Using wined3d palette %p.\n", surface->palette);
 
     surface->flags |= SFLAG_DIBSECTION;
 
@@ -730,21 +719,6 @@ static HRESULT surface_private_setup(struct wined3d_surface *surface)
                 surface->pow2Width, surface->pow2Height);
     }
 
-    switch (wined3d_settings.offscreen_rendering_mode)
-    {
-        case ORM_FBO:
-            surface->get_drawable_size = get_drawable_size_fbo;
-            break;
-
-        case ORM_BACKBUFFER:
-            surface->get_drawable_size = get_drawable_size_backbuffer;
-            break;
-
-        default:
-            ERR("Unhandled offscreen rendering mode %#x.\n", wined3d_settings.offscreen_rendering_mode);
-            return WINED3DERR_INVALIDCALL;
-    }
-
     if (surface->resource.usage & WINED3DUSAGE_DEPTHSTENCIL)
         surface->locations = WINED3D_LOCATION_DISCARDED;
 
@@ -752,44 +726,6 @@ static HRESULT surface_private_setup(struct wined3d_surface *surface)
         surface->map_binding = WINED3D_LOCATION_BUFFER;
 
     return WINED3D_OK;
-}
-
-static void surface_realize_palette(struct wined3d_surface *surface)
-{
-    struct wined3d_palette *palette = surface->palette;
-
-    TRACE("surface %p.\n", surface);
-
-    if (!palette) return;
-
-    if (surface->resource.format->id == WINED3DFMT_P8_UINT
-            || surface->resource.format->id == WINED3DFMT_P8_UINT_A8_UNORM)
-    {
-        if (surface->resource.usage & WINED3DUSAGE_RENDERTARGET)
-        {
-            /* Make sure the texture is up to date. This call doesn't do
-             * anything if the texture is already up to date. */
-            surface_load_location(surface, WINED3D_LOCATION_TEXTURE_RGB);
-
-            /* We want to force a palette refresh, so mark the drawable as not being up to date */
-            if (!surface_is_offscreen(surface))
-                surface_invalidate_location(surface, WINED3D_LOCATION_DRAWABLE);
-        }
-        else
-        {
-            if (!(surface->locations & surface->map_binding))
-            {
-                TRACE("Palette changed with surface that does not have an up to date system memory copy.\n");
-                surface_prepare_map_memory(surface);
-                surface_load_location(surface, surface->map_binding);
-            }
-            surface_invalidate_location(surface, ~surface->map_binding);
-        }
-    }
-
-    /* Propagate the changes to the drawable when we have a palette. */
-    if (surface->resource.usage & WINED3DUSAGE_RENDERTARGET)
-        surface_load_location(surface, surface->draw_binding);
 }
 
 static void surface_unmap(struct wined3d_surface *surface)
@@ -831,7 +767,7 @@ static void surface_unmap(struct wined3d_surface *surface)
     }
 
     if (surface->swapchain && surface->swapchain->front_buffer == surface)
-        surface_load_location(surface, surface->draw_binding);
+        surface_load_location(surface, surface->resource.draw_binding);
     else if (surface->resource.format->flags & (WINED3DFMT_FLAG_DEPTH | WINED3DFMT_FLAG_STENCIL))
         FIXME("Depth / stencil buffer locking is not implemented.\n");
 }
@@ -1098,15 +1034,18 @@ static BOOL surface_convert_color_to_float(const struct wined3d_surface *surface
         DWORD color, struct wined3d_color *float_color)
 {
     const struct wined3d_format *format = surface->resource.format;
+    const struct wined3d_palette *palette;
 
     switch (format->id)
     {
         case WINED3DFMT_P8_UINT:
-            if (surface->palette)
+            palette = surface->swapchain ? surface->swapchain->palette : NULL;
+
+            if (palette)
             {
-                float_color->r = surface->palette->colors[color].rgbRed / 255.0f;
-                float_color->g = surface->palette->colors[color].rgbGreen / 255.0f;
-                float_color->b = surface->palette->colors[color].rgbBlue / 255.0f;
+                float_color->r = palette->colors[color].rgbRed / 255.0f;
+                float_color->g = palette->colors[color].rgbGreen / 255.0f;
+                float_color->b = palette->colors[color].rgbBlue / 255.0f;
             }
             else
             {
@@ -1320,7 +1259,6 @@ static const struct wined3d_resource_ops surface_resource_ops =
 static const struct wined3d_surface_ops surface_ops =
 {
     surface_private_setup,
-    surface_realize_palette,
     surface_unmap,
 };
 
@@ -1365,24 +1303,6 @@ static HRESULT gdi_surface_private_setup(struct wined3d_surface *surface)
     return WINED3D_OK;
 }
 
-static void gdi_surface_realize_palette(struct wined3d_surface *surface)
-{
-    struct wined3d_palette *palette = surface->palette;
-
-    TRACE("surface %p.\n", surface);
-
-    if (!palette) return;
-
-    /* Update the image because of the palette change. Some games like e.g.
-     * Red Alert call SetEntries a lot to implement fading. */
-    /* Tell the swapchain to update the screen. */
-    if (surface->swapchain && surface == surface->swapchain->front_buffer)
-    {
-        wined3d_palette_apply_to_dc(palette, surface->hDC);
-        x11_copy_to_screen(surface->swapchain, NULL);
-    }
-}
-
 static void gdi_surface_unmap(struct wined3d_surface *surface)
 {
     TRACE("surface %p.\n", surface);
@@ -1397,7 +1317,6 @@ static void gdi_surface_unmap(struct wined3d_surface *surface)
 static const struct wined3d_surface_ops gdi_surface_ops =
 {
     gdi_surface_private_setup,
-    gdi_surface_realize_palette,
     gdi_surface_unmap,
 };
 
@@ -2261,16 +2180,6 @@ ULONG CDECL wined3d_surface_decref(struct wined3d_surface *surface)
     return refcount;
 }
 
-DWORD CDECL wined3d_surface_set_priority(struct wined3d_surface *surface, DWORD priority)
-{
-    return resource_set_priority(&surface->resource, priority);
-}
-
-DWORD CDECL wined3d_surface_get_priority(const struct wined3d_surface *surface)
-{
-    return resource_get_priority(&surface->resource);
-}
-
 void CDECL wined3d_surface_preload(struct wined3d_surface *surface)
 {
     TRACE("surface %p.\n", surface);
@@ -2344,21 +2253,6 @@ HRESULT CDECL wined3d_surface_restore(struct wined3d_surface *surface)
 
     surface->flags &= ~SFLAG_LOST;
     return WINED3D_OK;
-}
-
-void CDECL wined3d_surface_set_palette(struct wined3d_surface *surface, struct wined3d_palette *palette)
-{
-    TRACE("surface %p, palette %p.\n", surface, palette);
-
-    if (surface->palette == palette)
-    {
-        TRACE("Nop palette change.\n");
-        return;
-    }
-
-    surface->palette = palette;
-    if (palette)
-        surface->surface_ops->surface_realize_palette(surface);
 }
 
 DWORD CDECL wined3d_surface_get_pitch(const struct wined3d_surface *surface)
@@ -3370,38 +3264,6 @@ static BOOL color_in_range(const struct wined3d_color_key *color_key, DWORD colo
             && color <= color_key->color_space_high_value;
 }
 
-void d3dfmt_p8_init_palette(const struct wined3d_surface *surface, BYTE table[256][4])
-{
-    const struct wined3d_palette *pal = surface->palette;
-    unsigned int i;
-
-    if (!pal)
-    {
-        FIXME("No palette set.\n");
-        /* Guarantees that memory representation remains correct after sysmem<->texture transfers even if
-         * there's no palette at this time. */
-        for (i = 0; i < 256; i++)
-            table[i][3] = i;
-    }
-    else
-    {
-        TRACE("Using surface palette %p\n", pal);
-        for (i = 0; i < 256; ++i)
-        {
-            table[i][0] = pal->colors[i].rgbRed;
-            table[i][1] = pal->colors[i].rgbGreen;
-            table[i][2] = pal->colors[i].rgbBlue;
-            /* The palette index is stored in the alpha component. In case of a
-             * readback we can then read GL_ALPHA. Color keying is handled in
-             * surface_blt_to_drawable() using a GL_ALPHA_TEST using GL_NOT_EQUAL.
-             * In case of a P8 surface the color key itself is passed to
-             * glAlphaFunc in other cases the alpha component of pixels that
-             * should be masked away is set to 0. */
-            table[i][3] = i;
-        }
-    }
-}
-
 static HRESULT d3dfmt_convert_surface(const BYTE *src, BYTE *dst, UINT pitch, UINT width, UINT height,
         UINT outpitch, enum wined3d_conversion_type conversion_type, struct wined3d_surface *surface)
 {
@@ -3420,27 +3282,40 @@ static HRESULT d3dfmt_convert_surface(const BYTE *src, BYTE *dst, UINT pitch, UI
         }
 
         case WINED3D_CT_PALETTED:
-        {
-            BYTE table[256][4];
-            unsigned int x, y;
-
-            d3dfmt_p8_init_palette(surface, table);
-
-            for (y = 0; y < height; y++)
+            if (surface->swapchain && surface->swapchain->palette)
             {
-                source = src + pitch * y;
-                dest = dst + outpitch * y;
-                /* This is an 1 bpp format, using the width here is fine */
-                for (x = 0; x < width; x++) {
-                    BYTE color = *source++;
-                    *dest++ = table[color][0];
-                    *dest++ = table[color][1];
-                    *dest++ = table[color][2];
-                    *dest++ = table[color][3];
+                unsigned int x, y;
+                const struct wined3d_palette *palette = surface->swapchain->palette;
+                for (y = 0; y < height; y++)
+                {
+                    source = src + pitch * y;
+                    dest = dst + outpitch * y;
+                    for (x = 0; x < width; x++)
+                    {
+                        BYTE color = *source++;
+                        *dest++ = palette->colors[color].rgbRed;
+                        *dest++ = palette->colors[color].rgbGreen;
+                        *dest++ = palette->colors[color].rgbBlue;
+                        *dest++ = 0;
+                    }
                 }
             }
-        }
-        break;
+            else
+            {
+                /* This should probably use the system palette, but unless
+                 * the X server is running in P8 mode there is no such thing.
+                 * The probably best solution is to set the fixed 20 colors
+                 * from the default windows palette and set the rest to black,
+                 * white, or some ugly pink. For now use black for the entire
+                 * palette. Don't use pink everywhere. Age of Empires 2 draws
+                 * a front buffer filled with zeroes without a palette when
+                 * starting and we don't want the screen to flash in an ugly
+                 * color. */
+                FIXME("P8 surface loaded without a palette.\n");
+                memset(dst, 0, height * outpitch);
+            }
+
+            break;
 
         case WINED3D_CT_CK_565:
         {
@@ -4311,8 +4186,8 @@ static HRESULT surface_blt_special(struct wined3d_surface *dst_surface, const RE
         src_surface->container->color_key_flags = old_color_key_flags;
         src_surface->container->src_blt_color_key = old_blt_key;
 
-        surface_validate_location(dst_surface, dst_surface->draw_binding);
-        surface_invalidate_location(dst_surface, ~dst_surface->draw_binding);
+        surface_validate_location(dst_surface, dst_surface->resource.draw_binding);
+        surface_invalidate_location(dst_surface, ~dst_surface->resource.draw_binding);
 
         return WINED3D_OK;
     }
@@ -4897,7 +4772,7 @@ HRESULT surface_load_location(struct wined3d_surface *surface, DWORD location)
             context_release(context);
             return WINED3D_OK;
         }
-        else if (location & surface->locations && surface->draw_binding != WINED3D_LOCATION_DRAWABLE)
+        else if (location & surface->locations && surface->resource.draw_binding != WINED3D_LOCATION_DRAWABLE)
         {
             /* Already up to date, nothing to do. */
             return WINED3D_OK;
@@ -5956,8 +5831,8 @@ HRESULT CDECL wined3d_surface_blt(struct wined3d_surface *dst_surface, const REC
                 return WINED3DERR_INVALIDCALL;
             }
 
-            if (SUCCEEDED(wined3d_surface_depth_blt(src_surface, src_surface->draw_binding, &src_rect,
-                    dst_surface, dst_surface->draw_binding, &dst_rect)))
+            if (SUCCEEDED(wined3d_surface_depth_blt(src_surface, src_surface->resource.draw_binding, &src_rect,
+                    dst_surface, dst_surface->resource.draw_binding, &dst_rect)))
                 return WINED3D_OK;
         }
     }
@@ -6007,7 +5882,7 @@ HRESULT CDECL wined3d_surface_blt(struct wined3d_surface *dst_surface, const REC
                     if (SUCCEEDED(surface_upload_from_surface(dst_surface, &dst_point, src_surface, &src_rect)))
                     {
                         if (!surface_is_offscreen(dst_surface))
-                            surface_load_location(dst_surface, dst_surface->draw_binding);
+                            surface_load_location(dst_surface, dst_surface->resource.draw_binding);
                         return WINED3D_OK;
                     }
                 }
@@ -6043,10 +5918,10 @@ HRESULT CDECL wined3d_surface_blt(struct wined3d_surface *dst_surface, const REC
                 TRACE("Using FBO blit.\n");
 
                 surface_blt_fbo(device, filter,
-                        src_surface, src_surface->draw_binding, &src_rect,
-                        dst_surface, dst_surface->draw_binding, &dst_rect);
-                surface_validate_location(dst_surface, dst_surface->draw_binding);
-                surface_invalidate_location(dst_surface, ~dst_surface->draw_binding);
+                        src_surface, src_surface->resource.draw_binding, &src_rect,
+                        dst_surface, dst_surface->resource.draw_binding, &dst_rect);
+                surface_validate_location(dst_surface, dst_surface->resource.draw_binding);
+                surface_invalidate_location(dst_surface, ~dst_surface->resource.draw_binding);
 
                 return WINED3D_OK;
             }

@@ -156,6 +156,68 @@ HRESULT replace_node_by_html(nsIDOMHTMLDocument *nsdoc, nsIDOMNode *nsnode, cons
     return hres;
 }
 
+nsresult get_elem_attr_value(nsIDOMHTMLElement *nselem, const WCHAR *name, nsAString *val_str, const PRUnichar **val)
+{
+    nsAString name_str;
+    nsresult nsres;
+
+    nsAString_InitDepend(&name_str, name);
+    nsAString_Init(val_str, NULL);
+    nsres = nsIDOMHTMLElement_GetAttribute(nselem, &name_str, val_str);
+    nsAString_Finish(&name_str);
+    if(NS_FAILED(nsres)) {
+        ERR("GetAttribute(%s) failed: %08x\n", debugstr_w(name), nsres);
+        nsAString_Finish(val_str);
+        return nsres;
+    }
+
+    nsAString_GetData(val_str, val);
+    return NS_OK;
+}
+
+HRESULT elem_string_attr_getter(HTMLElement *elem, const WCHAR *name, BOOL use_null, BSTR *p)
+{
+    const PRUnichar *val;
+    nsAString val_str;
+    nsresult nsres;
+    HRESULT hres = S_OK;
+
+    nsres = get_elem_attr_value(elem->nselem, name, &val_str, &val);
+    if(NS_FAILED(nsres))
+        return E_FAIL;
+
+    TRACE("%s: returning %s\n", debugstr_w(name), debugstr_w(val));
+
+    if(*val || !use_null) {
+        *p = SysAllocString(val);
+        if(!*p)
+            hres = E_OUTOFMEMORY;
+    }else {
+        *p = NULL;
+    }
+    nsAString_Finish(&val_str);
+    return hres;
+}
+
+HRESULT elem_string_attr_setter(HTMLElement *elem, const WCHAR *name, const WCHAR *value)
+{
+    nsAString name_str, val_str;
+    nsresult nsres;
+
+    nsAString_InitDepend(&name_str, name);
+    nsAString_InitDepend(&val_str, value);
+    nsres = nsIDOMHTMLElement_SetAttribute(elem->nselem, &name_str, &val_str);
+    nsAString_Finish(&name_str);
+    nsAString_Finish(&val_str);
+
+    if(NS_FAILED(nsres)) {
+        WARN("SetAttribute failed: %08x\n", nsres);
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
 typedef struct
 {
     DispatchEx dispex;
@@ -789,8 +851,31 @@ static HRESULT WINAPI HTMLElement_get_onselectstart(IHTMLElement *iface, VARIANT
 static HRESULT WINAPI HTMLElement_scrollIntoView(IHTMLElement *iface, VARIANT varargStart)
 {
     HTMLElement *This = impl_from_IHTMLElement(iface);
-    FIXME("(%p)->(%s)\n", This, debugstr_variant(&varargStart));
-    return E_NOTIMPL;
+    cpp_bool start = TRUE;
+    nsresult nsres;
+
+    TRACE("(%p)->(%s)\n", This, debugstr_variant(&varargStart));
+
+    switch(V_VT(&varargStart)) {
+    case VT_EMPTY:
+    case VT_ERROR:
+	break;
+    case VT_BOOL:
+	start = V_BOOL(&varargStart) != VARIANT_FALSE;
+	break;
+    default:
+	FIXME("Unsupported argument %s\n", debugstr_variant(&varargStart));
+    }
+
+    if(!This->nselem) {
+	FIXME("Unsupported for comments\n");
+	return E_NOTIMPL;
+    }
+
+    nsres = nsIDOMHTMLElement_ScrollIntoView(This->nselem, start, 1);
+    assert(nsres == NS_OK);
+
+    return S_OK;
 }
 
 static HRESULT WINAPI HTMLElement_contains(IHTMLElement *iface, IHTMLElement *pChild,

@@ -32,7 +32,6 @@
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
-
 #ifdef HAVE_SYS_PARAM_H
 # include <sys/param.h>
 #endif
@@ -45,6 +44,9 @@
 #endif
 #ifdef HAVE_SYS_SIGNAL_H
 # include <sys/signal.h>
+#endif
+#ifdef HAVE_SYS_UCONTEXT_H
+# include <sys/ucontext.h>
 #endif
 
 #define NONAMELESSUNION
@@ -68,7 +70,7 @@ static pthread_key_t teb_key;
  */
 #ifdef linux
 
-#ifdef __ANDROID__
+#if defined(__ANDROID__) && !defined(HAVE_SYS_UCONTEXT_H)
 typedef struct ucontext
 {
     unsigned long uc_flags;
@@ -79,8 +81,6 @@ typedef struct ucontext
     unsigned long uc_regspace[128] __attribute__((__aligned__(8)));
 } ucontext_t;
 #endif
-
-typedef ucontext_t SIGCONTEXT;
 
 /* All Registers access - only for local access */
 # define REG_sig(reg_name, context) ((context)->uc_mcontext.reg_name)
@@ -147,7 +147,7 @@ static inline BOOL is_valid_frame( void *frame )
  *
  * Set the register values from a sigcontext.
  */
-static void save_context( CONTEXT *context, const SIGCONTEXT *sigcontext )
+static void save_context( CONTEXT *context, const ucontext_t *sigcontext )
 {
 #define C(x) context->R##x = REGn_sig(x,sigcontext)
     /* Save normal registers */
@@ -169,7 +169,7 @@ static void save_context( CONTEXT *context, const SIGCONTEXT *sigcontext )
  *
  * Build a sigcontext from the register values.
  */
-static void restore_context( const CONTEXT *context, SIGCONTEXT *sigcontext )
+static void restore_context( const CONTEXT *context, ucontext_t *sigcontext )
 {
 #define C(x)  REGn_sig(x,sigcontext) = context->R##x
     /* Restore normal registers */
@@ -190,7 +190,7 @@ static void restore_context( const CONTEXT *context, SIGCONTEXT *sigcontext )
  *
  * Set the FPU context from a sigcontext.
  */
-static inline void save_fpu( CONTEXT *context, const SIGCONTEXT *sigcontext )
+static inline void save_fpu( CONTEXT *context, const ucontext_t *sigcontext )
 {
     FIXME("not implemented\n");
 }
@@ -201,7 +201,7 @@ static inline void save_fpu( CONTEXT *context, const SIGCONTEXT *sigcontext )
  *
  * Restore the FPU context to a sigcontext.
  */
-static inline void restore_fpu( CONTEXT *context, const SIGCONTEXT *sigcontext )
+static inline void restore_fpu( CONTEXT *context, const ucontext_t *sigcontext )
 {
     FIXME("not implemented\n");
 }
@@ -396,7 +396,7 @@ __ASM_GLOBAL_FUNC( raise_func_trampoline_arm,
  *
  * Setup the exception record and context on the thread stack.
  */
-static EXCEPTION_RECORD *setup_exception( SIGCONTEXT *sigcontext, raise_func func )
+static EXCEPTION_RECORD *setup_exception( ucontext_t *sigcontext, raise_func func )
 {
     struct stack_layout
     {
@@ -584,7 +584,7 @@ static NTSTATUS raise_exception( EXCEPTION_RECORD *rec, CONTEXT *context, BOOL f
 static void segv_handler( int signal, siginfo_t *info, void *ucontext )
 {
     EXCEPTION_RECORD *rec;
-    SIGCONTEXT *context = ucontext;
+    ucontext_t *context = ucontext;
 
     /* check for page fault inside the thread stack */
     if (TRAP_sig(context) == TRAP_ARM_PAGEFLT &&

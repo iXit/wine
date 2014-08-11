@@ -258,6 +258,12 @@ HRESULT CDECL wined3d_swapchain_set_gamma_ramp(const struct wined3d_swapchain *s
     return WINED3D_OK;
 }
 
+void CDECL wined3d_swapchain_set_palette(struct wined3d_swapchain *swapchain, struct wined3d_palette *palette)
+{
+    TRACE("swapchain %p, palette %p.\n", swapchain, palette);
+    swapchain->palette = palette;
+}
+
 HRESULT CDECL wined3d_swapchain_get_gamma_ramp(const struct wined3d_swapchain *swapchain,
         struct wined3d_gamma_ramp *ramp)
 {
@@ -507,7 +513,7 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain, const RECT
     }
     else
     {
-        surface_load_location(back_buffer, back_buffer->draw_binding);
+        surface_load_location(back_buffer, back_buffer->resource.draw_binding);
     }
 
     if (swapchain->render_to_fbo)
@@ -579,8 +585,8 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain, const RECT
          */
         if (swapchain->desc.swap_effect == WINED3D_SWAP_EFFECT_FLIP)
         {
-            surface_validate_location(back_buffer, back_buffer->draw_binding);
-            surface_invalidate_location(back_buffer, ~back_buffer->draw_binding);
+            surface_validate_location(back_buffer, back_buffer->resource.draw_binding);
+            surface_invalidate_location(back_buffer, ~back_buffer->resource.draw_binding);
         }
     }
 
@@ -618,6 +624,9 @@ void x11_copy_to_screen(const struct wined3d_swapchain *swapchain, const RECT *r
     HWND window;
 
     TRACE("swapchain %p, rect %s.\n", swapchain, wine_dbgstr_rect(rect));
+
+    if (swapchain->palette)
+        wined3d_palette_apply_to_dc(swapchain->palette, swapchain->front_buffer->hDC);
 
     front = swapchain->front_buffer;
     if (front->resource.map_count)
@@ -1104,14 +1113,6 @@ struct wined3d_context *swapchain_get_context(struct wined3d_swapchain *swapchai
 
     /* Create a new context for the thread */
     return swapchain_create_context(swapchain);
-}
-
-void get_drawable_size_swapchain(const struct wined3d_context *context, UINT *width, UINT *height)
-{
-    /* The drawable size of an onscreen drawable is the surface size.
-     * (Actually: The window size, but the surface is created in window size) */
-    *width = context->current_rt->resource.width;
-    *height = context->current_rt->resource.height;
 }
 
 HDC swapchain_get_backup_dc(struct wined3d_swapchain *swapchain)

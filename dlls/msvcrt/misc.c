@@ -139,7 +139,7 @@ void* CDECL MSVCRT_bsearch_s(const void *key, const void *base,
 
     while (min <= max)
     {
-        ssize_t cursor = (min + max) / 2;
+        ssize_t cursor = min + (max - min) / 2;
         int ret = compare(ctx, key,(const char *)base+(cursor*size));
         if (!ret)
             return (char*)base+(cursor*size);
@@ -262,8 +262,9 @@ static void small_sort(void *base, MSVCRT_size_t nmemb, MSVCRT_size_t size,
 static void quick_sort(void *base, MSVCRT_size_t nmemb, MSVCRT_size_t size,
         int (CDECL *compar)(void *, const void *, const void *), void *context)
 {
-    int stack_lo[8*sizeof(MSVCRT_size_t)], stack_hi[8*sizeof(MSVCRT_size_t)], stack_pos;
-    int beg, end, lo, hi, med;
+    MSVCRT_size_t stack_lo[8*sizeof(MSVCRT_size_t)], stack_hi[8*sizeof(MSVCRT_size_t)];
+    MSVCRT_size_t beg, end, lo, hi, med;
+    int stack_pos;
 
     stack_pos = 0;
     stack_lo[stack_pos] = 0;
@@ -281,7 +282,7 @@ static void quick_sort(void *base, MSVCRT_size_t nmemb, MSVCRT_size_t size,
 
         lo = beg;
         hi = end;
-        med = (hi+lo+1)/2;
+        med = lo + (hi-lo+1)/2;
         if(compar(context, X(lo), X(med)) > 0)
             swap(X(lo), X(med), size);
         if(compar(context, X(lo), X(hi)) > 0)
@@ -393,9 +394,10 @@ unsigned int CDECL _set_output_format(unsigned int new_output_format)
 int CDECL MSVCRT__resetstkoflw(void)
 {
     int stack_addr;
+    DWORD oldprot;
 
     /* causes stack fault that updates NtCurrentTeb()->Tib.StackLimit */
-    return VirtualProtect( &stack_addr, 1, PAGE_GUARD|PAGE_READWRITE, NULL );
+    return VirtualProtect(&stack_addr, 1, PAGE_GUARD|PAGE_READWRITE, &oldprot);
 }
 
 /*********************************************************************
@@ -477,4 +479,14 @@ int CDECL MSVCR110__crtGetShowWindowMode(void)
     GetStartupInfoW(&si);
     TRACE("window=%d\n", si.wShowWindow);
     return si.wShowWindow;
+}
+
+/*********************************************************************
+ *  __crtInitializeCriticalSectionEx (MSVCR110.@)
+ */
+BOOL CDECL MSVCR110__crtInitializeCriticalSectionEx(
+        CRITICAL_SECTION *cs, DWORD spin_count, DWORD flags)
+{
+    TRACE("(%p %x %x)\n", cs, spin_count, flags);
+    return InitializeCriticalSectionEx(cs, spin_count, flags);
 }

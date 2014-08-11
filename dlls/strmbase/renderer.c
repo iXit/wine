@@ -105,8 +105,8 @@ static HRESULT WINAPI BaseRenderer_InputPin_EndOfStream(IPin * iface)
 
     TRACE("(%p/%p)->()\n", This, pFilter);
 
-    EnterCriticalSection(&pFilter->filter.csFilter);
     EnterCriticalSection(&pFilter->csRenderLock);
+    EnterCriticalSection(&pFilter->filter.csFilter);
     hr = BaseInputPinImpl_EndOfStream(iface);
     EnterCriticalSection(This->pin.pCritSec);
     if (SUCCEEDED(hr))
@@ -117,8 +117,8 @@ static HRESULT WINAPI BaseRenderer_InputPin_EndOfStream(IPin * iface)
             hr = BaseRendererImpl_EndOfStream(pFilter);
     }
     LeaveCriticalSection(This->pin.pCritSec);
-    LeaveCriticalSection(&pFilter->csRenderLock);
     LeaveCriticalSection(&pFilter->filter.csFilter);
+    LeaveCriticalSection(&pFilter->csRenderLock);
     return hr;
 }
 
@@ -130,8 +130,8 @@ static HRESULT WINAPI BaseRenderer_InputPin_BeginFlush(IPin * iface)
 
     TRACE("(%p/%p)->()\n", This, iface);
 
-    EnterCriticalSection(&pFilter->filter.csFilter);
     EnterCriticalSection(&pFilter->csRenderLock);
+    EnterCriticalSection(&pFilter->filter.csFilter);
     EnterCriticalSection(This->pin.pCritSec);
     hr = BaseInputPinImpl_BeginFlush(iface);
     if (SUCCEEDED(hr))
@@ -155,8 +155,8 @@ static HRESULT WINAPI BaseRenderer_InputPin_EndFlush(IPin * iface)
 
     TRACE("(%p/%p)->()\n", This, pFilter);
 
-    EnterCriticalSection(&pFilter->filter.csFilter);
     EnterCriticalSection(&pFilter->csRenderLock);
+    EnterCriticalSection(&pFilter->filter.csFilter);
     EnterCriticalSection(This->pin.pCritSec);
     hr = BaseInputPinImpl_EndFlush(iface);
     if (SUCCEEDED(hr))
@@ -167,8 +167,8 @@ static HRESULT WINAPI BaseRenderer_InputPin_EndFlush(IPin * iface)
             hr = BaseRendererImpl_EndFlush(pFilter);
     }
     LeaveCriticalSection(This->pin.pCritSec);
-    LeaveCriticalSection(&pFilter->csRenderLock);
     LeaveCriticalSection(&pFilter->filter.csFilter);
+    LeaveCriticalSection(&pFilter->csRenderLock);
     return hr;
 }
 
@@ -294,7 +294,7 @@ HRESULT WINAPI BaseRendererImpl_QueryInterface(IBaseFilter* iface, REFIID riid, 
 ULONG WINAPI BaseRendererImpl_Release(IBaseFilter* iface)
 {
     BaseRenderer *This = impl_from_IBaseFilter(iface);
-    ULONG refCount = BaseFilterImpl_Release(iface);
+    ULONG refCount = InterlockedDecrement(&This->filter.refCount);
 
     if (!refCount)
     {
@@ -319,6 +319,7 @@ ULONG WINAPI BaseRendererImpl_Release(IBaseFilter* iface)
         CloseHandle(This->ThreadSignal);
         CloseHandle(This->RenderEvent);
         QualityControlImpl_Destroy(This->qcimpl);
+        BaseFilter_Destroy(&This->filter);
     }
     return refCount;
 }

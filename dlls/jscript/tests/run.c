@@ -101,6 +101,7 @@ DEFINE_EXPECT(testobj_withprop_i);
 DEFINE_EXPECT(testobj_noprop_d);
 DEFINE_EXPECT(testobj_onlydispid_d);
 DEFINE_EXPECT(testobj_onlydispid_i);
+DEFINE_EXPECT(testobj_notexists_d);
 DEFINE_EXPECT(GetItemInfo_testVal);
 DEFINE_EXPECT(ActiveScriptSite_OnScriptError);
 DEFINE_EXPECT(invoke_func);
@@ -326,6 +327,11 @@ static HRESULT WINAPI testObj_GetDispID(IDispatchEx *iface, BSTR bstrName, DWORD
         test_grfdex(grfdex, fdexNameCaseSensitive);
         *pid = DISPID_TESTOBJ_ONLYDISPID;
         return S_OK;
+    }
+    if(!strcmp_wa(bstrName, "notExists")) {
+        CHECK_EXPECT(testobj_notexists_d);
+        test_grfdex(grfdex, fdexNameCaseSensitive);
+        return DISP_E_UNKNOWNNAME;
     }
 
     ok(0, "unexpected name %s\n", wine_dbgstr_w(bstrName));
@@ -1945,6 +1951,13 @@ static void test_script_exprs(void)
     hres = parse_script_expr("reportSuccess(); return true", &v);
     ok(hres == 0x800a03fa, "parse_script_expr failed: %08x\n", hres);
 
+    SET_EXPECT(global_success_d);
+    SET_EXPECT(global_success_i);
+    hres = parse_script_expr("reportSuccess(); true", NULL);
+    ok(hres == S_OK, "parse_script_expr failed: %08x\n", hres);
+    CHECK_CALLED(global_success_d);
+    CHECK_CALLED(global_success_i);
+
     testing_expr = FALSE;
 }
 
@@ -2047,6 +2060,10 @@ static BOOL run_tests(void)
     SET_EXPECT(global_notexists_d);
     parse_script_a("var notExists; notExists = 1;");
     CHECK_CALLED(global_notexists_d);
+
+    SET_EXPECT(testobj_notexists_d);
+    parse_script_a("testObj.notExists;");
+    CHECK_CALLED(testobj_notexists_d);
 
     parse_script_a("function f() { var testPropGet; }");
     parse_script_a("(function () { var testPropGet; })();");

@@ -26,6 +26,7 @@
 #include "wined3d_private.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(d3d);
+WINE_DECLARE_DEBUG_CHANNEL(d3d_perf);
 
 static DWORD resource_access_from_pool(enum wined3d_pool pool)
 {
@@ -51,14 +52,23 @@ static void resource_check_usage(DWORD usage)
 {
     static const DWORD handled = WINED3DUSAGE_RENDERTARGET
             | WINED3DUSAGE_DEPTHSTENCIL
+            | WINED3DUSAGE_WRITEONLY
             | WINED3DUSAGE_DYNAMIC
             | WINED3DUSAGE_AUTOGENMIPMAP
             | WINED3DUSAGE_STATICDECL
             | WINED3DUSAGE_OVERLAY
             | WINED3DUSAGE_TEXTURE;
 
+    /* WINED3DUSAGE_WRITEONLY is supposed to result in write-combined mappings
+     * being returned. OpenGL doesn't give us explicit control over that, but
+     * the hints and access flags we set for typical access patterns on
+     * dynamic resources should in theory have the same effect on the OpenGL
+     * driver. */
+
     if (usage & ~handled)
         FIXME("Unhandled usage flags %#x.\n", usage & ~handled);
+    if ((usage & (WINED3DUSAGE_DYNAMIC | WINED3DUSAGE_WRITEONLY)) == WINED3DUSAGE_DYNAMIC)
+        WARN_(d3d_perf)("WINED3DUSAGE_DYNAMIC used without WINED3DUSAGE_WRITEONLY.\n");
 }
 
 HRESULT resource_init(struct wined3d_resource *resource, struct wined3d_device *device,
@@ -157,15 +167,23 @@ void resource_unload(struct wined3d_resource *resource)
             resource, resource->type);
 }
 
-DWORD resource_set_priority(struct wined3d_resource *resource, DWORD priority)
+DWORD CDECL wined3d_resource_set_priority(struct wined3d_resource *resource, DWORD priority)
 {
-    DWORD prev = resource->priority;
+    DWORD prev;
+
+    if (resource->pool != WINED3D_POOL_MANAGED)
+    {
+        WARN("Called on non-managed resource %p, ignoring.\n", resource);
+        return 0;
+    }
+
+    prev = resource->priority;
     resource->priority = priority;
     TRACE("resource %p, new priority %u, returning old priority %u.\n", resource, priority, prev);
     return prev;
 }
 
-DWORD resource_get_priority(const struct wined3d_resource *resource)
+DWORD CDECL wined3d_resource_get_priority(const struct wined3d_resource *resource)
 {
     TRACE("resource %p, returning %u.\n", resource, resource->priority);
     return resource->priority;

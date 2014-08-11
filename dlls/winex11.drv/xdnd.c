@@ -38,6 +38,7 @@
 
 #define COBJMACROS
 #include "x11drv.h"
+#include "shellapi.h"
 #include "shlobj.h"  /* DROPFILES */
 #include "oleidl.h"
 #include "objidl.h"
@@ -56,8 +57,7 @@ typedef struct tagXDNDDATA
 {
     int cf_win;
     Atom cf_xdnd;
-    void *data;
-    unsigned int size;
+    HANDLE contents;
     struct list entry;
 } XDNDDATA, *LPXDNDDATA;
 
@@ -71,17 +71,11 @@ static HWND XDNDLastTargetWnd;
 /* might be an ancestor of XDNDLastTargetWnd */
 static HWND XDNDLastDropTargetWnd;
 
-static void X11DRV_XDND_InsertXDNDData(int property, int format, void* data, unsigned int len);
-static int X11DRV_XDND_DeconstructTextURIList(int property, void* data, int len);
-static int X11DRV_XDND_DeconstructTextPlain(int property, void* data, int len);
-static int X11DRV_XDND_DeconstructTextHTML(int property, void* data, int len);
-static int X11DRV_XDND_MapFormat(unsigned int property, unsigned char *data, int len);
+static void X11DRV_XDND_InsertXDNDData(int property, int format, HANDLE contents);
 static void X11DRV_XDND_ResolveProperty(Display *display, Window xwin, Time tm,
-    Atom *types, unsigned long *count);
+    Atom *types, unsigned long count);
 static void X11DRV_XDND_SendDropFiles(HWND hwnd);
 static void X11DRV_XDND_FreeDragDropOp(void);
-static unsigned int X11DRV_XDND_UnixToDos(char** lpdest, char* lpsrc, int len);
-static WCHAR* X11DRV_XDND_URIToDOS(char *encodedURI);
 
 static CRITICAL_SECTION xdnd_cs;
 static CRITICAL_SECTION_DEBUG critsect_debug =
@@ -257,7 +251,7 @@ void X11DRV_XDND_EnterEvent( HWND hWnd, XClientMessageEvent *event )
 
     /* Do a one-time data read and cache results */
     X11DRV_XDND_ResolveProperty(event->display, event->window,
-                                event->data.l[1], xdndtypes, &count);
+                                event->data.l[1], xdndtypes, count);
 
     if (event->data.l[1] & 1)
         XFree(xdndtypes);
@@ -454,25 +448,23 @@ void X11DRV_XDND_LeaveEvent( HWND hWnd, XClientMessageEvent *event )
  * Resolve all MIME types to windows clipboard formats. All data is cached.
  */
 static void X11DRV_XDND_ResolveProperty(Display *display, Window xwin, Time tm,
-                                        Atom *types, unsigned long *count)
+                                        Atom *types, unsigned long count)
 {
     unsigned int i, j;
     BOOL res;
     XEvent xe;
-    Atom acttype;
-    int actfmt;
-    unsigned long bytesret, icount;
-    int entries = 0;
-    unsigned char* data = NULL;
     XDNDDATA *current, *next;
     BOOL haveHDROP = FALSE;
 
-    TRACE("count(%ld)\n", *count);
+    TRACE("count(%ld)\n", count);
 
     X11DRV_XDND_FreeDragDropOp(); /* Clear previously cached data */
 
-    for (i = 0; i < *count; i++)
+    for (i = 0; i < count; i++)
     {
+        HANDLE contents;
+        UINT windowsFormat;
+
         TRACE("requesting atom %ld from xwin %ld\n", types[i], xwin);
 
         if (types[i] == 0)
@@ -495,11 +487,9 @@ static void X11DRV_XDND_ResolveProperty(Display *display, Window xwin, Time tm,
         if (xe.xselection.property == None)
             continue;
 
-        XGetWindowProperty(display, xwin, x11drv_atom(XdndTarget), 0, 65535, FALSE,
-            AnyPropertyType, &acttype, &actfmt, &icount, &bytesret, &data);
-
-        entries += X11DRV_XDND_MapFormat(types[i], data, get_property_size( actfmt, icount ));
-        XFree(data);
+        contents = X11DRV_CLIPBOARD_ImportSelection(display, types[i], xwin, x11drv_atom(XdndTarget), &windowsFormat);
+        if (contents)
+            X11DRV_XDND_InsertXDNDData(types[i], windowsFormat, contents);
     }
 
     /* On Windows when there is a CF_HDROP, there are no other CF_ formats.
@@ -520,14 +510,11 @@ static void X11DRV_XDND_ResolveProperty(Display *display, Window xwin, Time tm,
             if (current->cf_win != CF_HDROP && current->cf_win < CF_MAX)
             {
                 list_remove(&current->entry);
-                HeapFree(GetProcessHeap(), 0, current->data);
+                GlobalFree(current->contents);
                 HeapFree(GetProcessHeap(), 0, current);
-                --entries;
             }
         }
     }
-
-    *count = entries;
 }
 
 
@@ -536,7 +523,7 @@ static void X11DRV_XDND_ResolveProperty(Display *display, Window xwin, Time tm,
  *
  * Cache available XDND property
  */
-static void X11DRV_XDND_InsertXDNDData(int property, int format, void* data, unsigned int len)
+static void X11DRV_XDND_InsertXDNDData(int property, int format, HANDLE contents)
 {
     LPXDNDDATA current = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(XDNDDATA));
 
@@ -545,163 +532,10 @@ static void X11DRV_XDND_InsertXDNDData(int property, int format, void* data, uns
         EnterCriticalSection(&xdnd_cs);
         current->cf_xdnd = property;
         current->cf_win = format;
-        current->data = data;
-        current->size = len;
+        current->contents = contents;
         list_add_tail(&xdndData, &current->entry);
         LeaveCriticalSection(&xdnd_cs);
     }
-}
-
-
-/**************************************************************************
- * X11DRV_XDND_MapFormat
- *
- * Map XDND MIME format to windows clipboard format.
- */
-static int X11DRV_XDND_MapFormat(unsigned int property, unsigned char *data, int len)
-{
-    void* xdata;
-    int count = 0;
-
-    TRACE("%d: %s\n", property, data);
-
-    /* Always include the raw type */
-    xdata = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, len);
-    memcpy(xdata, data, len);
-    X11DRV_XDND_InsertXDNDData(property, property, xdata, len);
-    count++;
-
-    if (property == x11drv_atom(text_uri_list))
-        count += X11DRV_XDND_DeconstructTextURIList(property, data, len);
-    else if (property == x11drv_atom(text_plain))
-        count += X11DRV_XDND_DeconstructTextPlain(property, data, len);
-    else if (property == x11drv_atom(text_html))
-        count += X11DRV_XDND_DeconstructTextHTML(property, data, len);
-
-    return count;
-}
-
-
-/**************************************************************************
- * X11DRV_XDND_DeconstructTextURIList
- *
- * Interpret text/uri-list data and add records to <dndfmt> linked list
- */
-static int X11DRV_XDND_DeconstructTextURIList(int property, void* data, int len)
-{
-    char *uriList = data;
-    char *uri;
-    WCHAR *path;
-
-    WCHAR *out = NULL;
-    int size = 0;
-    int capacity = 4096;
-
-    int count = 0;
-    int start = 0;
-    int end = 0;
-
-    out = HeapAlloc(GetProcessHeap(), 0, capacity * sizeof(WCHAR));
-    if (out == NULL)
-        return 0;
-
-    while (end < len)
-    {
-        while (end < len && uriList[end] != '\r')
-            ++end;
-        if (end < (len - 1) && uriList[end+1] != '\n')
-        {
-            WARN("URI list line doesn't end in \\r\\n\n");
-            break;
-        }
-
-        uri = HeapAlloc(GetProcessHeap(), 0, end - start + 1);
-        if (uri == NULL)
-            break;
-        lstrcpynA(uri, &uriList[start], end - start + 1);
-        path = X11DRV_XDND_URIToDOS(uri);
-        TRACE("converted URI %s to DOS path %s\n", debugstr_a(uri), debugstr_w(path));
-        HeapFree(GetProcessHeap(), 0, uri);
-
-        if (path)
-        {
-            int pathSize = strlenW(path) + 1;
-            if (pathSize > capacity-size)
-            {
-                capacity = 2*capacity + pathSize;
-                out = HeapReAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, out, (capacity + 1)*sizeof(WCHAR));
-                if (out == NULL)
-                    goto done;
-            }
-            memcpy(&out[size], path, pathSize * sizeof(WCHAR));
-            size += pathSize;
-        done:
-            HeapFree(GetProcessHeap(), 0, path);
-            if (out == NULL)
-                break;
-        }
-
-        start = end + 2;
-        end = start;
-    }
-    if (out && end >= len)
-    {
-        DROPFILES *dropFiles;
-        dropFiles = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(DROPFILES) + (size + 1)*sizeof(WCHAR));
-        if (dropFiles)
-        {
-            dropFiles->pFiles = sizeof(DROPFILES);
-            dropFiles->pt.x = XDNDxy.x;
-            dropFiles->pt.y = XDNDxy.y;
-            dropFiles->fNC = 0;
-            dropFiles->fWide = TRUE;
-            out[size] = '\0';
-            memcpy(((char*)dropFiles) + dropFiles->pFiles, out, (size + 1)*sizeof(WCHAR));
-            X11DRV_XDND_InsertXDNDData(property, CF_HDROP, dropFiles, sizeof(DROPFILES) + (size + 1)*sizeof(WCHAR));
-            count = 1;
-        }
-    }
-    HeapFree(GetProcessHeap(), 0, out);
-    return count;
-}
-
-
-/**************************************************************************
- * X11DRV_XDND_DeconstructTextPlain
- *
- * Interpret text/plain Data and add records to <dndfmt> linked list
- */
-static int X11DRV_XDND_DeconstructTextPlain(int property, void* data, int len)
-{
-    char* dostext;
-
-    /* Always supply plain text */
-    X11DRV_XDND_UnixToDos(&dostext, data, len);
-    X11DRV_XDND_InsertXDNDData(property, CF_TEXT, dostext, strlen(dostext));
-
-    TRACE("CF_TEXT (%d): %s\n", CF_TEXT, dostext);
-
-    return 1;
-}
-
-
-/**************************************************************************
- * X11DRV_XDND_DeconstructTextHTML
- *
- * Interpret text/html data and add records to <dndfmt> linked list
- */
-static int X11DRV_XDND_DeconstructTextHTML(int property, void* data, int len)
-{
-    char* dostext;
-
-    X11DRV_XDND_UnixToDos(&dostext, data, len);
-
-    X11DRV_XDND_InsertXDNDData(property,
-        RegisterClipboardFormatA("UniformResourceLocator"), dostext, strlen(dostext));
-
-    TRACE("UniformResourceLocator: %s\n", dostext);
-
-    return 1;
 }
 
 
@@ -727,18 +561,20 @@ static void X11DRV_XDND_SendDropFiles(HWND hwnd)
 
     if (found)
     {
-        HGLOBAL dropHandle = GlobalAlloc(GMEM_FIXED, current->size);
+        HGLOBAL dropHandle = GlobalAlloc(GMEM_FIXED, GlobalSize(current->contents));
 
         if (dropHandle)
         {
             DROPFILES *lpDrop = GlobalLock(dropHandle);
+            memcpy(lpDrop, GlobalLock(current->contents), GlobalSize(current->contents));
+            GlobalUnlock(current->contents);
             lpDrop->pt.x = XDNDxy.x;
             lpDrop->pt.y = XDNDxy.y;
-            memcpy(lpDrop, current->data, current->size);
-            TRACE("Sending WM_DROPFILES: hWnd(0x%p) %p(%s)\n", hwnd,
-                ((char*)lpDrop) + lpDrop->pFiles, debugstr_w((WCHAR*)(((char*)lpDrop) + lpDrop->pFiles)));
+            lpDrop->fNC  = !ScreenToClient(hwnd, &lpDrop->pt);
+            TRACE("Sending WM_DROPFILES: hWnd=0x%p, fNC=%d, x=%d, y=%d, files=%p(%s)\n", hwnd,
+                    lpDrop->fNC, lpDrop->pt.x, lpDrop->pt.y, ((char*)lpDrop) + lpDrop->pFiles,
+                    debugstr_w((WCHAR*)(((char*)lpDrop) + lpDrop->pFiles)));
             GlobalUnlock(dropHandle);
-
             if (!PostMessageW(hwnd, WM_DROPFILES, (WPARAM)dropHandle, 0))
                 GlobalFree(dropHandle);
         }
@@ -764,7 +600,7 @@ static void X11DRV_XDND_FreeDragDropOp(void)
     LIST_FOR_EACH_ENTRY_SAFE(current, next, &xdndData, XDNDDATA, entry)
     {
         list_remove(&current->entry);
-        HeapFree(GetProcessHeap(), 0, current->data);
+        GlobalFree(current->contents);
         HeapFree(GetProcessHeap(), 0, current);
     }
 
@@ -774,122 +610,6 @@ static void X11DRV_XDND_FreeDragDropOp(void)
     XDNDAccepted = FALSE;
 
     LeaveCriticalSection(&xdnd_cs);
-}
-
-
-
-/**************************************************************************
- * X11DRV_XDND_UnixToDos
- */
-static unsigned int X11DRV_XDND_UnixToDos(char** lpdest, char* lpsrc, int len)
-{
-    int i;
-    unsigned int destlen, lines;
-
-    for (i = 0, lines = 0; i <= len; i++)
-    {
-        if (lpsrc[i] == '\n')
-            lines++;
-    }
-
-    destlen = len + lines + 1;
-
-    if (lpdest)
-    {
-        char* lpstr = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, destlen);
-        for (i = 0, lines = 0; i <= len; i++)
-        {
-            if (lpsrc[i] == '\n')
-                lpstr[++lines + i] = '\r';
-            lpstr[lines + i] = lpsrc[i];
-        }
-
-        *lpdest = lpstr;
-    }
-
-    return lines;
-}
-
-
-/**************************************************************************
- * X11DRV_XDND_URIToDOS
- */
-static WCHAR* X11DRV_XDND_URIToDOS(char *encodedURI)
-{
-    WCHAR *ret = NULL;
-    int i;
-    int j = 0;
-    char *uri = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, strlen(encodedURI) + 1);
-    if (uri == NULL)
-        return NULL;
-    for (i = 0; encodedURI[i]; ++i)
-    {
-        if (encodedURI[i] == '%')
-        { 
-            if (encodedURI[i+1] && encodedURI[i+2])
-            {
-                char buffer[3];
-                int number;
-                buffer[0] = encodedURI[i+1];
-                buffer[1] = encodedURI[i+2];
-                buffer[2] = '\0';
-                sscanf(buffer, "%x", &number);
-                uri[j++] = number;
-                i += 2;
-            }
-            else
-            {
-                WARN("invalid URI encoding in %s\n", debugstr_a(encodedURI));
-                HeapFree(GetProcessHeap(), 0, uri);
-                return NULL;
-            }
-        }
-        else
-            uri[j++] = encodedURI[i];
-    }
-
-    /* Read http://www.freedesktop.org/wiki/Draganddropwarts and cry... */
-    if (strncmp(uri, "file:/", 6) == 0)
-    {
-        if (uri[6] == '/')
-        {
-            if (uri[7] == '/')
-            {
-                /* file:///path/to/file (nautilus, thunar) */
-                ret = wine_get_dos_file_name(&uri[7]);
-            }
-            else if (uri[7])
-            {
-                /* file://hostname/path/to/file (X file drag spec) */
-                char hostname[256];
-                char *path = strchr(&uri[7], '/');
-                if (path)
-                {
-                    *path = '\0';
-                    if (strcmp(&uri[7], "localhost") == 0)
-                    {
-                        *path = '/';
-                        ret = wine_get_dos_file_name(path);
-                    }
-                    else if (gethostname(hostname, sizeof(hostname)) == 0)
-                    {
-                        if (strcmp(hostname, &uri[7]) == 0)
-                        {
-                            *path = '/';
-                            ret = wine_get_dos_file_name(path);
-                        }
-                    }
-                }
-            }
-        }
-        else if (uri[6])
-        {
-            /* file:/path/to/file (konqueror) */
-            ret = wine_get_dos_file_name(&uri[5]);
-        }
-    }
-    HeapFree(GetProcessHeap(), 0, uri);
-    return ret;
 }
 
 
@@ -985,10 +705,12 @@ static HRESULT WINAPI XDNDDATAOBJECT_GetData(IDataObject *dataObject,
             if (current->cf_win == formatEtc->cfFormat)
             {
                 pMedium->tymed = TYMED_HGLOBAL;
-                pMedium->u.hGlobal = HeapAlloc(GetProcessHeap(), 0, current->size);
+                pMedium->u.hGlobal = GlobalAlloc(GMEM_FIXED | GMEM_ZEROINIT, GlobalSize(current->contents));
                 if (pMedium->u.hGlobal == NULL)
                     return E_OUTOFMEMORY;
-                memcpy(pMedium->u.hGlobal, current->data, current->size);
+                memcpy(GlobalLock(pMedium->u.hGlobal), GlobalLock(current->contents), GlobalSize(current->contents));
+                GlobalUnlock(pMedium->u.hGlobal);
+                GlobalUnlock(current->contents);
                 pMedium->pUnkForRelease = 0;
                 return S_OK;
             }

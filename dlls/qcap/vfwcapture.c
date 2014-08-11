@@ -203,7 +203,7 @@ static HRESULT WINAPI VfwCapture_QueryInterface(IBaseFilter * iface, REFIID riid
 static ULONG WINAPI VfwCapture_Release(IBaseFilter * iface)
 {
     VfwCapture *This = (VfwCapture *)iface;
-    ULONG refCount = BaseFilterImpl_Release(iface);
+    ULONG refCount = InterlockedDecrement(&This->filter.refCount);
 
     TRACE("%p->() New refcount: %d\n", This, refCount);
 
@@ -225,6 +225,7 @@ static ULONG WINAPI VfwCapture_Release(IBaseFilter * iface)
             IPin_Disconnect(This->pOutputPin);
         }
         IPin_Release(This->pOutputPin);
+        BaseFilter_Destroy(&This->filter);
         CoTaskMemFree(This);
         ObjectRefCount(FALSE);
     }
@@ -731,7 +732,6 @@ VfwPin_Construct( IBaseFilter * pBaseFilter, LPCRITICAL_SECTION pCritSec,
     piOutput.dir = PINDIR_OUTPUT;
     piOutput.pFilter = pBaseFilter;
     lstrcpyW(piOutput.achName, wszOutputPinName);
-    ObjectRefCount(TRUE);
 
     hr = BaseOutputPin_Construct(&VfwPin_Vtbl, sizeof(VfwPinImpl), &piOutput, &output_BaseOutputFuncTable, pCritSec, ppPin);
 
@@ -739,6 +739,7 @@ VfwPin_Construct( IBaseFilter * pBaseFilter, LPCRITICAL_SECTION pCritSec,
     {
         VfwPinImpl *pPinImpl = (VfwPinImpl*)*ppPin;
         pPinImpl->KSP_VT = &KSP_VTable;
+        ObjectRefCount(TRUE);
     }
 
     return hr;
@@ -778,7 +779,7 @@ VfwPin_Release(IPin * iface)
 
    if (!refCount)
    {
-      CoTaskMemFree(This);
+      BaseOutputPin_Destroy(&This->pin);
       ObjectRefCount(FALSE);
    }
    return refCount;

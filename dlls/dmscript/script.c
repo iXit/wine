@@ -34,6 +34,19 @@ WINE_DECLARE_DEBUG_CHANNEL(dmfile);
 /*****************************************************************************
  * IDirectMusicScriptImpl implementation
  */
+typedef struct IDirectMusicScriptImpl {
+    IDirectMusicScript IDirectMusicScript_iface;
+    const IDirectMusicObjectVtbl *ObjectVtbl;
+    const IPersistStreamVtbl *PersistStreamVtbl;
+    LONG ref;
+    IDirectMusicPerformance *pPerformance;
+    DMUS_OBJECTDESC *pDesc;
+    DMUS_IO_SCRIPT_HEADER *pHeader;
+    DMUS_IO_VERSION *pVersion;
+    WCHAR *pwzLanguage;
+    WCHAR *pwzSource;
+} IDirectMusicScriptImpl;
+
 static inline IDirectMusicScriptImpl *impl_from_IDirectMusicScript(IDirectMusicScript *iface)
 {
   return CONTAINING_RECORD(iface, IDirectMusicScriptImpl, IDirectMusicScript_iface);
@@ -424,15 +437,12 @@ static ULONG WINAPI IDirectMusicScriptImpl_IPersistStream_Release (LPPERSISTSTRE
 }
 
 static HRESULT WINAPI IDirectMusicScriptImpl_IPersistStream_GetClassID (LPPERSISTSTREAM iface, CLSID* pClassID) {
-  ICOM_THIS_MULTI(IDirectMusicScriptImpl, PersistStreamVtbl, iface);
-  TRACE("(%p, %p)\n", This, pClassID);
-  *pClassID = CLSID_DirectMusicScript;
-  return S_OK;
+  TRACE("(%p, %p) method not implemented\n", iface, pClassID);
+
+  return E_NOTIMPL;
 }
 
 static HRESULT WINAPI IDirectMusicScriptImpl_IPersistStream_IsDirty (LPPERSISTSTREAM iface) {
-  ICOM_THIS_MULTI(IDirectMusicScriptImpl, PersistStreamVtbl, iface);  
-  FIXME("(%p): stub, always S_FALSE\n", This);
   return S_FALSE;
 }
 

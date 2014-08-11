@@ -1,4 +1,3 @@
-'
 ' Copyright 2011 Jacek Caban for CodeWeavers
 '
 ' This library is free software; you can redistribute it and/or
@@ -136,6 +135,7 @@ Call ok(Chr(120) = "x", "Chr(120) = " & Chr(120))
 Call ok(Chr(0) <> "", "Chr(0) = """"")
 Call ok(Chr(120.5) = "x", "Chr(120.5) = " & Chr(120.5))
 Call ok(Chr(119.5) = "x", "Chr(119.5) = " & Chr(119.5))
+Call ok(Chr("120") = "x", "Chr(""120"") = " & Chr("120"))
 
 sub testChrError
     on error resume next
@@ -193,6 +193,31 @@ Call ok(not isNull(true), "isNull(true) is true?")
 Call ok(not isNull(4), "isNull(4) is true?")
 Call ok(not isNull("x"), "isNull(""x"") is true?")
 Call ok(isNull(Null), "isNull(Null) is not true?")
+
+Call ok(isNumeric(Empty), "isNumeric(empty) is not true?")
+Call ok(not isNumeric(Null), "isNumeric(Null) is not true?")
+Call ok(isNumeric(32767), "isNumeric(32767) is true?")
+Call ok(isNumeric(32768), "isNumeric(32768) is true?")
+Call ok(isNumeric(CSng(3242.4)), "isNumeric(CSng(3242.4)) is true?")
+Call ok(isNumeric(32768.4), "isNumeric(32768.4) is true?")
+Call ok(isNumeric(CCur(32768.4)), "isNumeric(CCur(32768.4)) is true?")
+Call ok(isNumeric("44"), "isNumeric(""44"") is true?")
+Call ok(not isNumeric("rwrf"), "isNumeric(""rwrf"") is not true?")
+Call ok(not isNumeric(Nothing), "isNumeric(Nothing) is not true?")
+Call ok(not isNumeric(New EmptyClass), "isNumeric(New EmptyClass) is not true?")
+Call ok(isNumeric(true), "isNumeric(true) is true?")
+Call ok(isNumeric(CByte(32)), "isNumeric(CByte(32)) is true?")
+Dim arr(2)
+arr(0) = 2
+arr(1) = 3
+Call ok(not isNumeric(arr), "isNumeric(arr) is not true?")
+
+Dim newObject
+Set newObject = New ValClass
+newObject.myval = 1
+Call ok(isNumeric(newObject), "isNumeric(newObject) is true?")
+newObject.myval = "test"
+Call ok(not isNumeric(newObject), "isNumeric(newObject) is not true?")
 
 Call ok(getVT(err) = "VT_DISPATCH", "getVT(err) = " & getVT(err))
 
@@ -321,6 +346,7 @@ Call ok(Space(5.5) = "      ", "Space(5.5) = " & Space(5.5) & """")
 Call ok(Space(4.5) = "    ", "Space(4.5) = " & Space(4.5) & """")
 Call ok(Space(0.5) = "", "Space(0.5) = " & Space(0.5) & """")
 Call ok(Space(1.5) = "  ", "Space(1.5) = " & Space(1.5) & """")
+Call ok(Space("1") = " ", "Space(""1"") = " & Space("1") & """")
 
 Sub TestStrReverse(str, ex)
     Call ok(StrReverse(str) = ex, "StrReverse(" & str & ") = " & StrReverse(str))
@@ -341,6 +367,7 @@ TestLeft "test", 0, ""
 TestLeft 123, 2, "12"
 TestLeft "123456", 1.5, "12"
 TestLeft "123456", 2.5, "12"
+TestLeft "test", "2", "te"
 if isEnglishLang then TestLeft true, 2, "Tr"
 
 Sub TestRight(str, len, ex)
@@ -633,5 +660,337 @@ Call ok(getVT(CCur(MyObject)) = "VT_CY", "getVT(CCur(MyObject)) = " & getVT(CCur
 MyObject.myval = 0
 Call ok(CCur(MyObject) = 0, "CCur(MyObject) = " & CCur(MyObject))
 Call ok(getVT(CCur(MyObject)) = "VT_CY", "getVT(CCur(MyObject)) = " & getVT(CCur(MyObject)))
+
+Sub testCDblError(strings, error_num1, error_num2)
+    on error resume next
+    Dim x
+
+    Call Err.clear()
+    x = CDbl(strings)
+    Call ok(Err.number = error_num1, "Err.number = " & Err.number)
+
+    Call Err.clear()
+    Call CDbl(strings)
+    Call ok(Err.number = error_num2, "Err.number = " & Err.number)
+End Sub
+
+Call ok(CDbl(Empty) = 0, "CDbl(Empty) = " & CDbl(Empty))
+Call ok(getVT(CDbl(Empty)) = "VT_R8", "getVT(CDbl(Empty)) = " & getVT(CDbl(Empty)))
+Call ok(CDbl(CByte(0)) = 0, "CDbl(CByte(0)) = " & CDbl(CByte(0)))
+Call ok(getVT(CDbl(CCur(0))) = "VT_R8", "getVT(CDbl(CCur(0))) = " & getVT(CDbl(CCur(0))))
+Call ok(CDbl(CCur(0)) = 0, "CDbl(CCur(0)) = " & CDbl(CCur(0)))
+Call ok(getVT(CDbl(CCur(0))) = "VT_R8", "getVT(CDbl(CCur(0))) = " & getVT(CDbl(CCur(0))))
+Call ok(CDbl(0) = 0, "CDbl(0) = " & CDbl(0))
+Call ok(getVT(CDbl(0)) = "VT_R8", "getVT(CDbl(0)) = " & getVT(CDbl(0)))
+Call ok(CDbl(32768) = 32768, "CDbl(32768) = " & CDbl(32768))
+Call ok(getVT(CDbl(32768)) = "VT_R8", "getVT(CDbl(32768)) = " & getVT(CDbl(32768)))
+Call ok(CDbl(0.001 * 0.001) = 0.000001, "CDbl(0.001 * 0.001) = " & CDbl(0.001 * 0.001))
+Call ok(getVT(CDbl(0.001 * 0.001)) = "VT_R8", "getVT(CDbl(0.001 * 0.001)) = " & getVT(CDbl(0.001 * 0.001)))
+Call ok(CDbl("-1") = -1, "CDbl(""-1"") = " & CDbl("-1"))
+Call ok(getVT(CDbl("-1")) = "VT_R8", "getVT(CDbl(""-1"")) = " & getVT(CDbl("-1")))
+If isEnglishLang Then
+    Call ok(CDbl("-0.5") = -0.5, "CDbl(""-0.5"") = " & CDbl("-0.5"))
+    Call ok(getVT(CDbl("-0.5")) = "VT_R8", "getVT(CDbl(""-0.5"")) = " & getVT(CDbl("-0.5")))
+End If
+Call testCDblError("", 13, 13)
+Call testCDblError("TRUE", 13, 13)
+Call testCDblError("FALSE", 13, 13)
+Call testCDblError("#TRue#", 13, 13)
+Call testCDblError("#fAlSE#", 13, 13)
+Call testCDblError(1, 0, 458)
+Call ok(CDbl(True) = -1, "CDbl(True) = " & CDbl(True))
+Call ok(getVT(CDbl(True)) = "VT_R8", "getVT(CDbl(True)) = " & getVT(CDbl(True)))
+Call ok(CDbl(False) = 0, "CDbl(False) = " & CDbl(False))
+Call ok(getVT(CDbl(False)) = "VT_R8", "getVT(CDbl(False)) = " & getVT(CDbl(False)))
+MyObject.myval = 0.1
+Call ok(CDbl(MyObject) = 0.1, "CDbl(MyObject) = " & CDbl(MyObject))
+Call ok(getVT(CDbl(MyObject)) = "VT_R8", "getVT(CDbl(MyObject)) = " & getVT(CDbl(MyObject)))
+MyObject.myval = 0
+Call ok(CDbl(MyObject) = 0, "CDbl(MyObject) = " & CDbl(MyObject))
+Call ok(getVT(CDbl(MyObject)) = "VT_R8", "getVT(CDbl(MyObject)) = " & getVT(CDbl(MyObject)))
+
+Sub testCLngError(strings, error_num1, error_num2)
+    on error resume next
+    Dim x
+
+    Call Err.clear()
+    x = CLng(strings)
+    Call ok(Err.number = error_num1, "Err.number = " & Err.number)
+
+    Call Err.clear()
+    Call CLng(strings)
+    Call ok(Err.number = error_num2, "Err.number = " & Err.number)
+End Sub
+
+Call ok(CLng(Empty) = 0, "CLng(Empty) = " & CLng(Empty))
+Call ok(getVT(CLng(Empty)) = "VT_I4", "getVT(CLng(Empty)) = " & getVT(CLng(Empty)))
+Call ok(CLng(CByte(0)) = 0, "CLng(CByte(0)) = " & CLng(CByte(0)))
+Call ok(getVT(CLng(CCur(0))) = "VT_I4", "getVT(CLng(CCur(0))) = " & getVT(CLng(CCur(0))))
+Call ok(CLng(CCur(0)) = 0, "CLng(CCur(0)) = " & CLng(CCur(0)))
+Call ok(getVT(CLng(CCur(0))) = "VT_I4", "getVT(CLng(CCur(0))) = " & getVT(CLng(CCur(0))))
+Call ok(CLng(0) = 0, "CLng(0) = " & CLng(0))
+Call ok(getVT(CLng(0)) = "VT_I4", "getVT(CLng(0)) = " & getVT(CLng(0)))
+Call ok(CLng(0.49) = 0, "CLng(0.49) = " & CLng(0.49))
+Call ok(getVT(CLng(0.49)) = "VT_I4", "getVT(CLng(0.49)) = " & getVT(CLng(0.49)))
+Call ok(CLng(0.5) = 0, "CLng(0.5) = " & CLng(0.5))
+Call ok(getVT(CLng(0.5)) = "VT_I4", "getVT(CLng(0.5)) = " & getVT(CLng(0.5)))
+Call ok(CLng(0.51) = 1, "CLng(0.51) = " & CLng(0.51))
+Call ok(getVT(CLng(0.51)) = "VT_I4", "getVT(CLng(0.51)) = " & getVT(CLng(0.51)))
+Call ok(CLng(1.49) = 1, "CLng(1.49) = " & CLng(1.49))
+Call ok(getVT(CLng(1.49)) = "VT_I4", "getVT(CLng(1.49)) = " & getVT(CLng(1.49)))
+Call ok(CLng(1.5) = 2, "CLng(1.5) = " & CLng(1.5))
+Call ok(getVT(CLng(1.5)) = "VT_I4", "getVT(CLng(1.5)) = " & getVT(CLng(1.5)))
+Call ok(CLng(1.51) = 2, "CLng(1.51) = " & CLng(1.51))
+Call ok(getVT(CLng(1.51)) = "VT_I4", "getVT(CLng(1.51)) = " & getVT(CLng(1.51)))
+Call ok(CLng("-1") = -1, "CLng(""-1"") = " & CLng("-1"))
+Call ok(getVT(CLng("-1")) = "VT_I4", "getVT(CLng(""-1"")) = " & getVT(CLng("-1")))
+If isEnglishLang Then
+    Call ok(CLng("-0.5") = 0, "CLng(""-0.5"") = " & CLng("-0.5"))
+    Call ok(getVT(CLng("-0.5")) = "VT_I4", "getVT(CLng(""-0.5"")) = " & getVT(CLng("-0.5")))
+End If
+Call testCLngError("", 13, 13)
+Call testCLngError("TRUE", 13, 13)
+Call testCLngError("FALSE", 13, 13)
+Call testCLngError("#TRue#", 13, 13)
+Call testCLngError("#fAlSE#", 13, 13)
+Call testCLngError(1, 0, 458)
+Call ok(CLng(True) = -1, "CLng(True) = " & CLng(True))
+Call ok(getVT(CLng(True)) = "VT_I4", "getVT(CLng(True)) = " & getVT(CLng(True)))
+Call ok(CLng(False) = 0, "CLng(False) = " & CLng(False))
+Call ok(getVT(CLng(False)) = "VT_I4", "getVT(CLng(False)) = " & getVT(CLng(False)))
+MyObject.myval = 1
+Call ok(CLng(MyObject) = 1, "CLng(MyObject) = " & CLng(MyObject))
+Call ok(getVT(CLng(MyObject)) = "VT_I4", "getVT(CLng(MyObject)) = " & getVT(CLng(MyObject)))
+MyObject.myval = 0
+Call ok(CLng(MyObject) = 0, "CLng(MyObject) = " & CLng(MyObject))
+Call ok(getVT(CLng(MyObject)) = "VT_I4", "getVT(CLng(MyObject)) = " & getVT(CLng(MyObject)))
+
+Sub testCIntError(strings, error_num1, error_num2)
+    on error resume next
+    Dim x
+
+    Call Err.clear()
+    x = CInt(strings)
+    Call ok(Err.number = error_num1, "Err.number = " & Err.number)
+
+    Call Err.clear()
+    Call CInt(strings)
+    Call ok(Err.number = error_num2, "Err.number = " & Err.number)
+End Sub
+
+Call ok(CInt(Empty) = 0, "CInt(Empty) = " & CInt(Empty))
+Call ok(getVT(CInt(Empty)) = "VT_I2", "getVT(CInt(Empty)) = " & getVT(CInt(Empty)))
+Call ok(CInt(CByte(0)) = 0, "CInt(CByte(0)) = " & CInt(CByte(0)))
+Call ok(getVT(CInt(CByte(0))) = "VT_I2", "getVT(CInt(CByte(0))) = " & getVT(CInt(CByte(0))))
+Call ok(CInt(CCur(0)) = 0, "CInt(CCur(0)) = " & CInt(CCur(0)))
+Call ok(getVT(CInt(CCur(0))) = "VT_I2", "getVT(CInt(CCur(0))) = " & getVT(CInt(CCur(0))))
+Call ok(CInt(0.49) = 0, "CInt(0.49) = " & CInt(0.49))
+Call ok(getVT(CInt(0.49)) = "VT_I2", "getVT(CInt(0.49)) = " & getVT(CInt(0.49)))
+Call ok(CInt(0.5) = 0, "CInt(0.5) = " & CInt(0.5))
+Call ok(getVT(CInt(0.5)) = "VT_I2", "getVT(CInt(0.5)) = " & getVT(CInt(0.5)))
+Call ok(CInt(0.51) = 1, "CInt(0.51) = " & CInt(0.51))
+Call ok(getVT(CInt(0.51)) = "VT_I2", "getVT(CInt(0.51)) = " & getVT(CInt(0.51)))
+Call ok(CInt(1.49) = 1, "CInt(0.49) = " & CInt(0.49))
+Call ok(getVT(CInt(0.49)) = "VT_I2", "getVT(CInt(0.49)) = " & getVT(CInt(0.49)))
+Call ok(CInt(1.5) = 2, "CInt(1.5) = " & CInt(1.5))
+Call ok(getVT(CInt(1.5)) = "VT_I2", "getVT(CInt(1.5)) = " & getVT(CInt(1.5)))
+Call ok(CInt(1.51) = 2, "CInt(1.51) = " & CInt(1.51))
+Call ok(getVT(CInt(1.51)) = "VT_I2", "getVT(CInt(1.51)) = " & getVT(CInt(1.51)))
+Call ok(CInt("-1") = -1, "CInt(""-1"") = " & CInt("-1"))
+Call ok(getVT(CInt("-1")) = "VT_I2", "getVT(CInt(""-1"")) = " & getVT(CInt("-1")))
+If isEnglishLang Then
+    Call ok(CInt("-0.5") = 0, "CInt(""-0.5"") = " & CInt("-0.5"))
+    Call ok(getVT(CInt("-0.5")) = "VT_I2", "getVT(CInt(""-0.5"")) = " & getVT(CInt("-0.5")))
+End If
+Call testCIntError("", 13, 13)
+Call testCIntError("-1", 0, 458)
+Call testCIntError("TRUE", 13, 13)
+Call testCIntError("FALSE", 13, 13)
+Call testCIntError("#TRue#", 13, 13)
+Call testCIntError("#fAlSE#", 13, 13)
+Call testCIntError(1, 0, 458)
+Call testCIntError(32767.49, 0, 458)
+Call testCIntError(32767.5, 6, 6)
+Call testCIntError(-32768.5, 0, 458)
+Call testCIntError(-32768.51, 6, 6)
+Call ok(CInt(True) = -1, "CInt(True) = " & CInt(True))
+Call ok(getVT(CInt(True)) = "VT_I2", "getVT(CInt(True)) = " & getVT(CInt(True)))
+Call ok(CInt(False) = 0, "CInt(False) = " & CInt(False))
+Call ok(getVT(CInt(False)) = "VT_I2", "getVT(CInt(False)) = " & getVT(CInt(False)))
+MyObject.myval = 2.5
+Call ok(CInt(MyObject) = 2, "CInt(MyObject) = " & CInt(MyObject))
+Call ok(getVT(CInt(MyObject)) = "VT_I2", "getVT(CInt(MyObject)) = " & getVT(CInt(MyObject)))
+MyObject.myval = 1.5
+Call ok(CInt(MyObject) = 2, "CInt(MyObject) = " & CInt(MyObject))
+Call ok(getVT(CInt(MyObject)) = "VT_I2", "getVT(CInt(MyObject)) = " & getVT(CInt(MyObject)))
+
+Sub testCSngError(strings, error_num1, error_num2)
+    on error resume next
+    Dim x
+
+    Call Err.clear()
+    x = CSng(strings)
+    Call ok(Err.number = error_num1, "Err.number = " & Err.number)
+
+    Call Err.clear()
+    Call CSng(strings)
+    Call ok(Err.number = error_num2, "Err.number = " & Err.number)
+End Sub
+
+Call ok(CSng(Empty) = 0, "CSng(Empty) = " & CSng(Empty))
+Call ok(getVT(CSng(Empty)) = "VT_R4", "getVT(CSng(Empty)) = " & getVT(CSng(Empty)))
+Call ok(CSng(CByte(0)) = 0, "CSng(CByte(0)) = " & CSng(CByte(0)))
+Call ok(getVT(CSng(CCur(0))) = "VT_R4", "getVT(CSng(CCur(0))) = " & getVT(CSng(CCur(0))))
+Call ok(CSng(CCur(0)) = 0, "CSng(CCur(0)) = " & CSng(CCur(0)))
+Call ok(getVT(CSng(CCur(0))) = "VT_R4", "getVT(CSng(CCur(0))) = " & getVT(CSng(CCur(0))))
+Call ok(CSng(0) = 0, "CSng(0) = " & CSng(0))
+Call ok(getVT(CSng(0)) = "VT_R4", "getVT(CSng(0)) = " & getVT(CSng(0)))
+Call ok(CSng(32768) = 32768, "CSng(32768) = " & CSng(32768))
+Call ok(getVT(CSng(32768)) = "VT_R4", "getVT(CSng(32768)) = " & getVT(CSng(32768)))
+Call ok(CSng(0.001 * 0.001) = 0.000001, "CSng(0.001 * 0.001) = " & CSng(0.001 * 0.001))
+Call ok(getVT(CSng(0.001 * 0.001)) = "VT_R4", "getVT(CSng(0.001 * 0.001)) = " & getVT(CSng(0.001 * 0.001)))
+Call ok(CSng("-1") = -1, "CSng(""-1"") = " & CSng("-1"))
+Call ok(getVT(CSng("-1")) = "VT_R4", "getVT(CSng(""-1"")) = " & getVT(CSng("-1")))
+If isEnglishLang Then
+    Call ok(CSng("-0.5") = -0.5, "CSng(""-0.5"") = " & CSng("-0.5"))
+    Call ok(getVT(CSng("-0.5")) = "VT_R4", "getVT(CSng(""-0.5"")) = " & getVT(CSng("-0.5")))
+End If
+Call testCSngError("", 13, 13)
+Call testCSngError("TRUE", 13, 13)
+Call testCSngError("FALSE", 13, 13)
+Call testCSngError("#TRue#", 13, 13)
+Call testCSngError("#fAlSE#", 13, 13)
+Call testCSngError(1, 0, 458)
+Call ok(CSng(True) = -1, "CSng(True) = " & CSng(True))
+Call ok(getVT(CSng(True)) = "VT_R4", "getVT(CSng(True)) = " & getVT(CSng(True)))
+Call ok(CSng(False) = 0, "CSng(False) = " & CSng(False))
+Call ok(getVT(CSng(False)) = "VT_R4", "getVT(CSng(False)) = " & getVT(CSng(False)))
+MyObject.myval = 0.1
+Call ok(CSng(MyObject) = 0.1, "CSng(MyObject) = " & CSng(MyObject))
+Call ok(getVT(CSng(MyObject)) = "VT_R4", "getVT(CSng(MyObject)) = " & getVT(CSng(MyObject)))
+MyObject.myval = 0
+Call ok(CSng(MyObject) = 0, "CSng(MyObject) = " & CSng(MyObject))
+Call ok(getVT(CSng(MyObject)) = "VT_R4", "getVT(CSng(MyObject)) = " & getVT(CSng(MyObject)))
+
+Call ok(TypeName(Empty) = "Empty", "TypeName(MyEmpty) = " & TypeName(Empty))
+Call ok(getVT(TypeName(Empty)) = "VT_BSTR", "getVT(TypeName(Empty)) = " & getVT(TypeName(Empty)))
+Call ok(TypeName(Null) = "Null", "TypeName(Null) = " & TypeName(Null))
+Call ok(getVT(TypeName(Null)) = "VT_BSTR", "getVT(TypeName(Null)) = " & getVT(TypeName(Null)))
+Call ok(TypeName(CByte(255)) = "Byte", "TypeName(CByte(255)) = " & TypeName(CByte(255)))
+Call ok(getVT(TypeName(CByte(255))) = "VT_BSTR", "getVT(TypeName(CByte(255))) = " & getVT(TypeName(CByte(255))))
+Call ok(TypeName(255) = "Integer", "TypeName(255) = " & TypeName(255))
+Call ok(getVT(TypeName(255)) = "VT_BSTR", "getVT(TypeName(255)) = " & getVT(TypeName(255)))
+Call ok(TypeName(32768) = "Long", "TypeName(32768) = " & TypeName(32768))
+Call ok(getVT(TypeName(32768)) = "VT_BSTR", "getVT(TypeName(32768)) = " & getVT(TypeName(32768)))
+Call ok(TypeName(CSng(0.5)) = "Single", "TypeName(CSng(0.5)) = " & TypeName(CSng(0.5)))
+Call ok(getVT(TypeName(CSng(0.5))) = "VT_BSTR", "getVT(TypeName(CSng(0.5))) = " & getVT(TypeName(CSng(0.5))))
+Call ok(TypeName(-0.5) = "Double", "TypeName(-0.5) = " & TypeName(-0.5))
+Call ok(getVT(TypeName(-0.5)) = "VT_BSTR", "getVT(TypeName(-0.5)) = " & getVT(TypeName(-0.5)))
+Call ok(TypeName(CCur(0.5)) = "Currency", "TypeName(CCur(0.5)) = " & TypeName(CCur(0.5)))
+Call ok(getVT(TypeName(CCur(0.5))) = "VT_BSTR", "getVT(TypeName(CCur(0.5))) = " & getVT(TypeName(CCur(0.5))))
+Call ok(TypeName(CStr(0.5)) = "String", "TypeName(CStr(0.5)) = " & TypeName(CStr(0.5)))
+Call ok(getVT(TypeName(CStr(0.5))) = "VT_BSTR", "getVT(TypeName(CStr(0.5))) = " & getVT(TypeName(CStr(0.5))))
+Call ok(TypeName(True) = "Boolean", "TypeName(True) = " & TypeName(True))
+Call ok(getVT(TypeName(True)) = "VT_BSTR", "getVT(TypeName(True)) = " & getVT(TypeName(True)))
+
+Call ok(VarType(Empty) = vbEmpty, "VarType(Empty) = " & VarType(Empty))
+Call ok(getVT(VarType(Empty)) = "VT_I2", "getVT(VarType(Empty)) = " & getVT(VarType(Empty)))
+Call ok(VarType(Null) = vbNull, "VarType(Null) = " & VarType(Null))
+Call ok(getVT(VarType(Null)) = "VT_I2", "getVT(VarType(Null)) = " & getVT(VarType(Null)))
+Call ok(VarType(255) = vbInteger, "VarType(255) = " & VarType(255))
+Call ok(getVT(VarType(255)) = "VT_I2", "getVT(VarType(255)) = " & getVT(VarType(255)))
+Call ok(VarType(32768) = vbLong, "VarType(32768) = " & VarType(32768))
+Call ok(getVT(VarType(32768)) = "VT_I2", "getVT(VarType(32768)) = " & getVT(VarType(32768)))
+Call ok(VarType(CSng(0.5)) = vbSingle, "VarType(CSng(0.5)) = " & VarType(CSng(0.5)))
+Call ok(getVT(VarType(CSng(0.5))) = "VT_I2", "getVT(VarType(CSng(0.5))) = " & getVT(VarType(CSng(0.5))))
+Call ok(VarType(-0.5) = vbDouble, "VarType(-0.5) = " & VarType(-0.5))
+Call ok(getVT(VarType(-0.5)) = "VT_I2", "getVT(VarType(-0.5)) = " & getVT(VarType(-0.5)))
+Call ok(VarType(CCur(0.5)) = vbCurrency, "VarType(CCur(0.5)) = " & VarType(CCur(0.5)))
+Call ok(getVT(VarType(CCur(0.5))) = "VT_I2", "getVT(VarType(CCur(0.5))) = " & getVT(VarType(CCur(0.5))))
+Call ok(VarType(CStr(0.5)) = vbString, "VarType(CStr(0.5)) = " & VarType(CStr(0.5)))
+Call ok(getVT(VarType(CStr(0.5))) = "VT_I2", "getVT(VarType(CStr(0.5))) = " & getVT(VarType(CStr(0.5))))
+Call ok(VarType(CBool(0.5)) = vbBoolean, "VarType(CBool(0.5)) = " & VarType(CBool(0.5)))
+Call ok(getVT(VarType(CBool(0.5))) = "VT_I2", "getVT(VarType(CBool(0.5))) = " & getVT(VarType(CBool(0.5))))
+Call ok(VarType(CByte(255)) = vbByte, "VarType(CByte(255)) = " & VarType(CByte(255)))
+Call ok(getVT(VarType(CByte(255))) = "VT_I2", "getVT(VarType(CByte(255))) = " & getVT(VarType(CByte(255))))
+
+Call ok(Sgn(Empty) = 0, "Sgn(MyEmpty) = " & Sgn(Empty))
+Call ok(getVT(Sgn(Empty)) = "VT_I2", "getVT(Sgn(MyEmpty)) = " & getVT(Sgn(Empty)))
+Call ok(Sgn(0) = 0, "Sgn(0) = " & Sgn(0))
+Call ok(getVT(Sgn(0)) = "VT_I2", "getVT(Sgn(0)) = " & getVT(Sgn(0)))
+Call ok(Sgn(-32769) = -1, "Sgn(-32769) = " & Sgn(-32769))
+Call ok(getVT(Sgn(-32769)) = "VT_I2", "getVT(Sgn(-32769)) = " & getVT(Sgn(-32769)))
+Call ok(Sgn(CSng(-0.5)) = -1, "Sgn(CSng(-0.5)) = " & Sgn(CSng(-0.5)))
+Call ok(getVT(Sgn(CSng(-0.5))) = "VT_I2", "getVT(Sgn(CSng(-0.5))) = " & getVT(Sgn(CSng(-0.5))))
+Call ok(Sgn(0.5) = 1, "Sgn(0.5) = " & Sgn(0.5))
+Call ok(getVT(Sgn(0.5)) = "VT_I2", "getVT(Sgn(0.5)) = " & getVT(Sgn(0.5)))
+Call ok(Sgn(CCur(-1)) = -1, "Sgn(CCur(-1)) = " & Sgn(CCur(-1)))
+Call ok(getVT(Sgn(CCur(-1))) = "VT_I2", "getVT(Sgn(CCur(-1))) = " & getVT(Sgn(CCur(-1))))
+Call ok(Sgn(CStr(-1)) = -1, "Sgn(CStr(-1)) = " & Sgn(CStr(-1)))
+Call ok(getVT(Sgn(CStr(-1))) = "VT_I2", "getVT(Sgn(CStr(-1))) = " & getVT(Sgn(CStr(-1))))
+Call ok(Sgn(False) = 0, "Sgn(False) = " & Sgn(False))
+Call ok(getVT(Sgn(False)) = "VT_I2", "getVT(Sgn(False)) = " & getVT(Sgn(False)))
+Call ok(Sgn(True) = -1, "Sgn(True) = " & Sgn(True))
+Call ok(getVT(Sgn(True)) = "VT_I2", "getVT(Sgn(True)) = " & getVT(Sgn(True)))
+Call ok(Sgn(CByte(1)) = 1, "Sgn(CByte(1)) = " & Sgn(CByte(1)))
+Call ok(getVT(Sgn(CByte(1))) ="VT_I2", "getVT(Sgn(CByte(1))) = " & getVT(Sgn(CByte(1))))
+
+Sub testSgnError(strings, error_num)
+    on error resume next
+
+    Call Err.clear()
+    Call Sgn(strings)
+    Call ok(Err.number = error_num, "Err.number = " & Err.number)
+End Sub
+
+Call testSgnError(Null, 94)
+
+Call ok(Abs(Empty) = 0, "Abs(Empty) = " & Abs(Empty))
+Call ok(getVT(Abs(Empty)) = "VT_I2", "getVT(Abs(Empty)) = " & getVT(Abs(Empty)))
+Call ok(IsNull(Abs(Null)), "Is Abs(Null) not Null?")
+Call ok(getVT(Abs(Null)) = "VT_NULL", "getVT(Abs(Null)) = " & getVT(Abs(Null)))
+Call ok(Abs(0) = 0, "Abs(0) = " & Abs(0))
+Call ok(getVT(Abs(0)) = "VT_I2", "getVT(Abs(0)) = " & getVT(Abs(0)))
+Call ok(Abs(-32769) = 32769, "Abs(-32769) = " & Abs(-32769))
+Call ok(getVT(Abs(-32769)) = "VT_I4", "getVT(Abs(-32769)) = " & getVT(Abs(-32769)))
+Call ok(Abs(CSng(-0.5)) = 0.5, "Abs(CSng(-0.5)) = " & Abs(CSng(-0.5)))
+Call ok(getVT(Abs(CSng(-0.5))) = "VT_R4", "getVT(Abs(CSng(-0.5))) = " & getVT(Abs(CSng(-0.5))))
+Call ok(Abs(0.5) = 0.5, "Abs(0.5) = " & Abs(0.5))
+Call ok(getVT(Abs(0.5)) = "VT_R8", "getVT(Abs(0.5)) = " & getVT(Abs(0.5)))
+Call ok(Abs(CCur(-1)) = 1, "Abs(CCur(-1)) = " & Abs(CCur(-1)))
+Call ok(getVT(Abs(CCur(-1))) = "VT_CY", "getVT(Abs(CCur(-1))) = " & getVT(Abs(CCur(-1))))
+Call ok(Abs("-1") = 1, "Abs(""-1"") = " & Abs("-1"))
+Call ok(getVT(Abs("-1")) = "VT_R8", "getVT(Abs(""-1"")) = " & getVT(Abs("-1")))
+Call ok(Abs(False) = 0, "Abs(False) = " & Abs(False))
+Call ok(getVT(Abs(False)) = "VT_I2", "getVT(Abs(False)) = " & getVT(Abs(False)))
+Call ok(Abs(True) = 1, "Abs(True) = " & Abs(True))
+Call ok(getVT(Abs(True)) = "VT_I2", "getVT(Abs(True)) = " & getVT(Abs(True)))
+Call ok(Abs(CByte(1)) = 1, "Abs(CByte(1)) = " & Abs(CByte(1)))
+Call ok(getVT(Abs(CByte(1))) = "VT_UI1", "getVT(Abs(CByte(1))) = " & getVT(Abs(CByte(1))))
+
+Sub testAbsError(strings, error_num1, error_num2)
+    on error resume next
+    Dim x
+
+    Call Err.clear()
+    x = Abs(strings)
+    Call ok(Err.number = error_num1, "Err.number1 = " & Err.number)
+
+    Call Err.clear()
+    Call Abs(strings)
+    Call ok(Err.number = error_num2, "Err.number2 = " & Err.number)
+End Sub
+
+Call testAbsError("strings", 13, 13)
+Call testAbsError(-4, 0, 0)
+
+Call ok(ScriptEngine = "VBScript", "Is scriptengine not VBScript?")
+Call ok(getVT(ScriptEngine) = "VT_BSTR", "getVT(ScriptEngine) = " & getVT(ScriptEngine))
+
+Call ok(getVT(ScriptEngineBuildVersion) = "VT_I4", "getVT(ScriptEngineBuildVersion) = " & getVT(ScriptEngineBuildVersion))
+
+Call ok(getVT(ScriptEngineMajorVersion) = "VT_I4", "getVT(ScriptEngineMajorVersion) = " & getVT(ScriptEngineMajorVersion))
+
+Call ok(getVT(ScriptEngineMinorVersion) = "VT_I4", "getVT(ScriptEngineMinorVersion) = " & getVT(ScriptEngineMinorVersion))
 
 Call reportSuccess()

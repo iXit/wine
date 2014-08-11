@@ -1,11 +1,11 @@
 # MS VC++2012 runtime library
 
-@ stub -arch=arm ??0?$_SpinWait@$00@details@Concurrency@@QAA@P6AXXZ@Z
-@ stub -arch=i386 ??0?$_SpinWait@$00@details@Concurrency@@QAE@P6AXXZ@Z
-@ stub -arch=win64 ??0?$_SpinWait@$00@details@Concurrency@@QEAA@P6AXXZ@Z
-@ stub -arch=arm ??0?$_SpinWait@$0A@@details@Concurrency@@QAA@P6AXXZ@Z
-@ stub -arch=i386 ??0?$_SpinWait@$0A@@details@Concurrency@@QAE@P6AXXZ@Z
-@ stub -arch=win64 ??0?$_SpinWait@$0A@@details@Concurrency@@QEAA@P6AXXZ@Z
+@ cdecl -arch=arm ??0?$_SpinWait@$00@details@Concurrency@@QAA@P6AXXZ@Z(ptr ptr) SpinWait_ctor_yield
+@ thiscall -arch=i386 ??0?$_SpinWait@$00@details@Concurrency@@QAE@P6AXXZ@Z(ptr ptr) SpinWait_ctor_yield
+@ cdecl -arch=win64 ??0?$_SpinWait@$00@details@Concurrency@@QEAA@P6AXXZ@Z(ptr ptr) SpinWait_ctor_yield
+@ cdecl -arch=arm ??0?$_SpinWait@$0A@@details@Concurrency@@QAA@P6AXXZ@Z(ptr ptr) SpinWait_ctor
+@ thiscall -arch=i386 ??0?$_SpinWait@$0A@@details@Concurrency@@QAE@P6AXXZ@Z(ptr ptr) SpinWait_ctor
+@ cdecl -arch=win64 ??0?$_SpinWait@$0A@@details@Concurrency@@QEAA@P6AXXZ@Z(ptr ptr) SpinWait_ctor
 @ stub -arch=win32 ??0SchedulerPolicy@Concurrency@@QAA@IZZ
 @ stub -arch=win64 ??0SchedulerPolicy@Concurrency@@QEAA@_KZZ
 @ stub -arch=arm ??0SchedulerPolicy@Concurrency@@QAA@ABV01@@Z
@@ -113,9 +113,9 @@
 @ stub -arch=arm ??0context_unblock_unbalanced@Concurrency@@QAA@XZ
 @ stub -arch=i386 ??0context_unblock_unbalanced@Concurrency@@QAE@XZ
 @ stub -arch=win64 ??0context_unblock_unbalanced@Concurrency@@QEAA@XZ
-@ stub -arch=arm ??0critical_section@Concurrency@@QAA@XZ
-@ stub -arch=i386 ??0critical_section@Concurrency@@QAE@XZ
-@ stub -arch=win64 ??0critical_section@Concurrency@@QEAA@XZ
+@ cdecl -arch=arm ??0critical_section@Concurrency@@QAA@XZ(ptr) critical_section_ctor
+@ thiscall -arch=i386 ??0critical_section@Concurrency@@QAE@XZ(ptr) critical_section_ctor
+@ cdecl -arch=win64 ??0critical_section@Concurrency@@QEAA@XZ(ptr) critical_section_ctor
 @ stub -arch=arm ??0default_scheduler_exists@Concurrency@@QAA@PBD@Z
 @ stub -arch=i386 ??0default_scheduler_exists@Concurrency@@QAE@PBD@Z
 @ stub -arch=win64 ??0default_scheduler_exists@Concurrency@@QEAA@PEBD@Z
@@ -248,9 +248,9 @@
 @ stub -arch=arm ??0scheduler_worker_creation_error@Concurrency@@QAA@PBDJ@Z
 @ stub -arch=i386 ??0scheduler_worker_creation_error@Concurrency@@QAE@PBDJ@Z
 @ stub -arch=win64 ??0scheduler_worker_creation_error@Concurrency@@QEAA@PEBDJ@Z
-@ stub -arch=arm ??0scoped_lock@critical_section@Concurrency@@QAA@AAV12@@Z
-@ stub -arch=i386 ??0scoped_lock@critical_section@Concurrency@@QAE@AAV12@@Z
-@ stub -arch=win64 ??0scoped_lock@critical_section@Concurrency@@QEAA@AEAV12@@Z
+@ cdecl -arch=arm ??0scoped_lock@critical_section@Concurrency@@QAA@AAV12@@Z(ptr ptr) critical_section_scoped_lock_ctor
+@ thiscall -arch=i386 ??0scoped_lock@critical_section@Concurrency@@QAE@AAV12@@Z(ptr ptr) critical_section_scoped_lock_ctor
+@ cdecl -arch=win64 ??0scoped_lock@critical_section@Concurrency@@QEAA@AEAV12@@Z(ptr ptr) critical_section_scoped_lock_ctor
 @ stub -arch=arm ??0scoped_lock@reader_writer_lock@Concurrency@@QAA@AAV12@@Z
 @ stub -arch=i386 ??0scoped_lock@reader_writer_lock@Concurrency@@QAE@AAV12@@Z
 @ stub -arch=win64 ??0scoped_lock@reader_writer_lock@Concurrency@@QEAA@AEAV12@@Z
@@ -311,9 +311,9 @@
 @ cdecl -arch=arm ??1bad_typeid@std@@UAA@XZ(ptr) MSVCRT_bad_typeid_dtor
 @ thiscall -arch=i386 ??1bad_typeid@std@@UAE@XZ(ptr) MSVCRT_bad_typeid_dtor
 @ cdecl -arch=win64 ??1bad_typeid@std@@UEAA@XZ(ptr) MSVCRT_bad_typeid_dtor
-@ stub -arch=arm ??1critical_section@Concurrency@@QAA@XZ
-@ stub -arch=i386 ??1critical_section@Concurrency@@QAE@XZ
-@ stub -arch=win64 ??1critical_section@Concurrency@@QEAA@XZ
+@ cdecl -arch=arm ??1critical_section@Concurrency@@QAA@XZ(ptr) critical_section_dtor
+@ thiscall -arch=i386 ??1critical_section@Concurrency@@QAE@XZ(ptr) critical_section_dtor
+@ cdecl -arch=win64 ??1critical_section@Concurrency@@QEAA@XZ(ptr) critical_section_dtor
 @ stub -arch=arm ??1event@Concurrency@@QAA@XZ
 @ stub -arch=i386 ??1event@Concurrency@@QAE@XZ
 @ stub -arch=win64 ??1event@Concurrency@@QEAA@XZ
@@ -323,9 +323,9 @@
 @ stub -arch=arm ??1reader_writer_lock@Concurrency@@QAA@XZ
 @ stub -arch=i386 ??1reader_writer_lock@Concurrency@@QAE@XZ
 @ stub -arch=win64 ??1reader_writer_lock@Concurrency@@QEAA@XZ
-@ stub -arch=arm ??1scoped_lock@critical_section@Concurrency@@QAA@XZ
-@ stub -arch=i386 ??1scoped_lock@critical_section@Concurrency@@QAE@XZ
-@ stub -arch=win64 ??1scoped_lock@critical_section@Concurrency@@QEAA@XZ
+@ cdecl -arch=arm ??1scoped_lock@critical_section@Concurrency@@QAA@XZ(ptr) critical_section_scoped_lock_dtor
+@ thiscall -arch=i386 ??1scoped_lock@critical_section@Concurrency@@QAE@XZ(ptr) critical_section_scoped_lock_dtor
+@ cdecl -arch=win64 ??1scoped_lock@critical_section@Concurrency@@QEAA@XZ(ptr) critical_section_scoped_lock_dtor
 @ stub -arch=arm ??1scoped_lock@reader_writer_lock@Concurrency@@QAA@XZ
 @ stub -arch=i386 ??1scoped_lock@reader_writer_lock@Concurrency@@QAE@XZ
 @ stub -arch=win64 ??1scoped_lock@reader_writer_lock@Concurrency@@QEAA@XZ
@@ -374,12 +374,12 @@
 @ extern ??_7bad_cast@std@@6B@ MSVCRT_bad_cast_vtable
 @ extern ??_7bad_typeid@std@@6B@ MSVCRT_bad_typeid_vtable
 @ extern ??_7exception@std@@6B@ MSVCRT_exception_vtable
-@ stub -arch=arm ??_F?$_SpinWait@$00@details@Concurrency@@QAAXXZ
-@ stub -arch=i386 ??_F?$_SpinWait@$00@details@Concurrency@@QAEXXZ
-@ stub -arch=win64 ??_F?$_SpinWait@$00@details@Concurrency@@QEAAXXZ
-@ stub -arch=arm ??_F?$_SpinWait@$0A@@details@Concurrency@@QAAXXZ
-@ stub -arch=i386 ??_F?$_SpinWait@$0A@@details@Concurrency@@QAEXXZ
-@ stub -arch=win64 ??_F?$_SpinWait@$0A@@details@Concurrency@@QEAAXXZ
+@ cdecl -arch=arm ??_F?$_SpinWait@$00@details@Concurrency@@QAAXXZ(ptr) SpinWait_dtor
+@ thiscall -arch=i386 ??_F?$_SpinWait@$00@details@Concurrency@@QAEXXZ(ptr) SpinWait_dtor
+@ cdecl -arch=win64 ??_F?$_SpinWait@$00@details@Concurrency@@QEAAXXZ(ptr) SpinWait_dtor
+@ cdecl -arch=arm ??_F?$_SpinWait@$0A@@details@Concurrency@@QAAXXZ(ptr) SpinWait_dtor
+@ thiscall -arch=i386 ??_F?$_SpinWait@$0A@@details@Concurrency@@QAEXXZ(ptr) SpinWait_dtor
+@ cdecl -arch=win64 ??_F?$_SpinWait@$0A@@details@Concurrency@@QEAAXXZ(ptr) SpinWait_dtor
 @ stub -arch=arm ??_F_Context@details@Concurrency@@QAAXXZ
 @ stub -arch=i386 ??_F_Context@details@Concurrency@@QAEXXZ
 @ stub -arch=win64 ??_F_Context@details@Concurrency@@QEAAXXZ
@@ -524,12 +524,12 @@
 @ stub -arch=arm ?_Destroy@_CancellationTokenState@details@Concurrency@@EAAXXZ
 @ stub -arch=i386 ?_Destroy@_CancellationTokenState@details@Concurrency@@EAEXXZ
 @ stub -arch=win64 ?_Destroy@_CancellationTokenState@details@Concurrency@@EEAAXXZ
-@ stub -arch=arm ?_DoYield@?$_SpinWait@$00@details@Concurrency@@IAAXXZ
-@ stub -arch=i386 ?_DoYield@?$_SpinWait@$00@details@Concurrency@@IAEXXZ
-@ stub -arch=win64 ?_DoYield@?$_SpinWait@$00@details@Concurrency@@IEAAXXZ
-@ stub -arch=arm ?_DoYield@?$_SpinWait@$0A@@details@Concurrency@@IAAXXZ
-@ stub -arch=i386 ?_DoYield@?$_SpinWait@$0A@@details@Concurrency@@IAEXXZ
-@ stub -arch=win64 ?_DoYield@?$_SpinWait@$0A@@details@Concurrency@@IEAAXXZ
+@ cdecl -arch=arm ?_DoYield@?$_SpinWait@$00@details@Concurrency@@IAAXXZ(ptr) SpinWait__DoYield
+@ thiscall -arch=i386 ?_DoYield@?$_SpinWait@$00@details@Concurrency@@IAEXXZ(ptr) SpinWait__DoYield
+@ cdecl -arch=win64 ?_DoYield@?$_SpinWait@$00@details@Concurrency@@IEAAXXZ(ptr) SpinWait__DoYield
+@ cdecl -arch=arm ?_DoYield@?$_SpinWait@$0A@@details@Concurrency@@IAAXXZ(ptr) SpinWait__DoYield
+@ thiscall -arch=i386 ?_DoYield@?$_SpinWait@$0A@@details@Concurrency@@IAEXXZ(ptr) SpinWait__DoYield
+@ cdecl -arch=win64 ?_DoYield@?$_SpinWait@$0A@@details@Concurrency@@IEAAXXZ(ptr) SpinWait__DoYield
 @ stub ?_Get@_CurrentScheduler@details@Concurrency@@SA?AV_Scheduler@23@XZ
 @ stub -arch=win32 ?_GetConcRTTraceInfo@Concurrency@@YAPBU_CONCRT_TRACE_INFO@details@1@XZ
 @ stub -arch=win64 ?_GetConcRTTraceInfo@Concurrency@@YAPEBU_CONCRT_TRACE_INFO@details@1@XZ
@@ -561,12 +561,12 @@
 @ stub -arch=win64 ?_NewCollection@_AsyncTaskCollection@details@Concurrency@@SAPEAV123@PEAV_CancellationTokenState@23@@Z
 @ stub -arch=win32 ?_NewTokenState@_CancellationTokenState@details@Concurrency@@SAPAV123@XZ
 @ stub -arch=win64 ?_NewTokenState@_CancellationTokenState@details@Concurrency@@SAPEAV123@XZ
-@ stub -arch=arm ?_NumberOfSpins@?$_SpinWait@$00@details@Concurrency@@IAAKXZ
-@ stub -arch=i386 ?_NumberOfSpins@?$_SpinWait@$00@details@Concurrency@@IAEKXZ
-@ stub -arch=win64 ?_NumberOfSpins@?$_SpinWait@$00@details@Concurrency@@IEAAKXZ
-@ stub -arch=arm ?_NumberOfSpins@?$_SpinWait@$0A@@details@Concurrency@@IAAKXZ
-@ stub -arch=i386 ?_NumberOfSpins@?$_SpinWait@$0A@@details@Concurrency@@IAEKXZ
-@ stub -arch=win64 ?_NumberOfSpins@?$_SpinWait@$0A@@details@Concurrency@@IEAAKXZ
+@ cdecl -arch=arm ?_NumberOfSpins@?$_SpinWait@$00@details@Concurrency@@IAAKXZ(ptr) SpinWait__NumberOfSpins
+@ thiscall -arch=i386 ?_NumberOfSpins@?$_SpinWait@$00@details@Concurrency@@IAEKXZ(ptr) SpinWait__NumberOfSpins
+@ cdecl -arch=win64 ?_NumberOfSpins@?$_SpinWait@$00@details@Concurrency@@IEAAKXZ(ptr) SpinWait__NumberOfSpins
+@ cdecl -arch=arm ?_NumberOfSpins@?$_SpinWait@$0A@@details@Concurrency@@IAAKXZ(ptr) SpinWait__NumberOfSpins
+@ thiscall -arch=i386 ?_NumberOfSpins@?$_SpinWait@$0A@@details@Concurrency@@IAEKXZ(ptr) SpinWait__NumberOfSpins
+@ cdecl -arch=win64 ?_NumberOfSpins@?$_SpinWait@$0A@@details@Concurrency@@IEAAKXZ(ptr) SpinWait__NumberOfSpins
 @ stub ?_Oversubscribe@_Context@details@Concurrency@@SAX_N@Z
 @ stub -arch=arm ?_Reference@_Scheduler@details@Concurrency@@QAAIXZ
 @ stub -arch=i386 ?_Reference@_Scheduler@details@Concurrency@@QAEIXZ
@@ -602,12 +602,12 @@
 @ stub -arch=i386 ?_ReleaseWrite@_ReaderWriterLock@details@Concurrency@@QAEXXZ
 @ stub -arch=win64 ?_ReleaseWrite@_ReaderWriterLock@details@Concurrency@@QEAAXXZ
 @ stub ?_ReportUnobservedException@details@Concurrency@@YAXXZ
-@ stub -arch=arm ?_Reset@?$_SpinWait@$00@details@Concurrency@@IAAXXZ
-@ stub -arch=i386 ?_Reset@?$_SpinWait@$00@details@Concurrency@@IAEXXZ
-@ stub -arch=win64 ?_Reset@?$_SpinWait@$00@details@Concurrency@@IEAAXXZ
-@ stub -arch=arm ?_Reset@?$_SpinWait@$0A@@details@Concurrency@@IAAXXZ
-@ stub -arch=i386 ?_Reset@?$_SpinWait@$0A@@details@Concurrency@@IAEXXZ
-@ stub -arch=win64 ?_Reset@?$_SpinWait@$0A@@details@Concurrency@@IEAAXXZ
+@ cdecl -arch=arm ?_Reset@?$_SpinWait@$00@details@Concurrency@@IAAXXZ(ptr) SpinWait__Reset
+@ thiscall -arch=i386 ?_Reset@?$_SpinWait@$00@details@Concurrency@@IAEXXZ(ptr) SpinWait__Reset
+@ cdecl -arch=win64 ?_Reset@?$_SpinWait@$00@details@Concurrency@@IEAAXXZ(ptr) SpinWait__Reset
+@ cdecl -arch=arm ?_Reset@?$_SpinWait@$0A@@details@Concurrency@@IAAXXZ(ptr) SpinWait__Reset
+@ thiscall -arch=i386 ?_Reset@?$_SpinWait@$0A@@details@Concurrency@@IAEXXZ(ptr) SpinWait__Reset
+@ cdecl -arch=win64 ?_Reset@?$_SpinWait@$0A@@details@Concurrency@@IEAAXXZ(ptr) SpinWait__Reset
 @ stub -arch=arm ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAA?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z
 @ stub -arch=i386 ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QAG?AW4_TaskCollectionStatus@23@PAV_UnrealizedChore@23@@Z
 @ stub -arch=win64 ?_RunAndWait@_StructuredTaskCollection@details@Concurrency@@QEAA?AW4_TaskCollectionStatus@23@PEAV_UnrealizedChore@23@@Z
@@ -628,25 +628,25 @@
 @ stub -arch=win64 ?_Schedule@_TaskCollection@details@Concurrency@@QEAAXPEAV_UnrealizedChore@23@PEAVlocation@3@@Z
 @ stub -arch=win32 ?_ScheduleTask@_CurrentScheduler@details@Concurrency@@SAXP6AXPAX@Z0@Z
 @ stub -arch=win64 ?_ScheduleTask@_CurrentScheduler@details@Concurrency@@SAXP6AXPEAX@Z0@Z
-@ stub -arch=arm ?_SetSpinCount@?$_SpinWait@$00@details@Concurrency@@QAAXI@Z
-@ stub -arch=i386 ?_SetSpinCount@?$_SpinWait@$00@details@Concurrency@@QAEXI@Z
-@ stub -arch=win64 ?_SetSpinCount@?$_SpinWait@$00@details@Concurrency@@QEAAXI@Z
-@ stub -arch=arm ?_SetSpinCount@?$_SpinWait@$0A@@details@Concurrency@@QAAXI@Z
-@ stub -arch=i386 ?_SetSpinCount@?$_SpinWait@$0A@@details@Concurrency@@QAEXI@Z
-@ stub -arch=win64 ?_SetSpinCount@?$_SpinWait@$0A@@details@Concurrency@@QEAAXI@Z
+@ cdecl -arch=arm ?_SetSpinCount@?$_SpinWait@$00@details@Concurrency@@QAAXI@Z(ptr long) SpinWait__SetSpinCount
+@ thiscall -arch=i386 ?_SetSpinCount@?$_SpinWait@$00@details@Concurrency@@QAEXI@Z(ptr long) SpinWait__SetSpinCount
+@ cdecl -arch=win64 ?_SetSpinCount@?$_SpinWait@$00@details@Concurrency@@QEAAXI@Z(ptr long) SpinWait__SetSpinCount
+@ cdecl -arch=arm ?_SetSpinCount@?$_SpinWait@$0A@@details@Concurrency@@QAAXI@Z(ptr long) SpinWait__SetSpinCount
+@ thiscall -arch=i386 ?_SetSpinCount@?$_SpinWait@$0A@@details@Concurrency@@QAEXI@Z(ptr long) SpinWait__SetSpinCount
+@ cdecl -arch=win64 ?_SetSpinCount@?$_SpinWait@$0A@@details@Concurrency@@QEAAXI@Z(ptr long) SpinWait__SetSpinCount
 @ stub ?_SetUnobservedExceptionHandler@details@Concurrency@@YAXP6AXXZ@Z
-@ stub -arch=arm ?_ShouldSpinAgain@?$_SpinWait@$00@details@Concurrency@@IAA_NXZ
-@ stub -arch=i386 ?_ShouldSpinAgain@?$_SpinWait@$00@details@Concurrency@@IAE_NXZ
-@ stub -arch=win64 ?_ShouldSpinAgain@?$_SpinWait@$00@details@Concurrency@@IEAA_NXZ
-@ stub -arch=arm ?_ShouldSpinAgain@?$_SpinWait@$0A@@details@Concurrency@@IAA_NXZ
-@ stub -arch=i386 ?_ShouldSpinAgain@?$_SpinWait@$0A@@details@Concurrency@@IAE_NXZ
-@ stub -arch=win64 ?_ShouldSpinAgain@?$_SpinWait@$0A@@details@Concurrency@@IEAA_NXZ
-@ stub -arch=arm ?_SpinOnce@?$_SpinWait@$00@details@Concurrency@@QAA_NXZ
-@ stub -arch=i386 ?_SpinOnce@?$_SpinWait@$00@details@Concurrency@@QAE_NXZ
-@ stub -arch=win64 ?_SpinOnce@?$_SpinWait@$00@details@Concurrency@@QEAA_NXZ
-@ stub -arch=arm ?_SpinOnce@?$_SpinWait@$0A@@details@Concurrency@@QAA_NXZ
-@ stub -arch=i386 ?_SpinOnce@?$_SpinWait@$0A@@details@Concurrency@@QAE_NXZ
-@ stub -arch=win64 ?_SpinOnce@?$_SpinWait@$0A@@details@Concurrency@@QEAA_NXZ
+@ cdecl -arch=arm ?_ShouldSpinAgain@?$_SpinWait@$00@details@Concurrency@@IAA_NXZ(ptr) SpinWait__ShouldSpinAgain
+@ thiscall -arch=i386 ?_ShouldSpinAgain@?$_SpinWait@$00@details@Concurrency@@IAE_NXZ(ptr) SpinWait__ShouldSpinAgain
+@ cdecl -arch=win64 ?_ShouldSpinAgain@?$_SpinWait@$00@details@Concurrency@@IEAA_NXZ(ptr) SpinWait__ShouldSpinAgain
+@ cdecl -arch=arm ?_ShouldSpinAgain@?$_SpinWait@$0A@@details@Concurrency@@IAA_NXZ(ptr) SpinWait__ShouldSpinAgain
+@ thiscall -arch=i386 ?_ShouldSpinAgain@?$_SpinWait@$0A@@details@Concurrency@@IAE_NXZ(ptr) SpinWait__ShouldSpinAgain
+@ cdecl -arch=win64 ?_ShouldSpinAgain@?$_SpinWait@$0A@@details@Concurrency@@IEAA_NXZ(ptr) SpinWait__ShouldSpinAgain
+@ cdecl -arch=arm ?_SpinOnce@?$_SpinWait@$00@details@Concurrency@@QAA_NXZ(ptr) SpinWait__SpinOnce
+@ thiscall -arch=i386 ?_SpinOnce@?$_SpinWait@$00@details@Concurrency@@QAE_NXZ(ptr) SpinWait__SpinOnce
+@ cdecl -arch=win64 ?_SpinOnce@?$_SpinWait@$00@details@Concurrency@@QEAA_NXZ(ptr) SpinWait__SpinOnce
+@ cdecl -arch=arm ?_SpinOnce@?$_SpinWait@$0A@@details@Concurrency@@QAA_NXZ(ptr) SpinWait__SpinOnce
+@ thiscall -arch=i386 ?_SpinOnce@?$_SpinWait@$0A@@details@Concurrency@@QAE_NXZ(ptr) SpinWait__SpinOnce
+@ cdecl -arch=win64 ?_SpinOnce@?$_SpinWait@$0A@@details@Concurrency@@QEAA_NXZ(ptr) SpinWait__SpinOnce
 @ stub ?_SpinYield@Context@Concurrency@@SAXXZ
 @ stub -arch=arm ?_Start@_Timer@details@Concurrency@@IAAXXZ
 @ stub -arch=i386 ?_Start@_Timer@details@Concurrency@@IAEXXZ
@@ -684,7 +684,7 @@
 @ stub -arch=win64 ?_ValidateRead@@YAHPEBXI@Z
 @ stub -arch=win32 ?_ValidateWrite@@YAHPAXI@Z
 @ stub -arch=win64 ?_ValidateWrite@@YAHPEAXI@Z
-@ stub ?_Value@_SpinCount@details@Concurrency@@SAIXZ
+@ cdecl ?_Value@_SpinCount@details@Concurrency@@SAIXZ() SpinCount__Value
 @ stub ?_Yield@_Context@details@Concurrency@@SAXXZ
 @ stub -arch=win32 ?__ExceptionPtrAssign@@YAXPAXPBX@Z
 @ stub -arch=win64 ?__ExceptionPtrAssign@@YAXPEAXPEBX@Z
@@ -746,9 +746,9 @@
 @ stub -arch=arm ?get_error_code@scheduler_resource_allocation_error@Concurrency@@QBAJXZ
 @ stub -arch=i386 ?get_error_code@scheduler_resource_allocation_error@Concurrency@@QBEJXZ
 @ stub -arch=win64 ?get_error_code@scheduler_resource_allocation_error@Concurrency@@QEBAJXZ
-@ stub -arch=arm ?lock@critical_section@Concurrency@@QAAXXZ
-@ stub -arch=i386 ?lock@critical_section@Concurrency@@QAEXXZ
-@ stub -arch=win64 ?lock@critical_section@Concurrency@@QEAAXXZ
+@ cdecl -arch=arm ?lock@critical_section@Concurrency@@QAAXXZ(ptr) critical_section_lock
+@ thiscall -arch=i386 ?lock@critical_section@Concurrency@@QAEXXZ(ptr) critical_section_lock
+@ cdecl -arch=win64 ?lock@critical_section@Concurrency@@QEAAXXZ(ptr) critical_section_lock
 @ stub -arch=arm ?lock@reader_writer_lock@Concurrency@@QAAXXZ
 @ stub -arch=i386 ?lock@reader_writer_lock@Concurrency@@QAEXXZ
 @ stub -arch=win64 ?lock@reader_writer_lock@Concurrency@@QEAAXXZ
@@ -758,9 +758,9 @@
 @ cdecl -arch=arm ?name@type_info@@QBAPBDPAU__type_info_node@@@Z(ptr ptr) type_info_name_internal_method
 @ thiscall -arch=i386 ?name@type_info@@QBEPBDPAU__type_info_node@@@Z(ptr ptr) type_info_name_internal_method
 @ cdecl -arch=win64 ?name@type_info@@QEBAPEBDPEAU__type_info_node@@@Z(ptr ptr) type_info_name_internal_method
-@ stub -arch=arm ?native_handle@critical_section@Concurrency@@QAAAAV12@XZ
-@ stub -arch=i386 ?native_handle@critical_section@Concurrency@@QAEAAV12@XZ
-@ stub -arch=win64 ?native_handle@critical_section@Concurrency@@QEAAAEAV12@XZ
+@ cdecl -arch=arm ?native_handle@critical_section@Concurrency@@QAAAAV12@XZ(ptr) critical_section_native_handle
+@ thiscall -arch=i386 ?native_handle@critical_section@Concurrency@@QAEAAV12@XZ(ptr) critical_section_native_handle
+@ cdecl -arch=win64 ?native_handle@critical_section@Concurrency@@QEAAAEAV12@XZ(ptr) critical_section_native_handle
 @ stub -arch=arm ?notify_all@_Condition_variable@details@Concurrency@@QAAXXZ
 @ stub -arch=i386 ?notify_all@_Condition_variable@details@Concurrency@@QAEXXZ
 @ stub -arch=win64 ?notify_all@_Condition_variable@details@Concurrency@@QEAAXXZ
@@ -788,22 +788,22 @@
 @ varargs ?swprintf@@YAHPAGIPBGZZ(ptr long wstr) MSVCRT__snwprintf
 @ varargs ?swprintf@@YAHPA_WIPB_WZZ(ptr long wstr) MSVCRT__snwprintf
 @ cdecl ?terminate@@YAXXZ() MSVCRT_terminate
-@ stub -arch=arm ?try_lock@critical_section@Concurrency@@QAA_NXZ
-@ stub -arch=i386 ?try_lock@critical_section@Concurrency@@QAE_NXZ
-@ stub -arch=win64 ?try_lock@critical_section@Concurrency@@QEAA_NXZ
+@ cdecl -arch=arm ?try_lock@critical_section@Concurrency@@QAA_NXZ(ptr) critical_section_try_lock
+@ thiscall -arch=i386 ?try_lock@critical_section@Concurrency@@QAE_NXZ(ptr) critical_section_try_lock
+@ cdecl -arch=win64 ?try_lock@critical_section@Concurrency@@QEAA_NXZ(ptr) critical_section_try_lock
 @ stub -arch=arm ?try_lock@reader_writer_lock@Concurrency@@QAA_NXZ
 @ stub -arch=i386 ?try_lock@reader_writer_lock@Concurrency@@QAE_NXZ
 @ stub -arch=win64 ?try_lock@reader_writer_lock@Concurrency@@QEAA_NXZ
-@ stub -arch=arm ?try_lock_for@critical_section@Concurrency@@QAA_NI@Z
-@ stub -arch=i386 ?try_lock_for@critical_section@Concurrency@@QAE_NI@Z
-@ stub -arch=win64 ?try_lock_for@critical_section@Concurrency@@QEAA_NI@Z
+@ cdecl -arch=arm ?try_lock_for@critical_section@Concurrency@@QAA_NI@Z(ptr long) critical_section_try_lock_for
+@ thiscall -arch=i386 ?try_lock_for@critical_section@Concurrency@@QAE_NI@Z(ptr long) critical_section_try_lock_for
+@ cdecl -arch=win64 ?try_lock_for@critical_section@Concurrency@@QEAA_NI@Z(ptr long) critical_section_try_lock_for
 @ stub -arch=arm ?try_lock_read@reader_writer_lock@Concurrency@@QAA_NXZ
 @ stub -arch=i386 ?try_lock_read@reader_writer_lock@Concurrency@@QAE_NXZ
 @ stub -arch=win64 ?try_lock_read@reader_writer_lock@Concurrency@@QEAA_NXZ
 @ cdecl ?unexpected@@YAXXZ() MSVCRT_unexpected
-@ stub -arch=arm ?unlock@critical_section@Concurrency@@QAAXXZ
-@ stub -arch=i386 ?unlock@critical_section@Concurrency@@QAEXXZ
-@ stub -arch=win64 ?unlock@critical_section@Concurrency@@QEAAXXZ
+@ cdecl -arch=arm ?unlock@critical_section@Concurrency@@QAAXXZ(ptr) critical_section_unlock
+@ thiscall -arch=i386 ?unlock@critical_section@Concurrency@@QAEXXZ(ptr) critical_section_unlock
+@ cdecl -arch=win64 ?unlock@critical_section@Concurrency@@QEAAXXZ(ptr) critical_section_unlock
 @ stub -arch=arm ?unlock@reader_writer_lock@Concurrency@@QAAXXZ
 @ stub -arch=i386 ?unlock@reader_writer_lock@Concurrency@@QAEXXZ
 @ stub -arch=win64 ?unlock@reader_writer_lock@Concurrency@@QEAAXXZ
@@ -921,7 +921,7 @@
 @ cdecl __crtGetShowWindowMode() MSVCR110__crtGetShowWindowMode
 @ stub -arch=i386,win64 __crtGetTimeFormatEx
 @ stub -arch=i386,win64 __crtGetUserDefaultLocaleName
-@ stub -arch=i386,win64 __crtInitializeCriticalSectionEx
+@ cdecl -arch=i386,win64 __crtInitializeCriticalSectionEx(ptr long long) MSVCR110__crtInitializeCriticalSectionEx
 @ stub __crtIsPackagedApp
 @ stub -arch=i386,win64 __crtIsValidLocaleName
 @ cdecl __crtLCMapStringA(long long str long ptr long long long)
@@ -1623,7 +1623,7 @@
 @ cdecl _searchenv_s(str str ptr long) MSVCRT__searchenv_s
 @ stdcall -arch=i386 _seh_longjmp_unwind4(ptr)
 @ stdcall -arch=i386 _seh_longjmp_unwind(ptr)
-@ cdecl -arch=i386  __set_SSE2_enable(long) MSVCRT__set_SSE2_enable
+@ cdecl -arch=i386 _set_SSE2_enable(long) MSVCRT__set_SSE2_enable
 @ cdecl _set_abort_behavior(long long) MSVCRT__set_abort_behavior
 @ cdecl _set_controlfp(long long)
 @ cdecl _set_doserrno(long)
@@ -1725,7 +1725,7 @@
 @ cdecl _strupr_l(str ptr) MSVCRT__strupr_l
 @ cdecl _strupr_s(str long) MSVCRT__strupr_s
 @ cdecl _strupr_s_l(str long ptr) MSVCRT__strupr_s_l
-@ stub _strxfrm_l
+@ cdecl _strxfrm_l(ptr str long ptr) MSVCRT__strxfrm_l
 @ cdecl _swab(str str long) MSVCRT__swab
 @ varargs _swprintf(ptr wstr) MSVCRT_swprintf
 @ stub _swprintf_c
@@ -1877,7 +1877,7 @@
 @ cdecl _wcsupr_l(wstr ptr) MSVCRT__wcsupr_l
 @ cdecl _wcsupr_s(wstr long) MSVCRT__wcsupr_s
 @ cdecl _wcsupr_s_l(wstr long ptr) MSVCRT__wcsupr_s_l
-@ stub _wcsxfrm_l
+@ cdecl _wcsxfrm_l(ptr wstr long ptr) MSVCRT__wcsxfrm_l
 @ cdecl _wctime32(ptr) MSVCRT__wctime32
 @ stub _wctime32_s
 @ cdecl _wctime64(ptr) MSVCRT__wctime64
@@ -2236,7 +2236,7 @@
 @ cdecl wcstombs(ptr ptr long) MSVCRT_wcstombs
 @ cdecl wcstombs_s(ptr ptr long wstr long) MSVCRT_wcstombs_s
 @ cdecl wcstoul(wstr ptr long) MSVCRT_wcstoul
-@ stub wcsxfrm(ptr wstr long)
+@ cdecl wcsxfrm(ptr wstr long) MSVCRT_wcsxfrm
 @ cdecl wctob(long) MSVCRT_wctob
 @ cdecl wctomb(ptr long) MSVCRT_wctomb
 @ cdecl wctomb_s(ptr ptr long long) MSVCRT_wctomb_s

@@ -2245,7 +2245,7 @@ void context_apply_blit_state(struct wined3d_context *context, const struct wine
         {
             wined3d_texture_load(rt->container, context, FALSE);
 
-            context_apply_fbo_state_blit(context, GL_FRAMEBUFFER, rt, NULL, rt->draw_binding);
+            context_apply_fbo_state_blit(context, GL_FRAMEBUFFER, rt, NULL, rt->resource.draw_binding);
             if (rt->resource.format->id != WINED3DFMT_NULL)
                 rt_mask = 1;
             else
@@ -2330,7 +2330,7 @@ BOOL context_apply_clear_state(struct wined3d_context *context, const struct win
                     ++i;
                 }
                 context_apply_fbo_state(context, GL_FRAMEBUFFER, context->blit_targets, fb->depth_stencil,
-                        rt_count ? rts[0]->draw_binding : WINED3D_LOCATION_TEXTURE_RGB);
+                        rt_count ? rts[0]->resource.draw_binding : WINED3D_LOCATION_TEXTURE_RGB);
             }
             else
             {
@@ -2436,7 +2436,7 @@ void context_state_fb(struct wined3d_context *context, const struct wined3d_stat
         else
         {
             context_apply_fbo_state(context, GL_FRAMEBUFFER, fb->render_targets, fb->depth_stencil,
-                    fb->render_targets[0]->draw_binding);
+                    fb->render_targets[0]->resource.draw_binding);
         }
     }
 
@@ -2948,7 +2948,7 @@ BOOL context_apply_draw_state(struct wined3d_context *context, struct wined3d_de
     const struct wined3d_state *state = &device->state;
     const struct StateEntry *state_table = context->state_table;
     const struct wined3d_fb_state *fb = state->fb;
-    unsigned int i;
+    unsigned int i, j;
     WORD map;
 
     if (!context_validate_rt_config(context->gl_info->limits.buffers,
@@ -2983,6 +2983,15 @@ BOOL context_apply_draw_state(struct wined3d_context *context, struct wined3d_de
             buffer_internal_preload(state->index_buffer, context, state);
         else
             buffer_get_sysmem(state->index_buffer, context);
+    }
+
+    for (i = 0; i < WINED3D_SHADER_TYPE_COUNT; ++i)
+    {
+        for (j = 0; j < WINED3D_MAX_CBS; ++j)
+        {
+            if (state->cb[i][j])
+                buffer_internal_preload(state->cb[i][j], context, state);
+        }
     }
 
     for (i = 0; i < context->numDirtyEntries; ++i)

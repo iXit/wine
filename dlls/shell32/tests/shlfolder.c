@@ -60,6 +60,7 @@ static HRESULT (WINAPI *pSHCreateItemFromIDList)(PCIDLIST_ABSOLUTE pidl, REFIID 
 static HRESULT (WINAPI *pSHCreateItemFromParsingName)(PCWSTR,IBindCtx*,REFIID,void**);
 static HRESULT (WINAPI *pSHCreateShellItem)(LPCITEMIDLIST,IShellFolder*,LPCITEMIDLIST,IShellItem**);
 static HRESULT (WINAPI *pSHCreateShellItemArray)(LPCITEMIDLIST,IShellFolder*,UINT,LPCITEMIDLIST*,IShellItemArray**);
+static HRESULT (WINAPI *pSHCreateShellItemArrayFromIDLists)(UINT, PCIDLIST_ABSOLUTE*, IShellItemArray**);
 static HRESULT (WINAPI *pSHCreateShellItemArrayFromDataObject)(IDataObject*, REFIID, void **);
 static HRESULT (WINAPI *pSHCreateShellItemArrayFromShellItem)(IShellItem*, REFIID, void **);
 static LPITEMIDLIST (WINAPI *pILCombine)(LPCITEMIDLIST,LPCITEMIDLIST);
@@ -116,6 +117,7 @@ static void init_function_pointers(void)
     MAKEFUNC(SHCreateItemFromParsingName);
     MAKEFUNC(SHCreateShellItem);
     MAKEFUNC(SHCreateShellItemArray);
+    MAKEFUNC(SHCreateShellItemArrayFromIDLists);
     MAKEFUNC(SHCreateShellItemArrayFromDataObject);
     MAKEFUNC(SHCreateShellItemArrayFromShellItem);
     MAKEFUNC(SHGetFolderPathA);
@@ -2236,8 +2238,10 @@ static void test_SHCreateShellItem(void)
 
     pidl_abstestfile = pILCombine(pidl_cwd, pidl_testfile);
 
+    shellitem = (void*)0xdeadbeef;
     ret = pSHCreateShellItem(NULL, NULL, NULL, &shellitem);
     ok(ret == E_INVALIDARG, "SHCreateShellItem returned %x\n", ret);
+    ok(shellitem == 0, "Got %p\n", shellitem);
 
     if (0) /* crashes on Windows XP */
     {
@@ -3540,10 +3544,343 @@ static void test_SHCreateShellItemArray(void)
     else
         skip("No SHCreateShellItemArrayFromDataObject.\n");
 
+    if(pSHCreateShellItemArrayFromIDLists)
+    {
+        WCHAR test1W[] = {'t','e','s','t','1','.','t','x','t',0};
+        WCHAR test1pathW[MAX_PATH];
+        LPITEMIDLIST pidltest1;
+        LPCITEMIDLIST pidl_array[2];
+
+        if(0)
+        {
+            /* Crashes */
+            hr = pSHCreateShellItemArrayFromIDLists(0, NULL, NULL);
+        }
+
+        psia = (void*)0xdeadbeef;
+        hr = pSHCreateShellItemArrayFromIDLists(0, NULL, &psia);
+        ok(hr == E_INVALIDARG, "Got 0x%08x\n", hr);
+        ok(psia == NULL, "Got %p\n", psia);
+
+        psia = (void*)0xdeadbeef;
+        hr = pSHCreateShellItemArrayFromIDLists(0, pidl_array, &psia);
+        ok(hr == E_INVALIDARG, "Got 0x%08x\n", hr);
+        ok(psia == NULL, "Got %p\n", psia);
+
+        psia = (void*)0xdeadbeef;
+        pidl_array[0] = NULL;
+        hr = pSHCreateShellItemArrayFromIDLists(1, pidl_array, &psia);
+        todo_wine ok(hr == E_OUTOFMEMORY, "Got 0x%08x\n", hr);
+        ok(psia == NULL, "Got %p\n", psia);
+
+        psia = (void*)0xdeadbeef;
+        pidl_array[0] = pidl_testdir;
+        pidl_array[1] = NULL;
+        hr = pSHCreateShellItemArrayFromIDLists(2, pidl_array, &psia);
+        todo_wine ok(hr == S_OK || broken(hr == E_INVALIDARG) /* Vista */, "Got 0x%08x\n", hr);
+        todo_wine ok(psia != NULL || broken(psia == NULL) /* Vista */, "Got %p\n", psia);
+        if(SUCCEEDED(hr))
+        {
+            IShellItem *psi;
+            UINT count = 0;
+
+            hr = IShellItemArray_GetCount(psia, &count);
+            ok(hr == S_OK, "Got 0x%08x\n", hr);
+            ok(count == 2, "Got %d\n", count);
+
+            hr = IShellItemArray_GetItemAt(psia, 0, &psi);
+            ok(hr == S_OK, "Got 0x%08x\n", hr);
+            if(SUCCEEDED(hr))
+            {
+                LPWSTR path;
+                hr = IShellItem_GetDisplayName(psi, SIGDN_DESKTOPABSOLUTEPARSING, &path);
+                ok(hr == S_OK, "Got 0x%08x\n", hr);
+                ok(!lstrcmpW(path, cTestDirW), "Got %s\n", wine_dbgstr_w(path));
+                if(SUCCEEDED(hr))
+                    CoTaskMemFree(path);
+
+                IShellItem_Release(psi);
+            }
+
+            hr = IShellItemArray_GetItemAt(psia, 1, &psi);
+            ok(hr == S_OK, "Got 0x%08x\n", hr);
+            if(SUCCEEDED(hr))
+            {
+                LPWSTR path;
+                WCHAR desktoppath[MAX_PATH];
+                BOOL result;
+
+                result = pSHGetSpecialFolderPathW(NULL, desktoppath, CSIDL_DESKTOPDIRECTORY, FALSE);
+                ok(result, "SHGetSpecialFolderPathW(CSIDL_DESKTOPDIRECTORY) failed! %u\n", GetLastError());
+
+                hr = IShellItem_GetDisplayName(psi, SIGDN_DESKTOPABSOLUTEPARSING, &path);
+                ok(hr == S_OK, "Got 0x%08x\n", hr);
+                ok(!lstrcmpW(path, desktoppath), "Got %s\n", wine_dbgstr_w(path));
+                if(SUCCEEDED(hr))
+                    CoTaskMemFree(path);
+
+                IShellItem_Release(psi);
+            }
+
+
+            IShellItemArray_Release(psia);
+        }
+
+
+        /* Single pidl */
+        psia = (void*)0xdeadbeef;
+        pidl_array[0] = pidl_testdir;
+        hr = pSHCreateShellItemArrayFromIDLists(1, pidl_array, &psia);
+        ok(hr == S_OK, "Got 0x%08x\n", hr);
+        if(SUCCEEDED(hr))
+        {
+            IShellItem *psi;
+            UINT count = 0;
+
+            hr = IShellItemArray_GetCount(psia, &count);
+            ok(hr == S_OK, "Got 0x%08x\n", hr);
+            ok(count == 1, "Got %d\n", count);
+
+            hr = IShellItemArray_GetItemAt(psia, 0, &psi);
+            ok(hr == S_OK, "Got 0x%08x\n", hr);
+            if(SUCCEEDED(hr))
+            {
+                LPWSTR path;
+                hr = IShellItem_GetDisplayName(psi, SIGDN_DESKTOPABSOLUTEPARSING, &path);
+                ok(hr == S_OK, "Got 0x%08x\n", hr);
+                ok(!lstrcmpW(path, cTestDirW), "Got %s\n", wine_dbgstr_w(path));
+                if(SUCCEEDED(hr))
+                    CoTaskMemFree(path);
+
+                IShellItem_Release(psi);
+            }
+
+            IShellItemArray_Release(psia);
+        }
+
+
+        lstrcpyW(test1pathW, cTestDirW);
+        myPathAddBackslashW(test1pathW);
+        lstrcatW(test1pathW, test1W);
+
+        SHGetDesktopFolder(&pdesktopsf);
+
+        hr = IShellFolder_ParseDisplayName(pdesktopsf, NULL, NULL, test1pathW, NULL, &pidltest1, NULL);
+        ok(hr == S_OK, "Got 0x%08x\n", hr);
+        if(SUCCEEDED(hr))
+        {
+            psia = (void*)0xdeadbeef;
+            pidl_array[0] = pidl_testdir;
+            pidl_array[1] = pidltest1;
+            hr = pSHCreateShellItemArrayFromIDLists(2, pidl_array, &psia);
+            ok(hr == S_OK, "Got 0x%08x\n", hr);
+            if(SUCCEEDED(hr))
+            {
+                IShellItem *psi;
+                UINT count = 0;
+
+                hr = IShellItemArray_GetCount(psia, &count);
+                ok(hr == S_OK, "Got 0x%08x\n", hr);
+                ok(count == 2, "Got %d\n", count);
+
+                hr = IShellItemArray_GetItemAt(psia, 0, &psi);
+                ok(hr == S_OK, "Got 0x%08x\n", hr);
+                if(SUCCEEDED(hr))
+                {
+                    LPWSTR path;
+                    hr = IShellItem_GetDisplayName(psi, SIGDN_DESKTOPABSOLUTEPARSING, &path);
+                    ok(hr == S_OK, "Got 0x%08x\n", hr);
+                    ok(!lstrcmpW(path, cTestDirW), "Got %s\n", wine_dbgstr_w(path));
+                    if(SUCCEEDED(hr))
+                        CoTaskMemFree(path);
+
+                    IShellItem_Release(psi);
+                }
+
+                hr = IShellItemArray_GetItemAt(psia, 1, &psi);
+                ok(hr == S_OK, "Got 0x%08x\n", hr);
+                if(SUCCEEDED(hr))
+                {
+                    LPWSTR path;
+                    hr = IShellItem_GetDisplayName(psi, SIGDN_DESKTOPABSOLUTEPARSING, &path);
+                    ok(hr == S_OK, "Got 0x%08x\n", hr);
+                    ok(!lstrcmpW(path, test1pathW), "Got %s\n", wine_dbgstr_w(path));
+                    if(SUCCEEDED(hr))
+                        CoTaskMemFree(path);
+
+                    IShellItem_Release(psi);
+                }
+
+
+                IShellItemArray_Release(psia);
+            }
+
+            pILFree(pidltest1);
+        }
+
+        IShellFolder_Release(pdesktopsf);
+    }
+    else
+        skip("No SHCreateShellItemArrayFromIDLists.\n");
+
     IShellFolder_Release(psf);
     pILFree(pidl_testdir);
     Cleanup();
 }
+
+static void test_ShellItemArrayEnumItems(void)
+{
+    IShellFolder *pdesktopsf, *psf;
+    IEnumIDList *peidl;
+    WCHAR cTestDirW[MAX_PATH];
+    HRESULT hr;
+    LPITEMIDLIST pidl_testdir;
+    static const WCHAR testdirW[] = {'t','e','s','t','d','i','r',0};
+
+    if(!pSHCreateShellItemArray)
+    {
+        win_skip("No SHCreateShellItemArray, skipping test..");
+        return;
+    }
+
+    CreateFilesFolders();
+
+    SHGetDesktopFolder(&pdesktopsf);
+
+    GetCurrentDirectoryW(MAX_PATH, cTestDirW);
+    myPathAddBackslashW(cTestDirW);
+    lstrcatW(cTestDirW, testdirW);
+
+    hr = IShellFolder_ParseDisplayName(pdesktopsf, NULL, NULL, cTestDirW, NULL, &pidl_testdir, 0);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    if(SUCCEEDED(hr))
+    {
+        hr = IShellFolder_BindToObject(pdesktopsf, pidl_testdir, NULL, (REFIID)&IID_IShellFolder,
+                                       (void**)&psf);
+        ok(hr == S_OK, "Got 0x%08x\n", hr);
+        if(SUCCEEDED(hr))
+            pILFree(pidl_testdir);
+    }
+    IShellFolder_Release(pdesktopsf);
+
+    hr = IShellFolder_EnumObjects(psf, NULL, SHCONTF_FOLDERS | SHCONTF_NONFOLDERS, &peidl);
+    ok(hr == S_OK, "Got %08x\n", hr);
+    if(SUCCEEDED(hr))
+    {
+        IShellItemArray *psia;
+        LPITEMIDLIST apidl[5];
+        UINT done, numitems, i;
+
+        for(done = 0; done < 5; done++)
+            if(IEnumIDList_Next(peidl, 1, &apidl[done], NULL) != S_OK)
+                break;
+        ok(done == 5, "Got %d pidls\n", done);
+        IEnumIDList_Release(peidl);
+
+        /* Create a ShellItemArray */
+        hr = pSHCreateShellItemArray(NULL, psf, done, (LPCITEMIDLIST*)apidl, &psia);
+        ok(hr == S_OK, "Got 0x%08x\n", hr);
+        if(SUCCEEDED(hr))
+        {
+            IEnumShellItems *iesi;
+            IShellItem *my_array[10];
+            ULONG fetched;
+
+            IShellItemArray_GetCount(psia, &numitems);
+            ok(numitems == done, "Got %d, expected %d\n", numitems, done);
+
+            iesi = NULL;
+            hr = IShellItemArray_EnumItems(psia, &iesi);
+            ok(hr == S_OK, "Got 0x%08x\n", hr);
+            ok(iesi != NULL, "Got NULL\n");
+            if(SUCCEEDED(hr))
+            {
+                IEnumShellItems *iesi2;
+
+                /* This should fail according to the documentation and Win7+ */
+                for(i = 0; i < 10; i++) my_array[i] = (void*)0xdeadbeef;
+                hr = IEnumShellItems_Next(iesi, 2, my_array, NULL);
+                ok(hr == E_INVALIDARG || broken(hr == S_OK) /* Vista */, "Got 0x%08x\n", hr);
+                for(i = 0; i < 2; i++)
+                {
+                    ok(my_array[i] == (void*)0xdeadbeef ||
+                       broken(my_array[i] != (void*)0xdeadbeef && my_array[i] != NULL), /* Vista */
+                       "Got %p (%d)\n", my_array[i], i);
+
+                    if(my_array[i] != (void*)0xdeadbeef)
+                        IShellItem_Release(my_array[i]);
+                }
+                ok(my_array[2] == (void*)0xdeadbeef, "Got %p\n", my_array[2]);
+
+                IEnumShellItems_Reset(iesi);
+                for(i = 0; i < 10; i++) my_array[i] = (void*)0xdeadbeef;
+                hr = IEnumShellItems_Next(iesi, 1, my_array, NULL);
+                ok(hr == S_OK, "Got 0x%08x\n", hr);
+                ok(my_array[0] != NULL && my_array[0] != (void*)0xdeadbeef, "Got %p\n", my_array[0]);
+                if(my_array[0] != NULL && my_array[0] != (void*)0xdeadbeef)
+                    IShellItem_Release(my_array[0]);
+                ok(my_array[1] == (void*)0xdeadbeef, "Got %p\n", my_array[1]);
+
+                IEnumShellItems_Reset(iesi);
+                fetched = 0;
+                for(i = 0; i < 10; i++) my_array[i] = (void*)0xdeadbeef;
+                hr = IEnumShellItems_Next(iesi, numitems, my_array, &fetched);
+                ok(hr == S_OK, "Got 0x%08x\n", hr);
+                ok(fetched == numitems, "Got %d\n", fetched);
+                for(i = 0;i < numitems; i++)
+                {
+                    ok(my_array[i] != NULL && my_array[i] != (void*)0xdeadbeef,
+                       "Got %p at %d\n", my_array[i], i);
+
+                    if(my_array[i] != NULL && my_array[i] != (void*)0xdeadbeef)
+                        IShellItem_Release(my_array[i]);
+                }
+                ok(my_array[i] == (void*)0xdeadbeef, "Got %p\n", my_array[i]);
+
+                /* Compare all the items */
+                IEnumShellItems_Reset(iesi);
+                for(i = 0; i < numitems; i++)
+                {
+                    IShellItem *psi;
+                    int order;
+
+                    hr = IShellItemArray_GetItemAt(psia, i, &psi);
+                    ok(hr == S_OK, "Got 0x%08x\n", hr);
+                    hr = IEnumShellItems_Next(iesi, 1, my_array, &fetched);
+                    ok(hr == S_OK, "Got 0x%08x\n", hr);
+                    ok(fetched == 1, "Got %d\n", fetched);
+
+                    hr = IShellItem_Compare(psi, my_array[0], 0, &order);
+                    ok(hr == S_OK, "Got 0x%08x\n", hr);
+                    ok(order == 0, "Got %d\n", order);
+
+                    IShellItem_Release(psi);
+                    IShellItem_Release(my_array[0]);
+                }
+
+                my_array[0] = (void*)0xdeadbeef;
+                hr = IEnumShellItems_Next(iesi, 1, my_array, &fetched);
+                ok(hr == S_FALSE, "Got 0x%08x\n", hr);
+                ok(fetched == 0, "Got %d\n", fetched);
+                ok(my_array[0] == (void*)0xdeadbeef, "Got %p\n", my_array[0]);
+
+                /* Cloning not implemented anywhere */
+                iesi2 = (void*)0xdeadbeef;
+                hr = IEnumShellItems_Clone(iesi, &iesi2);
+                ok(hr == E_NOTIMPL, "Got 0x%08x\n", hr);
+                ok(iesi2 == NULL || broken(iesi2 == (void*)0xdeadbeef) /* Vista */, "Got %p\n", iesi2);
+
+                IEnumShellItems_Release(iesi);
+            }
+
+            IShellItemArray_Release(psia);
+        }
+
+        for(i = 0; i < done; i++)
+            pILFree(apidl[i]);
+    }
+}
+
 
 static void test_ShellItemBindToHandler(void)
 {
@@ -3711,10 +4048,15 @@ static void test_ShellItemBindToHandler(void)
 
 static void test_ShellItemGetAttributes(void)
 {
-    IShellItem *psi;
-    LPITEMIDLIST pidl_desktop;
+    IShellItem *psi, *psi_folder1, *psi_file1;
+    IShellFolder *pdesktopsf;
+    LPITEMIDLIST pidl_desktop, pidl;
     SFGAOF sfgao;
     HRESULT hr;
+    WCHAR curdirW[MAX_PATH];
+    WCHAR buf[MAX_PATH];
+    static const WCHAR testdir1W[] = {'t','e','s','t','d','i','r',0};
+    static const WCHAR testfile1W[] = {'t','e','s','t','d','i','r','\\','t','e','s','t','1','.','t','x','t',0};
 
     if(!pSHCreateShellItem)
     {
@@ -3749,6 +4091,148 @@ static void test_ShellItemGetAttributes(void)
     ok(sfgao == SFGAO_FOLDER || broken(sfgao == 0) /* <Vista */, "Got 0x%08x\n", sfgao);
 
     IShellItem_Release(psi);
+
+    CreateFilesFolders();
+
+    SHGetDesktopFolder(&pdesktopsf);
+
+    GetCurrentDirectoryW(MAX_PATH, curdirW);
+    myPathAddBackslashW(curdirW);
+
+    lstrcpyW(buf, curdirW);
+    lstrcatW(buf, testdir1W);
+    hr = IShellFolder_ParseDisplayName(pdesktopsf, NULL, NULL, buf, NULL, &pidl, NULL);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    hr = pSHCreateShellItem(NULL, NULL, pidl, &psi_folder1);
+    ok(hr == S_OK, "Got 0x%08x\n", sfgao);
+    pILFree(pidl);
+
+    lstrcpyW(buf, curdirW);
+    lstrcatW(buf, testfile1W);
+    hr = IShellFolder_ParseDisplayName(pdesktopsf, NULL, NULL, buf, NULL, &pidl, NULL);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    hr = pSHCreateShellItem(NULL, NULL, pidl, &psi_file1);
+    ok(hr == S_OK, "Got 0x%08x\n", sfgao);
+    pILFree(pidl);
+
+    IShellFolder_Release(pdesktopsf);
+
+    sfgao = 0xdeadbeef;
+    hr = IShellItem_GetAttributes(psi_folder1, 0, &sfgao);
+    ok(hr == S_OK, "Got 0x%08x\n", hr);
+    ok(sfgao == 0, "Got 0x%08x\n", sfgao);
+
+    sfgao = 0xdeadbeef;
+    hr = IShellItem_GetAttributes(psi_folder1, SFGAO_FOLDER, &sfgao);
+    ok(hr == S_OK, "Got 0x%08x\n", hr);
+    ok(sfgao == SFGAO_FOLDER, "Got 0x%08x\n", sfgao);
+
+    sfgao = 0xdeadbeef;
+    hr = IShellItem_GetAttributes(psi_file1, SFGAO_FOLDER, &sfgao);
+    ok(hr == S_FALSE, "Got 0x%08x\n", hr);
+    ok(sfgao == 0, "Got 0x%08x\n", sfgao);
+
+    IShellItem_Release(psi_folder1);
+    IShellItem_Release(psi_file1);
+
+    Cleanup();
+}
+
+static void test_ShellItemArrayGetAttributes(void)
+{
+    IShellItemArray *psia_files, *psia_folders1, *psia_folders2, *psia_all;
+    IShellFolder *pdesktopsf;
+    LPCITEMIDLIST pidl_array[5];
+    SFGAOF attr;
+    HRESULT hr;
+    WCHAR curdirW[MAX_PATH];
+    WCHAR buf[MAX_PATH];
+    UINT i;
+    static const WCHAR testdir1W[] = {'t','e','s','t','d','i','r',0};
+    static const WCHAR testdir2W[] = {'t','e','s','t','d','i','r','\\','t','e','s','t','d','i','r','2',0};
+    static const WCHAR testdir3W[] = {'t','e','s','t','d','i','r','\\','t','e','s','t','d','i','r','3',0};
+    static const WCHAR testfile1W[] = {'t','e','s','t','d','i','r','\\','t','e','s','t','1','.','t','x','t',0};
+    static const WCHAR testfile2W[] = {'t','e','s','t','d','i','r','\\','t','e','s','t','2','.','t','x','t',0};
+    static const WCHAR *testfilesW[5] = { testdir1W, testdir2W, testdir3W, testfile1W, testfile2W };
+
+    if(!pSHCreateShellItemArrayFromShellItem)
+    {
+        win_skip("No SHCreateShellItemArrayFromShellItem, skipping test..");
+        return;
+    }
+
+    CreateFilesFolders();
+    CreateDirectoryA(".\\testdir\\testdir3", NULL);
+
+    SHGetDesktopFolder(&pdesktopsf);
+
+    GetCurrentDirectoryW(MAX_PATH, curdirW);
+    myPathAddBackslashW(curdirW);
+
+    for(i = 0; i < 5; i++)
+    {
+        lstrcpyW(buf, curdirW);
+        lstrcatW(buf, testfilesW[i]);
+        hr = IShellFolder_ParseDisplayName(pdesktopsf, NULL, NULL, buf, NULL, (LPITEMIDLIST*)&pidl_array[i], NULL);
+        ok(hr == S_OK, "got 0x%08x\n", hr);
+    }
+    IShellFolder_Release(pdesktopsf);
+
+    hr = pSHCreateShellItemArrayFromIDLists(2, pidl_array, &psia_folders1);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    hr = pSHCreateShellItemArrayFromIDLists(2, &pidl_array[1], &psia_folders2);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    hr = pSHCreateShellItemArrayFromIDLists(2, &pidl_array[3], &psia_files);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    hr = pSHCreateShellItemArrayFromIDLists(4, &pidl_array[1], &psia_all); /* All except the first */
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+
+    for(i = 0; i < 5; i++)
+        pILFree((LPITEMIDLIST)pidl_array[i]);
+
+    /* [testfolder/, testfolder/testfolder2] seems to break in Vista */
+    attr = 0xdeadbeef;
+    hr = IShellItemArray_GetAttributes(psia_folders1, SIATTRIBFLAGS_AND, SFGAO_FOLDER, &attr);
+    ok(hr == S_OK || broken(hr == E_UNEXPECTED)  /* Vista */, "Got 0x%08x\n", hr);
+    ok(attr == SFGAO_FOLDER || broken(attr == 0) /* Vista */, "Got 0x%08x\n", attr);
+    attr = 0xdeadbeef;
+    hr = IShellItemArray_GetAttributes(psia_folders1, SIATTRIBFLAGS_OR, SFGAO_FOLDER, &attr);
+    ok(hr == S_OK || broken(hr == E_UNEXPECTED)  /* Vista */, "Got 0x%08x\n", hr);
+    ok(attr == SFGAO_FOLDER || broken(attr == 0) /* Vista */, "Got 0x%08x\n", attr);
+
+    /* [testfolder/testfolder2, testfolder/testfolder3] works */
+    attr = 0xdeadbeef;
+    hr = IShellItemArray_GetAttributes(psia_folders2, SIATTRIBFLAGS_AND, SFGAO_FOLDER, &attr);
+    ok(hr == S_OK, "Got 0x%08x\n", hr);
+    ok(attr == SFGAO_FOLDER, "Got 0x%08x\n", attr);
+    attr = 0xdeadbeef;
+    hr = IShellItemArray_GetAttributes(psia_files, SIATTRIBFLAGS_AND, SFGAO_FOLDER, &attr);
+    ok(hr == S_FALSE || broken(hr == S_OK) /* Vista */, "Got 0x%08x\n", hr);
+    ok(attr == 0, "Got 0x%08x\n", attr);
+    attr = 0xdeadbeef;
+    hr = IShellItemArray_GetAttributes(psia_all, SIATTRIBFLAGS_AND, SFGAO_FOLDER, &attr);
+    ok(hr == S_FALSE || broken(hr == S_OK) /* Vista */, "Got 0x%08x\n", hr);
+    ok(attr == 0, "Got 0x%08x\n", attr);
+    attr = 0xdeadbeef;
+    hr = IShellItemArray_GetAttributes(psia_folders2, SIATTRIBFLAGS_OR, SFGAO_FOLDER, &attr);
+    ok(hr == S_OK, "Got 0x%08x\n", hr);
+    ok(attr == SFGAO_FOLDER, "Got 0x%08x\n", attr);
+    attr = 0xdeadbeef;
+    hr = IShellItemArray_GetAttributes(psia_files, SIATTRIBFLAGS_OR, SFGAO_FOLDER, &attr);
+    ok(hr == S_FALSE || broken(hr == S_OK) /* Vista */, "Got 0x%08x\n", hr);
+    ok(attr == 0, "Got 0x%08x\n", attr);
+    attr = 0xdeadbeef;
+    hr = IShellItemArray_GetAttributes(psia_all, SIATTRIBFLAGS_OR, SFGAO_FOLDER, &attr);
+    ok(hr == S_OK, "Got 0x%08x\n", hr);
+    ok(attr == SFGAO_FOLDER, "Got 0x%08x\n", attr);
+
+    IShellItemArray_Release(psia_folders1);
+    IShellItemArray_Release(psia_folders2);
+    IShellItemArray_Release(psia_files);
+    IShellItemArray_Release(psia_all);
+
+    RemoveDirectoryA(".\\testdir\\testdir3");
+    Cleanup();
 }
 
 static void test_SHParseDisplayName(void)
@@ -4760,6 +5244,7 @@ START_TEST(shlfolder)
     test_LocalizedNames();
     test_SHCreateShellItem();
     test_SHCreateShellItemArray();
+    test_ShellItemArrayEnumItems();
     test_desktop_IPersist();
     test_GetUIObject();
     test_SHSimpleIDListFromPath();
@@ -4773,6 +5258,7 @@ START_TEST(shlfolder)
     test_SHChangeNotify(TRUE);
     test_ShellItemBindToHandler();
     test_ShellItemGetAttributes();
+    test_ShellItemArrayGetAttributes();
     test_SHCreateDefaultContextMenu();
     test_SHCreateShellFolderView();
     test_SHCreateShellFolderViewEx();

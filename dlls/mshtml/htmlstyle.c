@@ -128,6 +128,8 @@ static const WCHAR attrLineHeight[] =
     {'l','i','n','e','-','h','e','i','g','h','t',0};
 static const WCHAR attrListStyleType[] =
     {'l','i','s','t','-','s','t','y','l','e','-','t','y','p','e',0};
+static const WCHAR attrListStylePosition[] =
+    {'l','i','s','t','-','s','t','y','l','e','-','p','o','s','i','t','i','o','n',0};
 static const WCHAR attrMargin[] =
     {'m','a','r','g','i','n',0};
 static const WCHAR attrMarginBottom[] =
@@ -172,6 +174,8 @@ static const WCHAR attrTextDecoration[] =
     {'t','e','x','t','-','d','e','c','o','r','a','t','i','o','n',0};
 static const WCHAR attrTextIndent[] =
     {'t','e','x','t','-','i','n','d','e','n','t',0};
+static const WCHAR attrTextTransform[] =
+    {'t','e','x','t','-','t','r','a','n','s','f','o','r','m',0};
 static const WCHAR attrTop[] =
     {'t','o','p',0};
 static const WCHAR attrVerticalAlign[] =
@@ -243,6 +247,7 @@ static const style_tbl_entry_t style_tbl[] = {
     {attrLeft,                 DISPID_IHTMLSTYLE_LEFT},
     {attrLetterSpacing,        DISPID_IHTMLSTYLE_LETTERSPACING},
     {attrLineHeight,           DISPID_IHTMLSTYLE_LINEHEIGHT},
+    {attrListStylePosition,    DISPID_IHTMLSTYLE_LISTSTYLEPOSITION},
     {attrListStyleType,        DISPID_IHTMLSTYLE_LISTSTYLETYPE},
     {attrMargin,               DISPID_IHTMLSTYLE_MARGIN},
     {attrMarginBottom,         DISPID_IHTMLSTYLE_MARGINBOTTOM},
@@ -266,6 +271,7 @@ static const style_tbl_entry_t style_tbl[] = {
     {attrTextAlign,            DISPID_IHTMLSTYLE_TEXTALIGN},
     {attrTextDecoration,       DISPID_IHTMLSTYLE_TEXTDECORATION},
     {attrTextIndent,           DISPID_IHTMLSTYLE_TEXTINDENT},
+    {attrTextTransform,        DISPID_IHTMLSTYLE_TEXTTRANSFORM},
     {attrTop,                  DISPID_IHTMLSTYLE_TOP},
     {attrVerticalAlign,        DISPID_IHTMLSTYLE_VERTICALALIGN},
     {attrVisibility,           DISPID_IHTMLSTYLE_VISIBILITY},
@@ -1450,15 +1456,19 @@ static HRESULT WINAPI HTMLStyle_get_verticalAlign(IHTMLStyle *iface, VARIANT *p)
 static HRESULT WINAPI HTMLStyle_put_textTransform(IHTMLStyle *iface, BSTR v)
 {
     HTMLStyle *This = impl_from_IHTMLStyle(iface);
-    FIXME("(%p)->(%s)\n", This, debugstr_w(v));
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%s)\n", This, debugstr_w(v));
+
+    return set_style_attr(This, STYLEID_TEXT_TRANSFORM, v, 0);
 }
 
 static HRESULT WINAPI HTMLStyle_get_textTransform(IHTMLStyle *iface, BSTR *p)
 {
     HTMLStyle *This = impl_from_IHTMLStyle(iface);
-    FIXME("(%p)->(%p)\n", This, p);
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%p)\n", This, p);
+
+    return get_style_attr(This, STYLEID_TEXT_TRANSFORM, p);
 }
 
 static HRESULT WINAPI HTMLStyle_put_textAlign(IHTMLStyle *iface, BSTR v)
@@ -1482,29 +1492,37 @@ static HRESULT WINAPI HTMLStyle_get_textAlign(IHTMLStyle *iface, BSTR *p)
 static HRESULT WINAPI HTMLStyle_put_textIndent(IHTMLStyle *iface, VARIANT v)
 {
     HTMLStyle *This = impl_from_IHTMLStyle(iface);
-    FIXME("(%p)->(%s)\n", This, debugstr_variant(&v));
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%s)\n", This, debugstr_variant(&v));
+
+    return set_nsstyle_attr_var(This->nsstyle, STYLEID_TEXT_INDENT, &v, ATTR_FIX_PX);
 }
 
 static HRESULT WINAPI HTMLStyle_get_textIndent(IHTMLStyle *iface, VARIANT *p)
 {
     HTMLStyle *This = impl_from_IHTMLStyle(iface);
-    FIXME("(%p)->(%p)\n", This, p);
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%p)\n", This, p);
+
+    return get_nsstyle_attr_var(This->nsstyle, STYLEID_TEXT_INDENT, p, 0);
 }
 
 static HRESULT WINAPI HTMLStyle_put_lineHeight(IHTMLStyle *iface, VARIANT v)
 {
     HTMLStyle *This = impl_from_IHTMLStyle(iface);
-    FIXME("(%p)->(%s)\n", This, debugstr_variant(&v));
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%s)\n", This, debugstr_variant(&v));
+
+    return set_nsstyle_attr_var(This->nsstyle, STYLEID_LINE_HEIGHT, &v, 0);
 }
 
 static HRESULT WINAPI HTMLStyle_get_lineHeight(IHTMLStyle *iface, VARIANT *p)
 {
     HTMLStyle *This = impl_from_IHTMLStyle(iface);
-    FIXME("(%p)->(%p)\n", This, p);
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%p)\n", This, p);
+
+    return get_nsstyle_attr_var(This->nsstyle, STYLEID_LINE_HEIGHT, p, 0);
 }
 
 static HRESULT WINAPI HTMLStyle_put_marginTop(IHTMLStyle *iface, VARIANT v)
@@ -2181,15 +2199,19 @@ static HRESULT WINAPI HTMLStyle_get_listStyleType(IHTMLStyle *iface, BSTR *p)
 static HRESULT WINAPI HTMLStyle_put_listStylePosition(IHTMLStyle *iface, BSTR v)
 {
     HTMLStyle *This = impl_from_IHTMLStyle(iface);
-    FIXME("(%p)->(%s)\n", This, debugstr_w(v));
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%s)\n", This, debugstr_w(v));
+
+    return set_style_attr(This, STYLEID_LISTSTYLEPOSITION, v, 0);
 }
 
 static HRESULT WINAPI HTMLStyle_get_listStylePosition(IHTMLStyle *iface, BSTR *p)
 {
     HTMLStyle *This = impl_from_IHTMLStyle(iface);
-    FIXME("(%p)->(%p)\n", This, p);
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%p)\n", This, p);
+
+    return get_style_attr(This, STYLEID_LISTSTYLEPOSITION, p);
 }
 
 static HRESULT WINAPI HTMLStyle_put_listStyleImage(IHTMLStyle *iface, BSTR v)

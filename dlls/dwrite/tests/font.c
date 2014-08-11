@@ -198,8 +198,9 @@ static void test_CreateBitmapRenderTarget(void)
 {
     IDWriteBitmapRenderTarget *target, *target2;
     IDWriteGdiInterop *interop;
+    HBITMAP hbm, hbm2;
+    DWRITE_MATRIX m;
     DIBSECTION ds;
-    HBITMAP hbm;
     HRESULT hr;
     SIZE size;
     HDC hdc;
@@ -272,8 +273,66 @@ if (0) /* crashes on native */
     ok(size.cx == 10, "got %d\n", size.cx);
     ok(size.cy == 5, "got %d\n", size.cy);
 
-    IDWriteBitmapRenderTarget_Release(target);
+    /* resize to same size */
+    hr = IDWriteBitmapRenderTarget_Resize(target, 10, 5);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
 
+    hbm2 = GetCurrentObject(hdc, OBJ_BITMAP);
+    ok(hbm2 == hbm, "got %p, %p\n", hbm2, hbm);
+
+    /* shrink */
+    hr = IDWriteBitmapRenderTarget_Resize(target, 5, 5);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+
+    hbm2 = GetCurrentObject(hdc, OBJ_BITMAP);
+    ok(hbm2 != hbm, "got %p, %p\n", hbm2, hbm);
+
+    hr = IDWriteBitmapRenderTarget_Resize(target, 20, 5);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+
+    hbm2 = GetCurrentObject(hdc, OBJ_BITMAP);
+    ok(hbm2 != hbm, "got %p, %p\n", hbm2, hbm);
+
+    hr = IDWriteBitmapRenderTarget_Resize(target, 1, 5);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+
+    hbm2 = GetCurrentObject(hdc, OBJ_BITMAP);
+    ok(hbm2 != hbm, "got %p, %p\n", hbm2, hbm);
+
+    ret = GetObjectW(hbm2, sizeof(ds), &ds);
+    ok(ret == sizeof(ds), "got %d\n", ret);
+    ok(ds.dsBm.bmWidth == 1, "got %d\n", ds.dsBm.bmWidth);
+    ok(ds.dsBm.bmHeight == 5, "got %d\n", ds.dsBm.bmHeight);
+    ok(ds.dsBm.bmPlanes == 1, "got %d\n", ds.dsBm.bmPlanes);
+    ok(ds.dsBm.bmBitsPixel == 32, "got %d\n", ds.dsBm.bmBitsPixel);
+    ok(ds.dsBm.bmBits != NULL, "got %p\n", ds.dsBm.bmBits);
+
+    /* empty rectangle */
+    hr = IDWriteBitmapRenderTarget_Resize(target, 0, 5);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+
+    hbm2 = GetCurrentObject(hdc, OBJ_BITMAP);
+    ok(hbm2 != hbm, "got %p, %p\n", hbm2, hbm);
+
+    ret = GetObjectW(hbm2, sizeof(ds), &ds);
+    ok(ret == sizeof(BITMAP), "got %d\n", ret);
+    ok(ds.dsBm.bmWidth == 1, "got %d\n", ds.dsBm.bmWidth);
+    ok(ds.dsBm.bmHeight == 1, "got %d\n", ds.dsBm.bmHeight);
+    ok(ds.dsBm.bmPlanes == 1, "got %d\n", ds.dsBm.bmPlanes);
+    ok(ds.dsBm.bmBitsPixel == 1, "got %d\n", ds.dsBm.bmBitsPixel);
+    ok(!ds.dsBm.bmBits, "got %p\n", ds.dsBm.bmBits);
+
+    /* transform tests */
+if (0) /* crashes on native */
+    hr = IDWriteBitmapRenderTarget_GetCurrentTransform(target, NULL);
+
+    memset(&m, 0xcc, sizeof(m));
+    hr = IDWriteBitmapRenderTarget_GetCurrentTransform(target, &m);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    ok(m.m11 == 1.0 && m.m22 == 1.0 && m.m12 == 0.0 && m.m21 == 0.0, "got %.1f,%.1f,%.1f,%.1f\n", m.m11, m.m22, m.m12, m.m21);
+    ok(m.dx == 0.0 && m.dy == 0.0, "got %.1f,%.1f\n", m.dx, m.dy);
+
+    IDWriteBitmapRenderTarget_Release(target);
     IDWriteGdiInterop_Release(interop);
 }
 
@@ -614,6 +673,55 @@ if (0) /* crashes on native */
     IDWriteFontFace_Release(fontface);
 }
 
+static HRESULT WINAPI fontcollectionloader_QueryInterface(IDWriteFontCollectionLoader *iface, REFIID riid, void **obj)
+{
+    *obj = iface;
+    return S_OK;
+}
+
+static ULONG WINAPI fontcollectionloader_AddRef(IDWriteFontCollectionLoader *iface)
+{
+    return 2;
+}
+
+static ULONG WINAPI fontcollectionloader_Release(IDWriteFontCollectionLoader *iface)
+{
+    return 1;
+}
+
+static HRESULT WINAPI fontcollectionloader_CreateEnumeratorFromKey(IDWriteFontCollectionLoader *iface, IDWriteFactory * factory, const void * collectionKey, UINT32  collectionKeySize, IDWriteFontFileEnumerator ** fontFileEnumerator)
+{
+    return S_OK;
+}
+
+static const struct IDWriteFontCollectionLoaderVtbl dwritefontcollectionloadervtbl = {
+    fontcollectionloader_QueryInterface,
+    fontcollectionloader_AddRef,
+    fontcollectionloader_Release,
+    fontcollectionloader_CreateEnumeratorFromKey
+};
+
+static void test_CustomFontCollection(void)
+{
+    IDWriteFontCollectionLoader collection = { &dwritefontcollectionloadervtbl };
+    IDWriteFontCollectionLoader collection2 = { &dwritefontcollectionloadervtbl };
+    HRESULT hr;
+
+    hr = IDWriteFactory_RegisterFontCollectionLoader(factory, &collection);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    hr = IDWriteFactory_RegisterFontCollectionLoader(factory, &collection2);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    hr = IDWriteFactory_RegisterFontCollectionLoader(factory, &collection);
+    ok(hr == DWRITE_E_ALREADYREGISTERED, "got 0x%08x\n", hr);
+
+    hr = IDWriteFactory_UnregisterFontCollectionLoader(factory, &collection);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+    hr = IDWriteFactory_UnregisterFontCollectionLoader(factory, &collection);
+    ok(hr == E_INVALIDARG, "got 0x%08x\n", hr);
+    hr = IDWriteFactory_UnregisterFontCollectionLoader(factory, &collection2);
+    ok(hr == S_OK, "got 0x%08x\n", hr);
+}
+
 START_TEST(font)
 {
     HRESULT hr;
@@ -634,6 +742,7 @@ START_TEST(font)
     test_GetMetrics();
     test_system_fontcollection();
     test_ConvertFontFaceToLOGFONT();
+    test_CustomFontCollection();
 
     IDWriteFactory_Release(factory);
 }

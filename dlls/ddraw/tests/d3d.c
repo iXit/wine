@@ -537,12 +537,18 @@ static HRESULT WINAPI enumDevicesCallback(GUID *Guid, char *DeviceDescription,
 
         ok(hal->dcmColorModel == 0, "RGB Device %u hal caps has colormodel %u\n", ver, hal->dcmColorModel);
         ok(hel->dcmColorModel == D3DCOLOR_RGB, "RGB Device %u hel caps has colormodel %u\n", ver, hel->dcmColorModel);
+
+        ok(hal->dwFlags == 0, "RGB Device %u hal caps has hardware flags %x\n", ver, hal->dwFlags);
+        ok(hel->dwFlags != 0, "RGB Device %u hel caps has hardware flags %x\n", ver, hel->dwFlags);
     }
     else if(IsEqualGUID(&IID_IDirect3DHALDevice, Guid))
     {
         trace("HAL Device %d\n", ver);
         ok(hal->dcmColorModel == D3DCOLOR_RGB, "HAL Device %u hal caps has colormodel %u\n", ver, hel->dcmColorModel);
         ok(hel->dcmColorModel == 0, "HAL Device %u hel caps has colormodel %u\n", ver, hel->dcmColorModel);
+
+        ok(hal->dwFlags != 0, "HAL Device %u hal caps has hardware flags %x\n", ver, hal->dwFlags);
+        ok(hel->dwFlags != 0, "HAL Device %u hel caps has hardware flags %x\n", ver, hel->dwFlags);
     }
     else if(IsEqualGUID(&IID_IDirect3DRefDevice, Guid))
     {
@@ -587,6 +593,9 @@ static HRESULT WINAPI enumDevicesCallback(GUID *Guid, char *DeviceDescription,
         ok(hal->dcmColorModel == 0, "Ramp Device %u hal caps has colormodel %u\n", ver, hal->dcmColorModel);
         ok(hel->dcmColorModel == D3DCOLOR_MONO, "Ramp Device %u hel caps has colormodel %u\n",
                 ver, hel->dcmColorModel);
+
+        ok(hal->dwFlags == 0, "Ramp Device %u hal caps has hardware flags %x\n", ver, hal->dwFlags);
+        ok(hel->dwFlags != 0, "Ramp Device %u hel caps has hardware flags %x\n", ver, hel->dwFlags);
     }
     else if(IsEqualGUID(&IID_IDirect3DMMXDevice, Guid))
     {
@@ -610,6 +619,9 @@ static HRESULT WINAPI enumDevicesCallback(GUID *Guid, char *DeviceDescription,
 
         ok(hal->dcmColorModel == 0, "MMX Device %u hal caps has colormodel %u\n", ver, hal->dcmColorModel);
         ok(hel->dcmColorModel == D3DCOLOR_RGB, "MMX Device %u hel caps has colormodel %u\n", ver, hel->dcmColorModel);
+
+        ok(hal->dwFlags == 0, "MMX Device %u hal caps has hardware flags %x\n", ver, hal->dwFlags);
+        ok(hel->dwFlags != 0, "MMX Device %u hel caps has hardware flags %x\n", ver, hel->dwFlags);
     }
     else
     {
@@ -1236,14 +1248,6 @@ static void Direct3D1Test(void)
                                              &i);
     ok(hr == D3D_OK, "IDirect3DViewport_TransformVertices returned %08x\n", hr);
 
-    transformdata.lpHOut = outH;
-    memset(outH, 0xcc, sizeof(outH));
-    hr = IDirect3DViewport_TransformVertices(Viewport, sizeof(testverts) / sizeof(testverts[0]),
-                                             &transformdata, D3DTRANSFORM_UNCLIPPED,
-                                             &i);
-    ok(hr == D3D_OK, "IDirect3DViewport_TransformVertices returned %08x\n", hr);
-    ok(i == 0, "Offscreen is %d\n", i);
-
     for(i = 0; i < sizeof(testverts) / sizeof(testverts[0]); i++) {
         static const struct v_out cmp[] = {
             {128.0, 128.0, 0.0, 1}, {129.0, 127.0,  1.0, 1}, {127.0, 129.0, -1, 1},
@@ -1255,12 +1259,6 @@ static void Direct3D1Test(void)
            "Vertex %d differs. Got %f %f %f %f, expected %f %f %f %f\n", i + 1,
            out[i].x, out[i].y, out[i].z, out[i].rhw,
            cmp[i].x, cmp[i].y, cmp[i].z, cmp[i].rhw);
-    }
-    for(i = 0; i < sizeof(outH); i++) {
-        if(((unsigned char *) outH)[i] != 0xcc) {
-            ok(FALSE, "Homogeneous output was generated despite UNCLIPPED flag\n");
-            break;
-        }
     }
 
     SET_VP_DATA(vp_data);
@@ -1306,6 +1304,7 @@ static void Direct3D1Test(void)
            cmp[i].x, cmp[i].y, cmp[i].z, cmp[i].rhw);
     }
 
+    transformdata.lpHOut = outH;
     memset(out, 0xcc, sizeof(out));
     hr = IDirect3DViewport_TransformVertices(Viewport, sizeof(testverts) / sizeof(testverts[0]),
                                              &transformdata, D3DTRANSFORM_CLIPPED,

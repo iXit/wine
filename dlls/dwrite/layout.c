@@ -28,8 +28,6 @@
 #include "dwrite.h"
 #include "dwrite_private.h"
 
-#include "wine/debug.h"
-
 WINE_DEFAULT_DEBUG_CHANNEL(dwrite);
 
 struct dwrite_textformat_data {
@@ -66,6 +64,8 @@ struct dwrite_textlayout {
     WCHAR *str;
     UINT32 len;
     struct dwrite_textformat_data format;
+    FLOAT  maxwidth;
+    FLOAT  maxheight;
 };
 
 struct dwrite_textformat {
@@ -340,113 +340,115 @@ static HRESULT WINAPI dwritetextlayout_GetLocaleName(IDWriteTextLayout *iface, W
 static HRESULT WINAPI dwritetextlayout_SetMaxWidth(IDWriteTextLayout *iface, FLOAT maxWidth)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%f): stub\n", This, maxWidth);
-    return E_NOTIMPL;
+    TRACE("(%p)->(%.1f)\n", This, maxWidth);
+    This->maxwidth = maxWidth;
+    return S_OK;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetMaxHeight(IDWriteTextLayout *iface, FLOAT maxHeight)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%f): stub\n", This, maxHeight);
-    return E_NOTIMPL;
+    TRACE("(%p)->(%.1f)\n", This, maxHeight);
+    This->maxheight = maxHeight;
+    return S_OK;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetFontCollection(IDWriteTextLayout *iface, IDWriteFontCollection* collection, DWRITE_TEXT_RANGE range)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%p %u:%u): stub\n", This, collection, range.startPosition, range.length);
+    FIXME("(%p)->(%p %s): stub\n", This, collection, debugstr_range(&range));
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetFontFamilyName(IDWriteTextLayout *iface, WCHAR const *name, DWRITE_TEXT_RANGE range)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%s %u:%u): stub\n", This, debugstr_w(name), range.startPosition, range.length);
+    FIXME("(%p)->(%s %s): stub\n", This, debugstr_w(name), debugstr_range(&range));
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetFontWeight(IDWriteTextLayout *iface, DWRITE_FONT_WEIGHT weight, DWRITE_TEXT_RANGE range)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%d %u:%u): stub\n", This, weight, range.startPosition, range.length);
+    FIXME("(%p)->(%d %s): stub\n", This, weight, debugstr_range(&range));
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetFontStyle(IDWriteTextLayout *iface, DWRITE_FONT_STYLE style, DWRITE_TEXT_RANGE range)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%d %u:%u): stub\n", This, style, range.startPosition, range.length);
+    FIXME("(%p)->(%d %s): stub\n", This, style, debugstr_range(&range));
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetFontStretch(IDWriteTextLayout *iface, DWRITE_FONT_STRETCH stretch, DWRITE_TEXT_RANGE range)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%d %u:%u): stub\n", This, stretch, range.startPosition, range.length);
+    FIXME("(%p)->(%d %s): stub\n", This, stretch, debugstr_range(&range));
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetFontSize(IDWriteTextLayout *iface, FLOAT size, DWRITE_TEXT_RANGE range)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%f %u:%u): stub\n", This, size, range.startPosition, range.length);
+    FIXME("(%p)->(%f %s): stub\n", This, size, debugstr_range(&range));
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetUnderline(IDWriteTextLayout *iface, BOOL underline, DWRITE_TEXT_RANGE range)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%d %u:%u): stub\n", This, underline, range.startPosition, range.length);
+    FIXME("(%p)->(%d %s): stub\n", This, underline, debugstr_range(&range));
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetStrikethrough(IDWriteTextLayout *iface, BOOL strikethrough, DWRITE_TEXT_RANGE range)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%d %u:%u): stub\n", This, strikethrough, range.startPosition, range.length);
+    FIXME("(%p)->(%d %s): stub\n", This, strikethrough, debugstr_range(&range));
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetDrawingEffect(IDWriteTextLayout *iface, IUnknown* effect, DWRITE_TEXT_RANGE range)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%p %u:%u): stub\n", This, effect, range.startPosition, range.length);
+    FIXME("(%p)->(%p %s): stub\n", This, effect, debugstr_range(&range));
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetInlineObject(IDWriteTextLayout *iface, IDWriteInlineObject *object, DWRITE_TEXT_RANGE range)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%p %u:%u): stub\n", This, object, range.startPosition, range.length);
+    FIXME("(%p)->(%p %s): stub\n", This, object, debugstr_range(&range));
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetTypography(IDWriteTextLayout *iface, IDWriteTypography* typography, DWRITE_TEXT_RANGE range)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%p %u:%u): stub\n", This, typography, range.startPosition, range.length);
+    FIXME("(%p)->(%p %s): stub\n", This, typography, debugstr_range(&range));
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI dwritetextlayout_SetLocaleName(IDWriteTextLayout *iface, WCHAR const* locale, DWRITE_TEXT_RANGE range)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p)->(%s %u:%u): stub\n", This, debugstr_w(locale), range.startPosition, range.length);
+    FIXME("(%p)->(%s %s): stub\n", This, debugstr_w(locale), debugstr_range(&range));
     return E_NOTIMPL;
 }
 
 static FLOAT WINAPI dwritetextlayout_GetMaxWidth(IDWriteTextLayout *iface)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p): stub\n", This);
-    return 0.0;
+    TRACE("(%p)\n", This);
+    return This->maxwidth;
 }
 
 static FLOAT WINAPI dwritetextlayout_GetMaxHeight(IDWriteTextLayout *iface)
 {
     struct dwrite_textlayout *This = impl_from_IDWriteTextLayout(iface);
-    FIXME("(%p): stub\n", This);
-    return 0.0;
+    TRACE("(%p)\n", This);
+    return This->maxheight;
 }
 
 static HRESULT WINAPI dwritetextlayout_layout_GetFontCollection(IDWriteTextLayout *iface, UINT32 pos,
@@ -752,7 +754,7 @@ static void layout_format_from_textformat(struct dwrite_textlayout *layout, IDWr
     IDWriteTextFormat_GetFontCollection(format, &layout->format.collection);
 }
 
-HRESULT create_textlayout(const WCHAR *str, UINT32 len, IDWriteTextFormat *format, IDWriteTextLayout **layout)
+HRESULT create_textlayout(const WCHAR *str, UINT32 len, IDWriteTextFormat *format, FLOAT maxwidth, FLOAT maxheight, IDWriteTextLayout **layout)
 {
     struct dwrite_textlayout *This;
 
@@ -765,6 +767,8 @@ HRESULT create_textlayout(const WCHAR *str, UINT32 len, IDWriteTextFormat *forma
     This->ref = 1;
     This->str = heap_strdupnW(str, len);
     This->len = len;
+    This->maxwidth = maxwidth;
+    This->maxheight = maxheight;
     layout_format_from_textformat(This, format);
 
     *layout = &This->IDWriteTextLayout_iface;

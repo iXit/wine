@@ -961,7 +961,10 @@ DWORD get_flexible_vertex_size(DWORD d3dvtVertexType) DECLSPEC_HIDDEN;
 #define STATE_SHADER(a) (STATE_SAMPLER(MAX_COMBINED_SAMPLERS) + (a))
 #define STATE_IS_SHADER(a) ((a) >= STATE_SHADER(0) && (a) < STATE_SHADER(WINED3D_SHADER_TYPE_COUNT))
 
-#define STATE_TRANSFORM(a) (STATE_SHADER(WINED3D_SHADER_TYPE_COUNT) + (a) - 1)
+#define STATE_CONSTANT_BUFFER(a) (STATE_SHADER(WINED3D_SHADER_TYPE_COUNT) + (a))
+#define STATE_IS_CONSTANT_BUFFER(a) ((a) >= STATE_CONSTANT_BUFFER(0) && (a) < STATE_CONSTANT_BUFFER(WINED3D_SHADER_TYPE_COUNT))
+
+#define STATE_TRANSFORM(a) (STATE_CONSTANT_BUFFER(WINED3D_SHADER_TYPE_COUNT) + (a) - 1)
 #define STATE_IS_TRANSFORM(a) ((a) >= STATE_TRANSFORM(1) && (a) <= STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(255)))
 
 #define STATE_STREAMSRC (STATE_TRANSFORM(WINED3D_TS_WORLD_MATRIX(255)) + 1)
@@ -1576,6 +1579,9 @@ struct wined3d_gl_limits
     UINT lights;
     UINT textures;
     UINT texture_coords;
+    UINT vertex_uniform_blocks;
+    UINT geometry_uniform_blocks;
+    UINT fragment_uniform_blocks;
     UINT fragment_samplers;
     UINT vertex_samplers;
     UINT combined_samplers;
@@ -2023,6 +2029,7 @@ struct wined3d_resource
     DWORD usage;
     enum wined3d_pool pool;
     DWORD access_flags;
+    DWORD draw_binding;
     UINT width;
     UINT height;
     UINT depth;
@@ -2219,7 +2226,7 @@ struct wined3d_surface
     const struct wined3d_surface_ops *surface_ops;
     struct wined3d_texture *container;
     struct wined3d_swapchain *swapchain;
-    DWORD draw_binding, map_binding;
+    DWORD map_binding;
     void *user_memory;
     DWORD locations;
 
@@ -2228,9 +2235,6 @@ struct wined3d_surface
     UINT pitch;
     UINT pow2Width;
     UINT pow2Height;
-
-    /* A method to retrieve the drawable size. Not in the Vtable to make it changeable */
-    void (*get_drawable_size)(const struct wined3d_context *context, UINT *width, UINT *height);
 
     /* PBO */
     GLuint                    pbo;
@@ -2276,6 +2280,8 @@ void surface_set_dirty(struct wined3d_surface *surface) DECLSPEC_HIDDEN;
 HRESULT surface_color_fill(struct wined3d_surface *s,
         const RECT *rect, const struct wined3d_color *color) DECLSPEC_HIDDEN;
 GLenum surface_get_gl_buffer(const struct wined3d_surface *surface) DECLSPEC_HIDDEN;
+void surface_get_drawable_size(const struct wined3d_surface *surface, const struct wined3d_context *context,
+        unsigned int *width, unsigned int *height) DECLSPEC_HIDDEN;
 void surface_invalidate_location(struct wined3d_surface *surface, DWORD location) DECLSPEC_HIDDEN;
 BOOL surface_is_offscreen(const struct wined3d_surface *surface) DECLSPEC_HIDDEN;
 void surface_load(struct wined3d_surface *surface, BOOL srgb) DECLSPEC_HIDDEN;
@@ -2301,10 +2307,6 @@ void surface_validate_location(struct wined3d_surface *surface, DWORD location) 
 HRESULT wined3d_surface_create(struct wined3d_texture *container, const struct wined3d_resource_desc *desc,
         GLenum target, GLint level, DWORD flags, struct wined3d_surface **surface) DECLSPEC_HIDDEN;
 void surface_prepare_map_memory(struct wined3d_surface *surface) DECLSPEC_HIDDEN;
-
-void get_drawable_size_swapchain(const struct wined3d_context *context, UINT *width, UINT *height) DECLSPEC_HIDDEN;
-void get_drawable_size_backbuffer(const struct wined3d_context *context, UINT *width, UINT *height) DECLSPEC_HIDDEN;
-void get_drawable_size_fbo(const struct wined3d_context *context, UINT *width, UINT *height) DECLSPEC_HIDDEN;
 
 void draw_textured_quad(const struct wined3d_surface *src_surface, struct wined3d_context *context,
         const RECT *src_rect, const RECT *dst_rect, enum wined3d_texture_filter_type filter) DECLSPEC_HIDDEN;

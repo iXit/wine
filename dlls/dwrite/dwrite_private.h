@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#include "wine/debug.h"
 #include "wine/unicode.h"
 
 static inline void *heap_alloc(size_t len)
@@ -71,11 +72,16 @@ static inline LPWSTR heap_strdupnW(const WCHAR *str, UINT32 len)
     return ret;
 }
 
+static inline const char *debugstr_range(const DWRITE_TEXT_RANGE *range)
+{
+    return wine_dbg_sprintf("%u:%u", range->startPosition, range->length);
+}
+
 extern HRESULT create_font_from_logfont(const LOGFONTW*, IDWriteFont**) DECLSPEC_HIDDEN;
 extern HRESULT convert_fontface_to_logfont(IDWriteFontFace*, LOGFONTW*) DECLSPEC_HIDDEN;
 extern HRESULT create_textformat(const WCHAR*,IDWriteFontCollection*,DWRITE_FONT_WEIGHT,DWRITE_FONT_STYLE,DWRITE_FONT_STRETCH,
                                  FLOAT,const WCHAR*,IDWriteTextFormat**) DECLSPEC_HIDDEN;
-extern HRESULT create_textlayout(const WCHAR*,UINT32,IDWriteTextFormat*,IDWriteTextLayout**) DECLSPEC_HIDDEN;
+extern HRESULT create_textlayout(const WCHAR*,UINT32,IDWriteTextFormat*,FLOAT,FLOAT,IDWriteTextLayout**) DECLSPEC_HIDDEN;
 extern HRESULT create_trimmingsign(IDWriteInlineObject**) DECLSPEC_HIDDEN;
 extern HRESULT get_gdiinterop(IDWriteGdiInterop**) DECLSPEC_HIDDEN;
 extern HRESULT create_localizedstrings(IDWriteLocalizedStrings**) DECLSPEC_HIDDEN;

@@ -245,10 +245,10 @@
 #@ stub ParseNetworkString
 @ stub _PfAddFiltersToInterface@24
 @ stub _PfAddGlobalFilterToInterface@8
-@ stub _PfBindInterfaceToIPAddress@12
+@ stdcall _PfBindInterfaceToIPAddress@12(long long ptr) PfBindInterfaceToIPAddress
 @ stub _PfBindInterfaceToIndex@16
 @ stdcall _PfCreateInterface@24(long long long long long ptr) PfCreateInterface
-@ stub _PfDeleteInterface@4
+@ stdcall _PfDeleteInterface@4(long) PfDeleteInterface
 @ stub _PfDeleteLog@0
 @ stub _PfGetInterfaceStatistics@16
 @ stub _PfMakeLog@4
@@ -258,7 +258,7 @@
 @ stub _PfRemoveGlobalFilterFromInterface@8
 @ stub _PfSetLogBuffer@28
 @ stub _PfTestPacket@20
-@ stub _PfUnBindInterface@4
+@ stdcall _PfUnBindInterface@4(long) PfUnBindInterface
 #@ stub register_icmp
 #@ stub ResolveIpNetEntry2
 #@ stub ResolveNeighbor

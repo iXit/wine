@@ -310,7 +310,7 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
         {
             struct wined3d_surface *rt = fb->render_targets[i];
             if (rt)
-                surface_load_location(rt, rt->draw_binding);
+                surface_load_location(rt, rt->resource.draw_binding);
         }
     }
 
@@ -326,7 +326,7 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
     if (target)
     {
         render_offscreen = context->render_offscreen;
-        target->get_drawable_size(context, &drawable_width, &drawable_height);
+        surface_get_drawable_size(target, context, &drawable_width, &drawable_height);
     }
     else
     {
@@ -337,7 +337,7 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
 
     if (flags & WINED3DCLEAR_ZBUFFER)
     {
-        DWORD location = render_offscreen ? fb->depth_stencil->draw_binding : WINED3D_LOCATION_DRAWABLE;
+        DWORD location = render_offscreen ? fb->depth_stencil->resource.draw_binding : WINED3D_LOCATION_DRAWABLE;
 
         if (!render_offscreen && fb->depth_stencil != device->onscreen_depth_stencil)
             device_switch_onscreen_ds(device, context, fb->depth_stencil);
@@ -369,7 +369,7 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
 
     if (flags & WINED3DCLEAR_ZBUFFER)
     {
-        DWORD location = render_offscreen ? fb->depth_stencil->draw_binding : WINED3D_LOCATION_DRAWABLE;
+        DWORD location = render_offscreen ? fb->depth_stencil->resource.draw_binding : WINED3D_LOCATION_DRAWABLE;
 
         surface_modify_ds_location(fb->depth_stencil, location, ds_rect.right, ds_rect.bottom);
 
@@ -388,8 +388,8 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
 
             if (rt)
             {
-                surface_validate_location(rt, rt->draw_binding);
-                surface_invalidate_location(rt, ~rt->draw_binding);
+                surface_validate_location(rt, rt->resource.draw_binding);
+                surface_invalidate_location(rt, ~rt->resource.draw_binding);
             }
         }
 
@@ -3664,6 +3664,77 @@ HRESULT CDECL wined3d_device_color_fill(struct wined3d_device *device,
     return surface_color_fill(surface, rect, color);
 }
 
+void CDECL wined3d_device_copy_resource(struct wined3d_device *device,
+        struct wined3d_resource *dst_resource, struct wined3d_resource *src_resource)
+{
+    struct wined3d_surface *dst_surface, *src_surface;
+    struct wined3d_texture *dst_texture, *src_texture;
+    unsigned int i, count;
+    HRESULT hr;
+
+    TRACE("device %p, dst_resource %p, src_resource %p.\n", device, dst_resource, src_resource);
+
+    if (src_resource == dst_resource)
+    {
+        WARN("Source and destination are the same resource.\n");
+        return;
+    }
+
+    if (src_resource->type != dst_resource->type)
+    {
+        WARN("Resource types (%s / %s) don't match.\n",
+                debug_d3dresourcetype(dst_resource->type),
+                debug_d3dresourcetype(src_resource->type));
+        return;
+    }
+
+    if (src_resource->width != dst_resource->width
+            || src_resource->height != dst_resource->height
+            || src_resource->depth != dst_resource->depth)
+    {
+        WARN("Resource dimensions (%ux%ux%u / %ux%ux%u) don't match.\n",
+                dst_resource->width, dst_resource->height, dst_resource->depth,
+                src_resource->width, src_resource->height, src_resource->depth);
+        return;
+    }
+
+    if (src_resource->format->id != dst_resource->format->id)
+    {
+        WARN("Resource formats (%s / %s) don't match.\n",
+                debug_d3dformat(dst_resource->format->id),
+                debug_d3dformat(src_resource->format->id));
+        return;
+    }
+
+    if (dst_resource->type != WINED3D_RTYPE_TEXTURE)
+    {
+        FIXME("Not implemented for %s resources.\n", debug_d3dresourcetype(dst_resource->type));
+        return;
+    }
+
+    dst_texture = wined3d_texture_from_resource(dst_resource);
+    src_texture = wined3d_texture_from_resource(src_resource);
+
+    if (src_texture->layer_count != dst_texture->layer_count
+            || src_texture->level_count != dst_texture->level_count)
+    {
+        WARN("Subresource layouts (%ux%u / %ux%u) don't match.\n",
+                dst_texture->layer_count, dst_texture->level_count,
+                src_texture->layer_count, src_texture->level_count);
+        return;
+    }
+
+    count = dst_texture->layer_count * dst_texture->level_count;
+    for (i = 0; i < count; ++i)
+    {
+        dst_surface = surface_from_resource(wined3d_texture_get_sub_resource(dst_texture, i));
+        src_surface = surface_from_resource(wined3d_texture_get_sub_resource(src_texture, i));
+
+        if (FAILED(hr = wined3d_surface_blt(dst_surface, NULL, src_surface, NULL, 0, NULL, WINED3D_TEXF_POINT)))
+            ERR("Failed to blit, subresource %u, hr %#x.\n", i, hr);
+    }
+}
+
 void CDECL wined3d_device_clear_rendertarget_view(struct wined3d_device *device,
         struct wined3d_rendertarget_view *rendertarget_view, const struct wined3d_color *color)
 {
@@ -4733,23 +4804,6 @@ void device_invalidate_state(const struct wined3d_device *device, DWORD state)
         shift = rep & ((sizeof(*context->isStateDirty) * CHAR_BIT) - 1);
         context->isStateDirty[idx] |= (1 << shift);
     }
-}
-
-void get_drawable_size_fbo(const struct wined3d_context *context, UINT *width, UINT *height)
-{
-    /* The drawable size of a fbo target is the opengl texture size, which is the power of two size. */
-    *width = context->current_rt->pow2Width;
-    *height = context->current_rt->pow2Height;
-}
-
-void get_drawable_size_backbuffer(const struct wined3d_context *context, UINT *width, UINT *height)
-{
-    const struct wined3d_swapchain *swapchain = context->swapchain;
-    /* The drawable size of a backbuffer / aux buffer offscreen target is the size of the
-     * current context's drawable, which is the size of the back buffer of the swapchain
-     * the active context belongs to. */
-    *width = swapchain->desc.backbuffer_width;
-    *height = swapchain->desc.backbuffer_height;
 }
 
 LRESULT device_process_message(struct wined3d_device *device, HWND window, BOOL unicode,

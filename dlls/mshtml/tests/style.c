@@ -742,6 +742,28 @@ static void test_body_style(IHTMLStyle *style)
     todo_wine
     ok(!strcmp_wa(V_BSTR(&v), "#00fdfd"), "V_BSTR(color) = %s\n", wine_dbgstr_w(V_BSTR(&v)));
 
+    V_VT(&v) = VT_I4;
+    V_I4(&v) = 3;
+    hres = IHTMLStyle_put_lineHeight(style, v);
+    ok(hres == S_OK, "put_lineHeight failed: %08x\n", hres);
+
+    hres = IHTMLStyle_get_lineHeight(style, &v);
+    ok(hres == S_OK, "get_lineHeight failed: %08x\n", hres);
+    ok(V_VT(&v) == VT_BSTR, "V_VT(lineHeight) = %d, expect VT_BSTR\n", V_VT(&v));
+    ok(!strcmp_wa(V_BSTR(&v), "3"), "V_BSTR(lineHeight) = %s\n", wine_dbgstr_w(V_BSTR(&v)));
+
+    V_VT(&v) = VT_BSTR;
+    V_BSTR(&v) = a2bstr("300%");
+    hres = IHTMLStyle_put_lineHeight(style, v);
+    ok(hres == S_OK, "put_lineHeight failed: %08x\n", hres);
+    VariantClear(&v);
+
+    hres = IHTMLStyle_get_lineHeight(style, &v);
+    ok(hres == S_OK, "get_lineHeight failed: %08x\n", hres);
+    ok(V_VT(&v) == VT_BSTR, "V_VT(lineHeight) = %d, expect VT_BSTR\n", V_VT(&v));
+    ok(!strcmp_wa(V_BSTR(&v), "300%"), "V_BSTR(lineHeight) = %s\n", wine_dbgstr_w(V_BSTR(&v)));
+    VariantClear(&v);
+
     b = 0xfefe;
     hres = IHTMLStyle_get_textDecorationUnderline(style, &b);
     ok(hres == S_OK, "get_textDecorationUnderline failed: %08x\n", hres);
@@ -1246,6 +1268,39 @@ static void test_body_style(IHTMLStyle *style)
     hres = IHTMLStyle_get_textAlign(style, &str);
     ok(hres == S_OK, "get_textAlign failed: %08x\n", hres);
     ok(!strcmp_wa(str, "center"), "textAlign = %s\n", wine_dbgstr_w(V_BSTR(&v)));
+    SysFreeString(str);
+
+    V_VT(&v) = VT_NULL;
+    hres = IHTMLStyle_get_textIndent(style, &v);
+    ok(hres == S_OK, "get_textIndent failed: %08x\n", hres);
+    ok(V_VT(&v) == VT_BSTR, "V_VT(textIndent) = %d\n", V_VT(&v));
+    ok(!V_BSTR(&v), "V_BSTR(textIndent) = %s\n", wine_dbgstr_w(V_BSTR(&v)));
+
+    V_VT(&v) = VT_I4;
+    V_I4(&v) = 6;
+    hres = IHTMLStyle_put_textIndent(style, v);
+    ok(hres == S_OK, "put_textIndent failed: %08x\n", hres);
+
+    V_VT(&v) = VT_NULL;
+    hres = IHTMLStyle_get_textIndent(style, &v);
+    ok(hres == S_OK, "get_textIndent failed: %08x\n", hres);
+    ok(V_VT(&v) == VT_BSTR, "V_VT(textIndent) = %d\n", V_VT(&v));
+    ok(!strcmp_wa(V_BSTR(&v), "6px"), "V_BSTR(textIndent) = %s\n", wine_dbgstr_w(V_BSTR(&v)));
+
+    str = (void*)0xdeadbeef;
+    hres = IHTMLStyle_get_textTransform(style, &str);
+    ok(hres == S_OK, "get_textTransform failed: %08x\n", hres);
+    ok(!str, "textTransform != NULL\n");
+
+    str = a2bstr("lowercase");
+    hres = IHTMLStyle_put_textTransform(style, str);
+    ok(hres == S_OK, "put_textTransform failed: %08x\n", hres);
+    SysFreeString(str);
+
+    str = NULL;
+    hres = IHTMLStyle_get_textTransform(style, &str);
+    ok(hres == S_OK, "get_textTransform failed: %08x\n", hres);
+    ok(!strcmp_wa(str, "lowercase"), "textTransform = %s\n", wine_dbgstr_w(V_BSTR(&v)));
     SysFreeString(str);
 
     str = (void*)0xdeadbeef;
@@ -2106,6 +2161,15 @@ static void test_body_style(IHTMLStyle *style)
     hres = IHTMLStyle_get_listStyleType(style, &str);
     ok(hres == S_OK, "get_listStyleType failed: %08x\n", hres);
     ok(!strcmp_wa(str, "square"), "listStyleType = %s\n", wine_dbgstr_w(str));
+
+    str = a2bstr("inside");
+    hres = IHTMLStyle_put_listStylePosition(style, str);
+    ok(hres == S_OK, "put_listStylePosition failed: %08x\n", hres);
+    SysFreeString(str);
+
+    hres = IHTMLStyle_get_listStylePosition(style, &str);
+    ok(hres == S_OK, "get_listStylePosition failed: %08x\n", hres);
+    ok(!strcmp_wa(str, "inside"), "listStyleType = %s\n", wine_dbgstr_w(str));
     SysFreeString(str);
 
     hres = IHTMLStyle_QueryInterface(style, &IID_IHTMLStyle2, (void**)&style2);

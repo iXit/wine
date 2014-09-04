@@ -542,6 +542,27 @@ DRI2Present_GetWindowRect( struct DRI2Present *This,
     return GetClientRect(hWnd, pRect) ? D3D_OK : D3DERR_INVALIDCALL;
 }
 
+static LONG fullscreen_style(LONG style)
+{
+    /* Make sure the window is managed, otherwise we won't get keyboard input. */
+    style |= WS_POPUP | WS_SYSMENU;
+    style &= ~(WS_CAPTION | WS_THICKFRAME);
+
+    return style;
+}
+
+static LONG fullscreen_exstyle(LONG exstyle)
+{
+    /* Filter out window decorations. */
+    exstyle &= ~(WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE);
+
+    return exstyle;
+}
+
+
+/*----------*/
+
+
 static ID3DPresentVtbl DRI2Present_vtable = {
     (void *)DRI2Present_QueryInterface,
     (void *)DRI2Present_AddRef,
@@ -623,6 +644,24 @@ DRI2Present_new( Display *dpy,
     if (params->BackBufferHeight == 0) {
         params->BackBufferHeight = rect.bottom;
     }
+
+    if (!params->Windowed) {
+        LONG style, exstyle;
+        DEVMODEW newMode;
+
+        newMode.dmPelsWidth = params->BackBufferWidth;
+        newMode.dmPelsHeight = params->BackBufferHeight;
+        newMode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT;
+        ChangeDisplaySettingsExW(devname,&newMode,0,CDS_FULLSCREEN,NULL);
+
+        style = fullscreen_style(0);
+        exstyle = fullscreen_exstyle(0);
+
+        SetWindowLongW(focus_wnd, GWL_STYLE, style);
+        SetWindowLongW(focus_wnd, GWL_EXSTYLE, exstyle);
+        SetWindowPos(focus_wnd,HWND_TOPMOST,0,0,params->BackBufferWidth,params->BackBufferHeight,SWP_FRAMECHANGED | SWP_SHOWWINDOW | SWP_NOACTIVATE);
+    }
+
     This->params = *params;
     strcpyW(This->devname, devname);
 

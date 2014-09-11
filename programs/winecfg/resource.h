@@ -59,6 +59,7 @@
 #define IDC_DESKTOP_HEIGHT              1024
 #define IDC_DESKTOP_SIZE                1025
 #define IDC_DESKTOP_BY                  1026
+#define IDC_ENABLE_NATIVE_D3D9          1027
 
 /* dll editing  */
 #define IDC_RAD_BUILTIN                 1029

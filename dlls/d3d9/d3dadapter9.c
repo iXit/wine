@@ -861,7 +861,7 @@ d3dadapter9_new( boolean ex,
     This->ex = ex;
 
     if (!load_adapter_funcs(This)) {
-        WARN("Your display driver doesn't support native D3D9 adapters.\n");
+        ERR("Your display driver doesn't support native D3D9 adapters.\n");
         d3dadapter9_Release(This);
         return D3DERR_NOTAVAILABLE;
     }
@@ -879,7 +879,7 @@ d3dadapter9_new( boolean ex,
         }
     }
     if (This->nadapters == 0) {
-        WARN("No available native adapters in system.\n");
+        ERR("No available native adapters in system.\n");
         d3dadapter9_Release(This);
         return D3DERR_NOTAVAILABLE;
     }
@@ -899,6 +899,8 @@ d3dadapter9_new( boolean ex,
     }
 
     *ppOut = (IDirect3D9Ex *)This;
+    FIXME("\033[1;32m\nNative Direct3D 9 is active."
+          "\nFor more informations visit https://wiki.ixit.cz/d3d9\n\033[0m");
     return D3D_OK;
 }
 

@@ -977,11 +977,11 @@ has_d3dadapter( void )
         return D3DERR_DRIVERINTERNALERROR;
     }
     TRACE("Got XFixes version %u.%u\n", xfmaj, xfmin);
-
     return TRUE;
 
 cleanup:
-    ERR("Native Direct3D9 will be unavailable.\n");
+    ERR("\033[1;31m\nNative Direct3D 9 will be unavailable."
+        "\nFor more informations visit https://wiki.ixit.cz/d3d9\n\033[0m");
     if (handle) {
         wine_dlclose(handle, NULL, 0);
         handle = NULL;
@@ -1021,6 +1021,8 @@ destroy_d3dadapter_drawable(HWND hwnd)
 static BOOL
 has_d3dadapter( void )
 {
+    FIXME("\033[0;31m\nWine source code has been compiled without native Direct3D 9 support."
+          "\nFor more informations visit https://wiki.ixit.cz/d3d9\n\033[0m");
     return FALSE;
 }
 

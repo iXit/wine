@@ -977,8 +977,6 @@ has_d3dadapter( void )
         return D3DERR_DRIVERINTERNALERROR;
     }
     TRACE("Got XFixes version %u.%u\n", xfmaj, xfmin);
-    FIXME("\033[1;32m\nNative Direct3D 9 is active."
-          "\nFor more informations visit https://wiki.ixit.cz/d3d9\n\033[0m");
     return TRUE;
 
 cleanup:

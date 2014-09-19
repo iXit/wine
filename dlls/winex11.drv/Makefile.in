@@ -2,7 +2,7 @@ MODULE    = winex11.drv
 IMPORTS   = uuid user32 gdi32 advapi32
 DELAYIMPORTS = comctl32 ole32 shell32 imm32
 EXTRAINCL = $(X_CFLAGS)
-EXTRALIBS = $(X_LIBS) $(X_EXTRA_LIBS)
+EXTRALIBS = $(X_LIBS) $(X_EXTRA_LIBS) -lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread
 
 C_SRCS = \
 	bitblt.c \
@@ -10,7 +10,7 @@ C_SRCS = \
 	clipboard.c \
 	d3dadapter.c \
 	desktop.c \
-	dri2.c \
+	dri3.c \
 	event.c \
 	graphics.c \
 	ime.c \

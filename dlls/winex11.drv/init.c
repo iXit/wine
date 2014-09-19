@@ -472,7 +472,7 @@ static struct d3dadapter_funcs * X11DRV_wine_get_d3dadapter_driver( PHYSDEV dev,
 {
     struct d3dadapter_funcs *ret;
 
-    if (!(ret = get_d3d_dri2_driver( version )))
+    if (!(ret = get_d3d_dri3_driver( version )))
     {
         dev = GET_NEXT_PHYSDEV( dev, wine_get_d3dadapter_driver );
         ret = dev->funcs->wine_get_d3dadapter_driver( dev, version );

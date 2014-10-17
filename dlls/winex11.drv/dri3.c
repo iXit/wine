@@ -310,6 +310,7 @@ PRESENTInit(Display *dpy, PRESENTpriv **present_priv)
     }
     (*present_priv)->xcb_connection = XGetXCBConnection(dpy);
     pthread_mutex_init(&(*present_priv)->mutex_present, NULL);
+    pthread_mutex_init(&(*present_priv)->mutex_xcb_wait, NULL);
     return TRUE;
 }
 
@@ -449,6 +450,7 @@ PRESENTDestroy(Display *dpy, PRESENTpriv *present_priv)
 
     pthread_mutex_unlock(&present_priv->mutex_present);
     pthread_mutex_destroy(&present_priv->mutex_present);
+    pthread_mutex_destroy(&present_priv->mutex_xcb_wait);
 
     free(present_priv);
 }
@@ -564,6 +566,16 @@ PRESENTPixmap(Display *dpy, XID window,
     }
 
     PRESENTflush_events(present_priv, FALSE);
+
+    /* workaround an libxcb bug: xcb_request_check won't work
+     * if a thread is listening the special queue. So wake the
+     * other thread by provoking an event */
+    if (present_priv->xcb_wait) {
+        xcb_present_notify_msc(present_priv->xcb_connection, present_priv->window, 0, 0, 0, 0);
+        xcb_flush(present_priv->xcb_connection);
+        pthread_mutex_lock(&present_priv->mutex_xcb_wait);
+        pthread_mutex_unlock(&present_priv->mutex_xcb_wait);
+    }
 
     target_msc = present_priv->last_msc;
     switch(pPresentationParameters->PresentationInterval) {

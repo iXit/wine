@@ -1337,6 +1337,28 @@ static struct symt* dwarf2_parse_volatile_type(dwarf2_parse_context_t* ctx,
     return ref_type;
 }
 
+static struct symt* dwarf2_parse_unspecified_type(dwarf2_parse_context_t* ctx,
+                                           dwarf2_debug_info_t* di)
+{
+    struct attribute name;
+    struct attribute size;
+    if (di->symt) return di->symt;
+
+    TRACE("%s, for %s\n", dwarf2_debug_ctx(ctx), dwarf2_debug_di(di));
+
+    if (!dwarf2_find_attribute(ctx, di, DW_AT_name, &name))
+        name.u.string = "void";
+    size.u.uvalue = sizeof(void *);
+
+    di->symt = &symt_new_basic(ctx->module, btVoid, name.u.string, size.u.uvalue)->symt;
+
+    if (!ctx->symt_cache[sc_void])
+        ctx->symt_cache[sc_void] = di->symt;
+
+    if (dwarf2_get_di_children(ctx, di)) FIXME("Unsupported children\n");
+    return di->symt;
+}
+
 static struct symt* dwarf2_parse_reference_type(dwarf2_parse_context_t* ctx,
                                                 dwarf2_debug_info_t* di)
 {
@@ -2084,6 +2106,9 @@ static void dwarf2_load_one_entry(dwarf2_parse_context_t* ctx,
     case DW_TAG_volatile_type:
         dwarf2_parse_volatile_type(ctx, di);
         break;
+    case DW_TAG_unspecified_type:
+        dwarf2_parse_unspecified_type(ctx, di);
+	break;
     case DW_TAG_reference_type:
         dwarf2_parse_reference_type(ctx, di);
         break;

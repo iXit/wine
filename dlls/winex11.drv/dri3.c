@@ -327,7 +327,7 @@ static void PRESENTForceReleases(PRESENTpriv *present_priv)
         /* the problem here is that we don't have access to the event the other thread got.
          * It is either presented event, idle event or notify event.
          */
-        while (present_priv->pixmap_present_pending >= 1)
+        while (present_priv->pixmap_present_pending >= 2)
             PRESENTwait_events(present_priv, FALSE);
         PRESENTflush_events(present_priv, TRUE);
         /* Remaining events to come can be a pair of present/idle,
@@ -476,7 +476,7 @@ PRESENTTryFreePixmap(PRESENTPixmapPriv *present_pixmap_priv)
 
     pthread_mutex_lock(&present_priv->mutex_present);
 
-    if (!present_pixmap_priv->released) {
+    if (!present_pixmap_priv->released || present_pixmap_priv->present_complete_pending) {
         pthread_mutex_unlock(&present_priv->mutex_present);
         return FALSE;
     }
@@ -561,6 +561,11 @@ PRESENTPixmap(Display *dpy, XID window,
     }
 
     PRESENTflush_events(present_priv, FALSE);
+    if (!present_pixmap_priv->released || present_pixmap_priv->present_complete_pending) {
+        ERR("FATAL ERROR: Trying to Present a pixmap not released\n");
+        pthread_mutex_unlock(&present_priv->mutex_present);
+        return FALSE;
+    }
 
     /* workaround an libxcb bug: xcb_request_check won't work
      * if a thread is listening the special queue. So wake the
@@ -710,7 +715,7 @@ PRESENTWaitPixmapReleased(PRESENTPixmapPriv *present_pixmap_priv)
 
     PRESENTflush_events(present_priv, FALSE);
 
-    while (!present_pixmap_priv->released) {
+    while (!present_pixmap_priv->released || present_pixmap_priv->present_complete_pending) {
         /* Note: following if should not happen because we'll never
          * use two PRESENTWaitPixmapReleased in parallels on same window.
          * However it would make it work in that case */

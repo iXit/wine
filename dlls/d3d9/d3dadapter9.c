@@ -398,6 +398,16 @@ d3dadapter9_GetAdapterMonitor( struct d3dadapter9 *This,
 }
 
 static HRESULT WINAPI
+d3dadapter9_CreateDeviceEx( struct d3dadapter9 *This,
+                            UINT Adapter,
+                            D3DDEVTYPE DeviceType,
+                            HWND hFocusWindow,
+                            DWORD BehaviorFlags,
+                            D3DPRESENT_PARAMETERS *pPresentationParameters,
+                            D3DDISPLAYMODEEX *pFullscreenDisplayMode,
+                            IDirect3DDevice9Ex **ppReturnedDeviceInterface );
+
+static HRESULT WINAPI
 d3dadapter9_CreateDevice( struct d3dadapter9 *This,
                           UINT Adapter,
                           D3DDEVTYPE DeviceType,
@@ -406,53 +416,14 @@ d3dadapter9_CreateDevice( struct d3dadapter9 *This,
                           D3DPRESENT_PARAMETERS *pPresentationParameters,
                           IDirect3DDevice9 **ppReturnedDeviceInterface )
 {
-    ID3DPresentGroup *present;
     HRESULT hr;
-
-    if (Adapter >= d3dadapter9_GetAdapterCount(This)) {
-        WARN("Adapter %u does not exist.\n", Adapter);
-        return D3DERR_INVALIDCALL;
-    }
-
-    {
-        struct adapter_group *group = &ADAPTER_GROUP;
-        unsigned nparams, ordinal;
-
-        if (BehaviorFlags & D3DCREATE_ADAPTERGROUP_DEVICE) {
-            nparams = group->noutputs;
-            ordinal = 0;
-        } else {
-            nparams = 1;
-            ordinal = Adapter - This->map[Adapter].master;
-        }
-        hr = This->funcs->create_present_group(group->devname, ordinal,
-                                               hFocusWindow,
-                                               pPresentationParameters,
-                                               nparams, &present);
-    }
-
-    if (FAILED(hr)) {
-        WARN("Failed to create PresentGroup.\n");
+    hr = d3dadapter9_CreateDeviceEx(This, Adapter, DeviceType, hFocusWindow,
+                                    BehaviorFlags, pPresentationParameters,
+                                    NULL,
+                                    (IDirect3DDevice9Ex **)ppReturnedDeviceInterface);
+    if (FAILED(hr))
         return hr;
-    }
-
-    /* Looks like you should get a DeviceEx even if you don't call
-     * CreateDeviceEx. */
-    if (This->ex) {
-        hr = ADAPTER_PROC(CreateDeviceEx, Adapter, DeviceType, hFocusWindow,
-                          BehaviorFlags, (IDirect3D9Ex *)This, present,
-                          (IDirect3DDevice9Ex **)ppReturnedDeviceInterface);
-    } else {
-        hr = ADAPTER_PROC(CreateDevice, Adapter, DeviceType, hFocusWindow,
-                          BehaviorFlags, (IDirect3D9 *)This, present,
-                          ppReturnedDeviceInterface);
-    }
-    if (FAILED(hr)) {
-        WARN("ADAPTER_PROC failed.\n");
-        ID3DPresentGroup_Release(present);
-    }
-
-    return hr;
+    return D3D_OK;
 }
 
 static UINT WINAPI
@@ -494,14 +465,52 @@ d3dadapter9_CreateDeviceEx( struct d3dadapter9 *This,
                             D3DDISPLAYMODEEX *pFullscreenDisplayMode,
                             IDirect3DDevice9Ex **ppReturnedDeviceInterface )
 {
+    ID3DPresentGroup *present;
     HRESULT hr;
-    hr = d3dadapter9_CreateDevice(This, Adapter, DeviceType, hFocusWindow,
-                                  BehaviorFlags, pPresentationParameters,
-                                  (IDirect3DDevice9 **)ppReturnedDeviceInterface);
-    if (FAILED(hr))
+
+    if (Adapter >= d3dadapter9_GetAdapterCount(This)) {
+        WARN("Adapter %u does not exist.\n", Adapter);
+        return D3DERR_INVALIDCALL;
+    }
+
+    {
+        struct adapter_group *group = &ADAPTER_GROUP;
+        unsigned nparams, ordinal;
+
+        if (BehaviorFlags & D3DCREATE_ADAPTERGROUP_DEVICE) {
+            nparams = group->noutputs;
+            ordinal = 0;
+        } else {
+            nparams = 1;
+            ordinal = Adapter - This->map[Adapter].master;
+        }
+        hr = This->funcs->create_present_group(group->devname, ordinal,
+                                               hFocusWindow,
+                                               pPresentationParameters,
+                                               nparams, &present);
+    }
+
+    if (FAILED(hr)) {
+        WARN("Failed to create PresentGroup.\n");
         return hr;
-    WARN("ignoring pFullscreenDisplayMode: %p\n", pFullscreenDisplayMode);
-    return D3D_OK;
+    }
+
+    if (This->ex) {
+        hr = ADAPTER_PROC(CreateDeviceEx, Adapter, DeviceType, hFocusWindow,
+                          BehaviorFlags, pFullscreenDisplayMode,
+                          (IDirect3D9Ex *)This, present,
+                          ppReturnedDeviceInterface);
+    } else { /* CreateDevice on non-ex */
+        hr = ADAPTER_PROC(CreateDevice, Adapter, DeviceType, hFocusWindow,
+                          BehaviorFlags, (IDirect3D9 *)This, present,
+                          (IDirect3DDevice9 **)ppReturnedDeviceInterface);
+    }
+    if (FAILED(hr)) {
+        WARN("ADAPTER_PROC failed.\n");
+        ID3DPresentGroup_Release(present);
+    }
+
+    return hr;
 }
 
 static HRESULT WINAPI

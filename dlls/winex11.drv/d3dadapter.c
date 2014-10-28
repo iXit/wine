@@ -253,8 +253,11 @@ DRI3Present_ChangePresentParameters( struct DRI3Present *This,
 
 static HRESULT WINAPI
 DRI3Present_SetPresentParameters( struct DRI3Present *This,
-                                  D3DPRESENT_PARAMETERS *pPresentationParameters )
+                                  D3DPRESENT_PARAMETERS *pPresentationParameters,
+                                  D3DDISPLAYMODEEX *pFullscreenDisplayMode )
 {
+    if (pFullscreenDisplayMode)
+        WARN("Ignoring pFullscreenDisplayMode\n");
     DRI3Present_ChangePresentParameters(This, pPresentationParameters, FALSE);
     return D3D_OK;
 }

@@ -557,7 +557,7 @@ DRI3Present_ChangePresentParameters( struct DRI3Present *This,
     HWND draw_window;
     RECT rect;
 
-    (void) first_time; /* will be used to manage screen res if windowed mode change /*
+    (void) first_time; /* will be used to manage screen res if windowed mode change */
     /* TODO: don't do anything if nothing changed */
     /* sanitize presentation parameters */
     draw_window = params->hDeviceWindow ? params->hDeviceWindow : This->focus_wnd;

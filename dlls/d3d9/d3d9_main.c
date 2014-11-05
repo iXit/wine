@@ -72,7 +72,7 @@ static BOOL try_native(void)
 
     if (!data)
         FIXME("\033[1;33m\nNative Direct3D 9 is disabled."
-	      "\nFor more informations visit https://wiki.ixit.cz/d3d9\n\033[0m");
+	      "\nFor more information visit https://wiki.ixit.cz/d3d9\n\033[0m");
 
     return data ? TRUE : FALSE;
 }

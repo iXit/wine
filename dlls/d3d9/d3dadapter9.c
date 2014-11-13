@@ -497,12 +497,14 @@ d3dadapter9_CreateDeviceEx( struct d3dadapter9 *This,
 
     if (This->ex) {
         hr = ADAPTER_PROC(CreateDeviceEx, Adapter, DeviceType, hFocusWindow,
-                          BehaviorFlags, pFullscreenDisplayMode,
+                          BehaviorFlags, pPresentationParameters,
+                          pFullscreenDisplayMode,
                           (IDirect3D9Ex *)This, present,
                           ppReturnedDeviceInterface);
     } else { /* CreateDevice on non-ex */
         hr = ADAPTER_PROC(CreateDevice, Adapter, DeviceType, hFocusWindow,
-                          BehaviorFlags, (IDirect3D9 *)This, present,
+                          BehaviorFlags, pPresentationParameters,
+                          (IDirect3D9 *)This, present,
                           (IDirect3DDevice9 **)ppReturnedDeviceInterface);
     }
     if (FAILED(hr)) {

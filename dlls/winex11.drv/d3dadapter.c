@@ -238,14 +238,6 @@ DRI3Present_QueryInterface( struct DRI3Present *This,
     return E_NOINTERFACE;
 }
 
-static HRESULT WINAPI
-DRI3Present_GetPresentParameters( struct DRI3Present *This,
-                                  D3DPRESENT_PARAMETERS *pPresentationParameters )
-{
-    *pPresentationParameters = This->params;
-    return D3D_OK;
-}
-
 static void
 DRI3Present_ChangePresentParameters( struct DRI3Present *This,
                                     D3DPRESENT_PARAMETERS *params,
@@ -532,7 +524,6 @@ static ID3DPresentVtbl DRI3Present_vtable = {
     (void *)DRI3Present_QueryInterface,
     (void *)DRI3Present_AddRef,
     (void *)DRI3Present_Release,
-    (void *)DRI3Present_GetPresentParameters,
     (void *)DRI3Present_SetPresentParameters,
     (void *)DRI3Present_D3DWindowBufferFromDmaBuf,
     (void *)DRI3Present_DestroyD3DWindowBuffer,

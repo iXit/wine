@@ -10255,11 +10255,11 @@ msgstr "A Hora Atual é %1\n"
 
 #: cmd.rc:335
 msgid "Enter new date: "
-msgstr "Entre nova data: "
+msgstr "Insira uma nova data: "
 
 #: cmd.rc:336
 msgid "Enter new time: "
-msgstr "Entre nova hora: "
+msgstr "Insira uma nova hora: "
 
 #: cmd.rc:337
 msgid "Environment variable %1 not defined\n"
@@ -14593,7 +14593,7 @@ msgid ""
 msgstr ""
 "'%1' é um arquivo ou diretório\n"
 "no alvo?\n"
-"(A - Arquivo, D - Diretório)\n"
+"(F - Arquivo, D - Diretório)\n"
 
 #: xcopy.rc:38
 msgid "%1? (Yes|No)\n"

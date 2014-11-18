@@ -4,6 +4,9 @@
 #define __WINE_CONFIG_H
 #ifndef WINE_CROSSTEST
 
+/* "module dir" */
+#undef D3D_MODULE_DIR
+
 /* Define to a function attribute for Microsoft hotpatch assembly prefix. */
 #undef DECLSPEC_HOTPATCH
 
@@ -1317,6 +1320,9 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* "temporary hack" */
+#undef SONAME_D3DADAPTER9
+
 /* Define to the soname of the libcapi20 library. */
 #undef SONAME_LIBCAPI20
 
@@ -1325,9 +1331,6 @@
 
 /* Define to the soname of the libcurses library. */
 #undef SONAME_LIBCURSES
-
-/* Define to the soname of the libd3dadapter9 library. */
-#undef SONAME_LIBD3DADAPTER9
 
 /* Define to the soname of the libdbus-1 library. */
 #undef SONAME_LIBDBUS_1

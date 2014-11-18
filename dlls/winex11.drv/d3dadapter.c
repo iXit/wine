@@ -26,9 +26,12 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(d3dadapter);
 
-#if defined(SONAME_LIBXEXT) && \
-    defined(SONAME_LIBXFIXES) && \
-    defined(SONAME_LIBD3DADAPTER9)
+// XXX: Hack alert
+//#if defined(SONAME_LIBXEXT) && \
+//    defined(SONAME_LIBXFIXES) && \
+//    defined(SONAME_LIBD3DADAPTER9)
+#define SONAME_LIBD3DADAPTER9 "d3dadapter9.so.1"
+// XXX: ^^ is still a hack
 
 #include "wine/d3dadapter.h"
 #include "wine/library.h"
@@ -845,7 +848,11 @@ has_d3dadapter( void )
         return FALSE;
     }
 
-    handle = wine_dlopen(SONAME_LIBD3DADAPTER9, RTLD_GLOBAL|RTLD_NOW,
+// XXX: Hack alert
+// TODO: Set a define for the module path, which is set in configure.ac by
+// the value of pkg-config --variable=moduledir d3d
+//    handle = wine_dlopen(SONAME_LIBD3DADAPTER9, RTLD_GLOBAL|RTLD_NOW,
+    handle = wine_dlopen("/usr/lib/d3d/" SONAME_LIBD3DADAPTER9, RTLD_GLOBAL|RTLD_NOW,
                          errbuf, sizeof(errbuf));
     if (!handle) {
         ERR("Failed to load %s: %s\n", SONAME_LIBD3DADAPTER9, errbuf);
@@ -922,9 +929,11 @@ get_d3d_dri3_driver(UINT version)
     return NULL;
 }
 
-#else /* defined(SONAME_LIBXEXT) && \
-         defined(SONAME_LIBXFIXES) && \
-         defined(SONAME_LIBD3DADAPTER9) */
+// XXX: Hack alert
+//#else /* defined(SONAME_LIBXEXT) && \
+//         defined(SONAME_LIBXFIXES) && \
+//         defined(SONAME_LIBD3DADAPTER9) */
+#if 0
 
 struct d3dadapter_funcs;
 
@@ -947,6 +956,8 @@ get_d3d_dri3_driver(UINT version)
     return NULL;
 }
 
-#endif /* defined(SONAME_LIBXEXT) && \
-          defined(SONAME_LIBXFIXES) && \
-          defined(SONAME_LIBD3DADAPTER9) */
+// XXX: Hack alert
+//#endif /* defined(SONAME_LIBXEXT) && \
+//          defined(SONAME_LIBXFIXES) && \
+//          defined(SONAME_LIBD3DADAPTER9) */
+#endif

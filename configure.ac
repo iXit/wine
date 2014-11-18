@@ -1261,12 +1261,14 @@ This probably prevents linking to OpenGL. Try deleting the file and restarting c
     WINE_WARNING_WITH(opengl,[test -n "$opengl_msg"],[$opengl_msg
 OpenGL and Direct3D won't be supported.])
 
-    dnl Check for libd3dadapter9
+    dnl Check for d3dadapter9
     if test "x$with_d3dadapter" != "xno"
     then
-        WINE_CHECK_SONAME(d3dadapter9,D3DAdapter9GetProc)
-        WINE_NOTICE_WITH(d3dadapter9,[test "x$ac_cv_lib_soname_d3dadapter9" = "x"],
-                         [libd3dadapter9 ${notice_platform}development files not found. Native Direct3D9 won't be supported.])
+           AC_MSG_WARN([XXX: Do we really need to check for the module?])
+           AC_MSG_WARN([XXX: use `pkg-config --variable=moduledir d3d` to get the module location])
+dnl        WINE_CHECK_SONAME(d3dadapter9,D3DAdapter9GetProc)
+dnl        WINE_NOTICE_WITH(d3dadapter9,[test "x$ac_cv_lib_soname_d3dadapter9" = "x"],
+dnl                         [libd3dadapter9 ${notice_platform}development files not found. Native Direct3D9 won't be supported.])
     fi
 
     CPPFLAGS="$ac_save_CPPFLAGS"

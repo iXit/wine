@@ -24,7 +24,7 @@
 
 #include <d3d9.h>
 
-#ifdef SONAME_LIBD3DADAPTER9
+#ifdef SONAME_D3DADAPTER9
 
 #include "wine/d3dadapter.h"
 #include "wine/gdi_driver.h"
@@ -934,4 +934,4 @@ d3dadapter9_destroy( HINSTANCE hinst )
 {
 }
 
-#endif /* SONAME_LIBD3DADAPTER9 */
+#endif /* SONAME_D3DADAPTER9 */

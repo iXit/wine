@@ -677,6 +677,8 @@ XSLT_CFLAGS
 XML2_LIBS
 XML2_CFLAGS
 LIBPCAP
+D3D_LIBS
+D3D_CFLAGS
 X_EXTRA_LIBS
 X_LIBS
 X_PRE_LIBS
@@ -10575,7 +10577,7 @@ if ac_fn_c_try_link "$LINENO"; then :
     dll) ac_cv_lib_soname_Xfixes=`$ac_cv_path_LDD conftest.exe | grep "Xfixes" | sed -e "s/dll.*/dll/"';2,$d'` ;;
     dylib) ac_cv_lib_soname_Xfixes=`otool -L conftest$ac_exeext | grep "libXfixes\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXfixes\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_Xfixes=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libXfixes\\.$LIBEXT" | sed -e "s/^.*\\[\\(libXfixes\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
-       if test "x$ac_cv_lib_soname_Xfixes" = x; then :
+       if ${ac_cv_lib_soname_Xfixes:+false} :; then :
   ac_cv_lib_soname_Xfixes=`$LDD conftest$ac_exeext | grep "libXfixes\\.$LIBEXT" | sed -e "s/^.*\(libXfixes\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
 fi ;;
   esac
@@ -10584,7 +10586,7 @@ rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
   LIBS=$ac_check_soname_save_LIBS
 fi
-if test "x$ac_cv_lib_soname_Xfixes" = "x"; then :
+if ${ac_cv_lib_soname_Xfixes:+false} :; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
 $as_echo "not found" >&6; }
 
@@ -10879,67 +10881,18 @@ fi
 
         if test "x$with_d3dadapter" != "xno"
     then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -ld3dadapter9" >&5
-$as_echo_n "checking for -ld3dadapter9... " >&6; }
-if ${ac_cv_lib_soname_d3dadapter9+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_soname_save_LIBS=$LIBS
-LIBS="-ld3dadapter9  $LIBS"
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
+         D3D_CFLAGS=`pkg-config --cflags d3d`
+         D3D_LIBS=`pkg-config --libs d3d`
 
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char D3DAdapter9GetProc ();
-int
-main ()
-{
-return D3DAdapter9GetProc ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  case "$LIBEXT" in
-    dll) ac_cv_lib_soname_d3dadapter9=`$ac_cv_path_LDD conftest.exe | grep "d3dadapter9" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_d3dadapter9=`otool -L conftest$ac_exeext | grep "libd3dadapter9\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libd3dadapter9\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
-    *) ac_cv_lib_soname_d3dadapter9=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libd3dadapter9\\.$LIBEXT" | sed -e "s/^.*\\[\\(libd3dadapter9\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
-       if test "x$ac_cv_lib_soname_d3dadapter9" = x; then :
-  ac_cv_lib_soname_d3dadapter9=`$LDD conftest$ac_exeext | grep "libd3dadapter9\\.$LIBEXT" | sed -e "s/^.*\(libd3dadapter9\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
-fi ;;
-  esac
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-  LIBS=$ac_check_soname_save_LIBS
-fi
-if test "x$ac_cv_lib_soname_d3dadapter9" = "x"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
-$as_echo "not found" >&6; }
 
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_d3dadapter9" >&5
-$as_echo "$ac_cv_lib_soname_d3dadapter9" >&6; }
+
+$as_echo "#define SONAME_D3DADAPTER9 \"d3dadapter9.so.1\"" >>confdefs.h
+
 
 cat >>confdefs.h <<_ACEOF
-#define SONAME_LIBD3DADAPTER9 "$ac_cv_lib_soname_d3dadapter9"
+#define D3D_MODULE_DIR "`pkg-config --variable=moduledir d3d`"
 _ACEOF
 
-
-fi
-        if test "x$ac_cv_lib_soname_d3dadapter9" = "x"; then :
-  case "x$with_d3dadapter9" in
-  x)   as_fn_append wine_notices "|libd3dadapter9 ${notice_platform}development files not found. Native Direct3D9 won't be supported." ;;
-  xno) ;;
-  *)   as_fn_error $? "libd3dadapter9 ${notice_platform}development files not found. Native Direct3D9 won't be supported.
-This is an error since --with-d3dadapter9 was requested." "$LINENO" 5 ;;
-esac
-fi
     fi
 
     CPPFLAGS="$ac_save_CPPFLAGS"
@@ -17213,6 +17166,8 @@ X_CFLAGS = $X_CFLAGS
 X_PRE_LIBS = $X_PRE_LIBS
 X_LIBS = $X_LIBS
 X_EXTRA_LIBS = $X_EXTRA_LIBS
+D3D_CFLAGS = $D3D_CFLAGS
+D3D_LIBS = $D3D_LIBS
 XML2_CFLAGS = $XML2_CFLAGS
 XML2_LIBS = $XML2_LIBS
 XSLT_CFLAGS = $XSLT_CFLAGS

@@ -852,7 +852,7 @@ has_d3dadapter( void )
 // TODO: Set a define for the module path, which is set in configure.ac by
 // the value of pkg-config --variable=moduledir d3d
 //    handle = wine_dlopen(SONAME_LIBD3DADAPTER9, RTLD_GLOBAL|RTLD_NOW,
-    handle = wine_dlopen("/usr/lib/d3d/" SONAME_LIBD3DADAPTER9, RTLD_GLOBAL|RTLD_NOW,
+    handle = wine_dlopen("/usr/lib32/d3d/" SONAME_LIBD3DADAPTER9, RTLD_GLOBAL|RTLD_NOW,
                          errbuf, sizeof(errbuf));
     if (!handle) {
         ERR("Failed to load %s: %s\n", SONAME_LIBD3DADAPTER9, errbuf);

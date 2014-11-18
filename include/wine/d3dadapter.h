@@ -25,7 +25,7 @@
 # error You must include config.h to use this header
 #endif
 
-#ifdef SONAME_LIBD3DADAPTER9
+#ifdef SONAME_D3DADAPTER9
 
 #include <d3dadapter/d3dadapter9.h>
 
@@ -37,6 +37,6 @@ struct d3dadapter_funcs
     HRESULT (*create_adapter9)(HDC hdc, ID3DAdapter9 **adapter);
 };
 
-#endif /* SONAME_LIBD3DADAPTER9 */
+#endif /* SONAME_D3DADAPTER9 */
 
 #endif /* __WINE_D3DADAPTER_H */

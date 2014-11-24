@@ -896,7 +896,7 @@ has_d3dadapter( void )
 
 cleanup:
     ERR("\033[1;31m\nNative Direct3D 9 will be unavailable."
-        "\nFor more information visit https://wiki.ixit.cz/d3d9\n\033[0m");
+        "\nFor more information visit https://wiki.ixit.cz/d3d9\033[0m\n");
     if (handle) {
         wine_dlclose(handle, NULL, 0);
         handle = NULL;
@@ -937,7 +937,7 @@ static BOOL
 has_d3dadapter( void )
 {
     FIXME("\033[0;31m\nWine source code has been compiled without native Direct3D 9 support."
-          "a\nFor more information visit https://wiki.ixit.cz/d3d9\n\033[0m");
+          "a\nFor more information visit https://wiki.ixit.cz/d3d9\033[0m\n");
     return FALSE;
 }
 

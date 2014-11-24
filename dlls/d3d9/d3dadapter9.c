@@ -24,8 +24,7 @@
 
 #include <d3d9.h>
 
-// XXX: Hack alert
-//#ifdef SONAME_LIBD3DADAPTER9
+#ifdef SONAME_D3DADAPTER9
 
 #include "wine/d3dadapter.h"
 #include "wine/gdi_driver.h"
@@ -916,9 +915,7 @@ d3dadapter9_new( boolean ex,
     return D3D_OK;
 }
 
-// XXX: Hack alert
-//#else
-#if 0
+#else
 
 HRESULT
 d3dadapter9_new( boolean ex,
@@ -937,6 +934,4 @@ d3dadapter9_destroy( HINSTANCE hinst )
 {
 }
 
-// XXX: Hack alert
-//#endif /* SONAME_LIBD3DADAPTER9 */
-#endif /* 0 */
+#endif /* SONAME_D3DADAPTER9 */

@@ -26,12 +26,9 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(d3dadapter);
 
-// XXX: Hack alert
-//#if defined(SONAME_LIBXEXT) && \
-//    defined(SONAME_LIBXFIXES) && \
-//    defined(SONAME_LIBD3DADAPTER9)
-#define SONAME_LIBD3DADAPTER9 "d3dadapter9.so.1"
-// XXX: ^^ is still a hack
+#if defined(SONAME_LIBXEXT) && \
+    defined(SONAME_LIBXFIXES) && \
+    defined(SONAME_D3DADAPTER9)
 
 #include "wine/d3dadapter.h"
 #include "wine/library.h"
@@ -844,27 +841,23 @@ has_d3dadapter( void )
 
     /*  */
     if (!usexfixes) {
-        ERR("%s needs Xfixes.\n", SONAME_LIBD3DADAPTER9);
+        ERR("%s needs Xfixes.\n", SONAME_D3DADAPTER9);
         return FALSE;
     }
 
-// XXX: Hack alert
-// TODO: Set a define for the module path, which is set in configure.ac by
-// the value of pkg-config --variable=moduledir d3d
-//    handle = wine_dlopen(SONAME_LIBD3DADAPTER9, RTLD_GLOBAL|RTLD_NOW,
-    handle = wine_dlopen("/usr/lib32/d3d/" SONAME_LIBD3DADAPTER9, RTLD_GLOBAL|RTLD_NOW,
-                         errbuf, sizeof(errbuf));
+    handle = wine_dlopen(D3D_MODULE_DIR "/" SONAME_D3DADAPTER9,
+                         RTLD_GLOBAL | RTLD_NOW, errbuf, sizeof(errbuf));
     if (!handle) {
-        ERR("Failed to load %s: %s\n", SONAME_LIBD3DADAPTER9, errbuf);
+        ERR("Failed to load %s: %s\n", SONAME_D3DADAPTER9, errbuf);
         goto cleanup;
     }
 
-    /* find our entry point in libd3dadapter9 */
+    /* find our entry point in d3dadapter9 */
     pD3DAdapter9GetProc = wine_dlsym(handle, "D3DAdapter9GetProc",
                                      errbuf, sizeof(errbuf));
     if (!pD3DAdapter9GetProc) {
         ERR("Failed to get the entry point from %s: %s",
-            SONAME_LIBD3DADAPTER9, errbuf);
+            SONAME_D3DADAPTER9, errbuf);
         goto cleanup;
     }
 
@@ -872,14 +865,14 @@ has_d3dadapter( void )
     d3d9_drm = pD3DAdapter9GetProc(D3DADAPTER9DRM_NAME);
     if (!d3d9_drm) {
         ERR("%s doesn't support the `%s' backend.\n",
-            SONAME_LIBD3DADAPTER9, D3DADAPTER9DRM_NAME);
+            SONAME_D3DADAPTER9, D3DADAPTER9DRM_NAME);
         goto cleanup;
     }
 
     /* verify that we're binary compatible */
     if (d3d9_drm->major_version != D3DADAPTER9DRM_MAJOR) {
         ERR("Version mismatch. %s has %d.%d, was expecting %d.x\n",
-            SONAME_LIBD3DADAPTER9, d3d9_drm->major_version,
+            SONAME_D3DADAPTER9, d3d9_drm->major_version,
             d3d9_drm->minor_version, D3DADAPTER9DRM_MAJOR);
         goto cleanup;
     }
@@ -929,11 +922,9 @@ get_d3d_dri3_driver(UINT version)
     return NULL;
 }
 
-// XXX: Hack alert
-//#else /* defined(SONAME_LIBXEXT) && \
-//         defined(SONAME_LIBXFIXES) && \
-//         defined(SONAME_LIBD3DADAPTER9) */
-#if 0
+#else /* defined(SONAME_LIBXEXT) && \
+         defined(SONAME_LIBXFIXES) && \
+         defined(SONAME_D3DADAPTER9) */
 
 struct d3dadapter_funcs;
 
@@ -946,7 +937,7 @@ static BOOL
 has_d3dadapter( void )
 {
     FIXME("\033[0;31m\nWine source code has been compiled without native Direct3D 9 support."
-          "\nFor more information visit https://wiki.ixit.cz/d3d9\n\033[0m");
+          "a\nFor more information visit https://wiki.ixit.cz/d3d9\n\033[0m");
     return FALSE;
 }
 
@@ -956,8 +947,6 @@ get_d3d_dri3_driver(UINT version)
     return NULL;
 }
 
-// XXX: Hack alert
-//#endif /* defined(SONAME_LIBXEXT) && \
-//          defined(SONAME_LIBXFIXES) && \
-//          defined(SONAME_LIBD3DADAPTER9) */
-#endif
+#endif /* defined(SONAME_LIBXEXT) && \
+          defined(SONAME_LIBXFIXES) && \
+          defined(SONAME_D3DADAPTER9) */

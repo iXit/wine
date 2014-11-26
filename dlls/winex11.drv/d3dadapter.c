@@ -713,8 +713,10 @@ DRI3PresentGroup_CreateAdditionalPresent( struct DRI3PresentGroup *This,
                                           D3DPRESENT_PARAMETERS *pPresentationParameters,
                                           ID3DPresent **ppPresent )
 {
-    FIXME("(%p, %p, %p), stub!\n", This, pPresentationParameters, ppPresent);
-    return D3DERR_INVALIDCALL;
+    HRESULT hr;
+    hr = DRI3Present_new(gdi_display, This->present_backends[0]->devname,
+                         pPresentationParameters, 0, (struct DRI3Present **)ppPresent);
+    return hr;
 }
 
 static void WINAPI

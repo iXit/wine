@@ -715,6 +715,7 @@ DLLFLAGS
 DLLPREFIX
 dlldir
 CPP
+D3DADAPTER9_LIBS
 OPENGL_LIBS
 ICOTOOL
 CONVERT
@@ -826,6 +827,7 @@ with_openal
 with_opencl
 with_opengl
 with_d3dadapter
+with_d3dadapter_dri2_fallback
 with_osmesa
 with_oss
 with_pcap
@@ -2161,6 +2163,8 @@ Optional Packages:
   --without-opencl        do not use OpenCL
   --without-opengl        do not use OpenGL
   --without-d3dadapter    do not use native Direct3D
+  --without-d3dadapter-dri2-fallback
+                          add a DRI2 fallback to d3dadapter DRI3 code
   --without-osmesa        do not use the OSMesa library
   --without-oss           do not use the OSS sound support
   --without-pcap          do not use the Packet Capture library
@@ -3387,6 +3391,12 @@ fi
 # Check whether --with-d3dadapter was given.
 if test "${with_d3dadapter+set}" = set; then :
   withval=$with_d3dadapter;
+fi
+
+
+# Check whether --with-d3dadapter-dri2-fallback was given.
+if test "${with_d3dadapter_dri2_fallback+set}" = set; then :
+  withval=$with_d3dadapter_dri2_fallback;
 fi
 
 
@@ -6141,6 +6151,9 @@ fi
 OPENGL_LIBS=""
 
 
+D3DADAPTER9_LIBS=""
+
+
 
 # Check whether --enable-largefile was given.
 if test "${enable_largefile+set}" = set; then :
@@ -6167,7 +6180,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6213,7 +6226,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6237,7 +6250,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6282,7 +6295,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6306,7 +6319,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -10845,6 +10858,8 @@ This is an error since --with-opengl was requested." "$LINENO" 5 ;;
 esac
 fi
 
+
+
         if test "x$with_d3dadapter" != "xno"
     then
          D3D_CFLAGS=`pkg-config --cflags d3d`
@@ -10859,6 +10874,133 @@ cat >>confdefs.h <<_ACEOF
 #define D3D_MODULE_DIR "`pkg-config --variable=moduledir d3d`"
 _ACEOF
 
+         D3DADAPTER9_LIBS="-lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread"
+         if test "x$D3DADAPTER9_LIBS" != "x-lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread"; then :
+  case "x$with_d3dadapter" in
+  xno) ;;
+  *)   as_fn_error $? "D3Dadapter9 requirements not met
+Use the --without-d3dadapter option if you really want this." "$LINENO" 5 ;;
+esac
+fi
+         if test "x$with_d3dadapter_dri2_fallback" != "xno"
+         then
+
+$as_echo "#define D3DADAPTER9_DRI2 1" >>confdefs.h
+
+             { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lGL" >&5
+$as_echo_n "checking for -lGL... " >&6; }
+if ${ac_cv_lib_soname_GL+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lGL  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char glGenFramebuffers ();
+int
+main ()
+{
+return glGenFramebuffers ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_GL=`$ac_cv_path_LDD conftest.exe | grep "GL" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_GL=`otool -L conftest$ac_exeext | grep "libGL\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libGL\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_GL=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libGL\\.$LIBEXT" | sed -e "s/^.*\\[\\(libGL\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_GL:+false} :; then :
+  ac_cv_lib_soname_GL=`$LDD conftest$ac_exeext | grep "libGL\\.$LIBEXT" | sed -e "s/^.*\(libGL\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_GL:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_GL" >&5
+$as_echo "$ac_cv_lib_soname_GL" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBGL "$ac_cv_lib_soname_GL"
+_ACEOF
+
+       D3DADAPTER9_LIBS="-lGL $D3DADAPTER9_LIBS"
+fi
+             { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lEGL" >&5
+$as_echo_n "checking for -lEGL... " >&6; }
+if ${ac_cv_lib_soname_EGL+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lEGL  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char eglCreateContext ();
+int
+main ()
+{
+return eglCreateContext ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_EGL=`$ac_cv_path_LDD conftest.exe | grep "EGL" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_EGL=`otool -L conftest$ac_exeext | grep "libEGL\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libEGL\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_EGL=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libEGL\\.$LIBEXT" | sed -e "s/^.*\\[\\(libEGL\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_EGL:+false} :; then :
+  ac_cv_lib_soname_EGL=`$LDD conftest$ac_exeext | grep "libEGL\\.$LIBEXT" | sed -e "s/^.*\(libEGL\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_EGL:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_EGL" >&5
+$as_echo "$ac_cv_lib_soname_EGL" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBEGL "$ac_cv_lib_soname_EGL"
+_ACEOF
+
+       D3DADAPTER9_LIBS="-lEGL $D3DADAPTER9_LIBS"
+fi
+             if test "x$D3DADAPTER9_LIBS" != "x-lEGL -lGL -lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread"; then :
+  case "x$with_d3dadapter" in
+  xno) ;;
+  *)   as_fn_error $? "D3Dadapter9 DRI2 fallback requirements not met
+Use the --without-d3dadapter option if you really want this." "$LINENO" 5 ;;
+esac
+fi
+         fi
     fi
 
     CPPFLAGS="$ac_save_CPPFLAGS"
@@ -17078,6 +17220,7 @@ ac_config_commands="$ac_config_commands include/stamp-h"
 $as_echo_n "creating Makefile rules..." >&6
 
 ALL_VARS_RULES="OPENGL_LIBS = $OPENGL_LIBS
+D3DADAPTER9_LIBS = $D3DADAPTER9_LIBS
 SOCKET_LIBS = $SOCKET_LIBS
 COREFOUNDATION_LIBS = $COREFOUNDATION_LIBS
 IOKIT_LIBS = $IOKIT_LIBS

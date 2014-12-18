@@ -54,6 +54,9 @@ WINE_DEFAULT_DEBUG_CHANNEL(d3dadapter);
 #define WINE_D3DADAPTER_DRIVER_PRESENT_VERSION_MINOR 0
 
 static const struct D3DAdapter9DRM *d3d9_drm = NULL;
+#ifdef D3DADAPTER9_DRI2
+static int is_dri2_fallback = 0;
+#endif
 
 static XContext d3d_hwnd_context;
 static CRITICAL_SECTION context_section;
@@ -86,6 +89,9 @@ struct DRI3Present
     D3DPRESENT_PARAMETERS params;
     HWND focus_wnd;
     PRESENTpriv *present_priv;
+#ifdef D3DADAPTER9_DRI2
+    struct DRI2priv *dri2_priv;
+#endif
 
     WCHAR devname[32];
     HCURSOR hCursor;
@@ -95,7 +101,6 @@ struct DRI3Present
 
 struct D3DWindowBuffer
 {
-    Pixmap pixmap;
     PRESENTPixmapPriv *present_pixmap_priv;
 };
 
@@ -213,6 +218,9 @@ DRI3Present_Release( struct DRI3Present *This )
         /* dtor */
         ChangeDisplaySettingsExW(This->devname, &(This->initial_mode), 0, CDS_FULLSCREEN, NULL);
         PRESENTDestroy(gdi_display, This->present_priv);
+#ifdef D3DADAPTER9_DRI2
+        DRI2FallbackDestroy(This->dri2_priv);
+#endif
         HeapFree(GetProcessHeap(), 0, This);
     }
     return refs;
@@ -249,7 +257,7 @@ DRI3Present_SetPresentParameters( struct DRI3Present *This,
                                   D3DDISPLAYMODEEX *pFullscreenDisplayMode )
 {
     if (pFullscreenDisplayMode)
-        WARN("Ignoring pFullscreenDisplayMode\n");
+        FIXME("Ignoring pFullscreenDisplayMode\n");
     DRI3Present_ChangePresentParameters(This, pPresentationParameters, FALSE);
     return D3D_OK;
 }
@@ -266,6 +274,17 @@ DRI3Present_D3DWindowBufferFromDmaBuf( struct DRI3Present *This,
 {
     Pixmap pixmap;
 
+#ifdef D3DADAPTER9_DRI2
+    if (is_dri2_fallback) {
+        *out = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+                    sizeof(struct D3DWindowBuffer));
+        DRI2FallbackPRESENTPixmap(This->present_priv, This->dri2_priv,
+                                  dmaBufFd, width, height, stride, depth,
+                                  bpp,
+                                  &((*out)->present_pixmap_priv));
+        return D3D_OK;
+    }
+#endif
     if (!DRI3PixmapFromDmaBuf(gdi_display, DefaultScreen(gdi_display),
                               dmaBufFd, width, height, stride, depth,
                               bpp, &pixmap ))
@@ -273,7 +292,6 @@ DRI3Present_D3DWindowBufferFromDmaBuf( struct DRI3Present *This,
 
     *out = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
                     sizeof(struct D3DWindowBuffer));
-    (*out)->pixmap = pixmap;
     PRESENTPixmapInit(This->present_priv, pixmap, &((*out)->present_pixmap_priv));
     return D3D_OK;
 }
@@ -285,7 +303,7 @@ DRI3Present_DestroyD3DWindowBuffer( struct DRI3Present *This,
     /* the pixmap is managed by the PRESENT backend.
      * But if it can delete it right away, we may have
      * better performance */
-    PRESENTTryFreePixmap(buffer->present_pixmap_priv);
+    PRESENTTryFreePixmap(gdi_display, buffer->present_pixmap_priv);
     HeapFree(GetProcessHeap(), 0, buffer);
     return D3D_OK;
 }
@@ -302,6 +320,10 @@ static HRESULT WINAPI
 DRI3Present_FrontBufferCopy( struct DRI3Present *This,
                              struct D3DWindowBuffer *buffer )
 {
+#ifdef D3DADAPTER9_DRI2
+    if (is_dri2_fallback)
+        return D3DERR_DRIVERINTERNALERROR;
+#endif
     /* TODO: use dc_rect */
     if (PRESENTHelperCopyFront(gdi_display, buffer->present_pixmap_priv))
         return D3D_OK;
@@ -624,7 +646,9 @@ DRI3Present_new( Display *dpy,
     DRI3Present_ChangePresentParameters(This, params, TRUE);
 
     PRESENTInit(dpy, &(This->present_priv));
-
+#ifdef D3DADAPTER9_DRI2
+    DRI2FallbackInit(dpy, &(This->dri2_priv));
+#endif
     *out = This;
 
     return D3D_OK;
@@ -802,23 +826,32 @@ dri3_create_adapter9( HDC hdc,
     int fd;
 
     if (!d3d9_drm) {
-        WARN("DRM drivers are not supported on your system.\n");
+        ERR("DRM drivers are not supported on your system.\n");
         return D3DERR_DRIVERINTERNALERROR;
     }
 
     if (ExtEscape(hdc, X11DRV_ESCAPE, sizeof(extesc), (LPCSTR)&extesc,
                   sizeof(extesc), (LPSTR)&extesc) <= 0) {
-        WARN("X11 drawable lookup failed (hdc=%p)\n", hdc);
+        ERR("X11 drawable lookup failed (hdc=%p)\n", hdc);
     }
 
+#ifdef D3DADAPTER9_DRI2
+    if (!is_dri2_fallback && !DRI3Open(gdi_display, DefaultScreen(gdi_display), &fd)) {
+#else
     if (!DRI3Open(gdi_display, DefaultScreen(gdi_display), &fd)) {
-        WARN("DRI3Open failed (fd=%d)\n", fd);
+#endif
+        ERR("DRI3Open failed (fd=%d)\n", fd);
         return D3DERR_DRIVERINTERNALERROR;
     }
-
+#ifdef D3DADAPTER9_DRI2
+    if (is_dri2_fallback && !DRI2FallbackOpen(gdi_display, DefaultScreen(gdi_display), &fd)) {
+        ERR("DRI2Open failed (fd=%d)\n", fd);
+        return D3DERR_DRIVERINTERNALERROR;
+    }
+#endif
     hr = d3d9_drm->create_adapter(fd, out);
     if (FAILED(hr)) {
-        WARN("Unable to create ID3DAdapter9 (fd=%d)\n", fd);
+        ERR("Unable to create ID3DAdapter9 (fd=%d)\n", fd);
         return hr;
     }
 
@@ -882,10 +915,23 @@ has_d3dadapter( void )
     /* this will be used to store d3d_drawables */
     d3d_hwnd_context = XUniqueContext();
 
-    if (!DRI3CheckExtension(gdi_display, 1, 0) ||
-        !PRESENTCheckExtension(gdi_display, 1, 0)) {
-        ERR("Unable to query DRI3 or PRESENT\n");
+    if (!PRESENTCheckExtension(gdi_display, 1, 0)) {
+        ERR("Unable to query PRESENT.\n");
         goto cleanup;
+    }
+
+    if (!DRI3CheckExtension(gdi_display, 1, 0)) {
+#ifndef D3DADAPTER9_DRI2
+        ERR("Unable to query DRI3.\n");
+        goto cleanup;
+#else
+        ERR("Unable to query DRI3. Trying DRI2 fallback (slower performance).\n");
+        is_dri2_fallback = 1;
+        if (!DRI2FallbackCheckSupport(gdi_display)) {
+            ERR("DRI2 fallback unsupported\n");
+            goto cleanup;
+        }
+#endif
     }
 
     /* query XFixes */

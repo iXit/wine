@@ -4,6 +4,9 @@
 #define __WINE_CONFIG_H
 #ifndef WINE_CROSSTEST
 
+/* Whether d3dadapter9 DRI2 fallback is compiled */
+#undef D3DADAPTER9_DRI2
+
 /* "module dir" */
 #undef D3D_MODULE_DIR
 
@@ -1346,6 +1349,9 @@
 
 /* Define to the soname of the libdbus-1 library. */
 #undef SONAME_LIBDBUS_1
+
+/* Define to the soname of the libEGL library. */
+#undef SONAME_LIBEGL
 
 /* Define to the soname of the libfontconfig library. */
 #undef SONAME_LIBFONTCONFIG

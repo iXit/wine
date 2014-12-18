@@ -66,6 +66,7 @@ AC_ARG_WITH(opencl,    AS_HELP_STRING([--without-opencl],[do not use OpenCL]),
             [if test "x$withval" = "xno"; then ac_cv_header_CL_cl_h=no; ac_cv_header_OpenCL_opencl_h=no; fi])
 AC_ARG_WITH(opengl,    AS_HELP_STRING([--without-opengl],[do not use OpenGL]))
 AC_ARG_WITH(d3dadapter,AS_HELP_STRING([--without-d3dadapter],[do not use native Direct3D]))
+AC_ARG_WITH(d3dadapter-dri2-fallback, AS_HELP_STRING([--without-d3dadapter-dri2-fallback],[add a DRI2 fallback to d3dadapter DRI3 code]))
 AC_ARG_WITH(osmesa,     AS_HELP_STRING([--without-osmesa],[do not use the OSMesa library]))
 AC_ARG_WITH(oss,       AS_HELP_STRING([--without-oss],[do not use the OSS sound support]))
 AC_ARG_WITH(pcap,      AS_HELP_STRING([--without-pcap],[do not use the Packet Capture library]),
@@ -380,6 +381,8 @@ dnl Check for -lossaudio for NetBSD
 AC_CHECK_LIB(ossaudio,_oss_ioctl)
 
 AC_SUBST(OPENGL_LIBS,"")
+
+AC_SUBST(D3DADAPTER9_LIBS,"")
 
 dnl **** Check for header files ****
 
@@ -1276,6 +1279,8 @@ This probably prevents linking to OpenGL. Try deleting the file and restarting c
     WINE_WARNING_WITH(opengl,[test -n "$opengl_msg"],[$opengl_msg
 OpenGL and Direct3D won't be supported.])
 
+
+
     dnl Check for d3dadapter
     if test "x$with_d3dadapter" != "xno"
     then
@@ -1285,6 +1290,15 @@ OpenGL and Direct3D won't be supported.])
          AC_SUBST(D3D_LIBS)
          AC_DEFINE(SONAME_D3DADAPTER9, ["d3dadapter9.so.1"], ["temporary hack"])
          AC_DEFINE_UNQUOTED(D3D_MODULE_DIR, ["`pkg-config --variable=moduledir d3d`"], ["module dir"])
+         D3DADAPTER9_LIBS="-lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread"
+         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread"],[D3Dadapter9 requirements not met])
+         if test "x$with_d3dadapter_dri2_fallback" != "xno"
+         then
+             AC_DEFINE(D3DADAPTER9_DRI2, 1, [Whether d3dadapter9 DRI2 fallback is compiled])
+             WINE_CHECK_SONAME(GL,glGenFramebuffers, [D3DADAPTER9_LIBS="-lGL $D3DADAPTER9_LIBS"])
+             WINE_CHECK_SONAME(EGL,eglCreateContext, [D3DADAPTER9_LIBS="-lEGL $D3DADAPTER9_LIBS"])
+             WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lEGL -lGL -lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread"],[D3Dadapter9 DRI2 fallback requirements not met])
+         fi
     fi
 
     CPPFLAGS="$ac_save_CPPFLAGS"

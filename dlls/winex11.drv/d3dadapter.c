@@ -219,7 +219,8 @@ DRI3Present_Release( struct DRI3Present *This )
         ChangeDisplaySettingsExW(This->devname, &(This->initial_mode), 0, CDS_FULLSCREEN, NULL);
         PRESENTDestroy(gdi_display, This->present_priv);
 #ifdef D3DADAPTER9_DRI2
-        DRI2FallbackDestroy(This->dri2_priv);
+        if (is_dri2_fallback)
+            DRI2FallbackDestroy(This->dri2_priv);
 #endif
         HeapFree(GetProcessHeap(), 0, This);
     }
@@ -647,7 +648,8 @@ DRI3Present_new( Display *dpy,
 
     PRESENTInit(dpy, &(This->present_priv));
 #ifdef D3DADAPTER9_DRI2
-    DRI2FallbackInit(dpy, &(This->dri2_priv));
+    if (is_dri2_fallback)
+        DRI2FallbackInit(dpy, &(This->dri2_priv));
 #endif
     *out = This;
 

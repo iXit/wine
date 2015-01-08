@@ -296,6 +296,7 @@ DRI3Open(Display *dpy, int screen, int *device_fd)
     fcntl(fd, F_SETFD, FD_CLOEXEC);
 
     *device_fd = fd;
+    free(reply);
 
     return TRUE;
 }

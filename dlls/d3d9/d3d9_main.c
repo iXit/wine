@@ -35,7 +35,7 @@ void WINAPI DebugSetMute(void) {
 
 static BOOL try_native(void)
 {
-    HKEY defkey, appkey;
+    HKEY defkey = 0, appkey = 0;
     DWORD type, data = 0;
     DWORD size = sizeof(DWORD);
     DWORD len;

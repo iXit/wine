@@ -597,6 +597,7 @@ DRI3Present_ChangePresentParameters( struct DRI3Present *This,
         newMode.dmPelsWidth = params->BackBufferWidth;
         newMode.dmPelsHeight = params->BackBufferHeight;
         newMode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT;
+        newMode.dmSize = sizeof(DEVMODEW);
         ChangeDisplaySettingsExW(This->devname, &newMode, 0, CDS_FULLSCREEN, NULL);
 
         style = fullscreen_style(0);

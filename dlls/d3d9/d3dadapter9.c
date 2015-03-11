@@ -215,10 +215,16 @@ d3dadapter9_GetAdapterIdentifier( struct d3dadapter9 *This,
             DWORD type, data;
             DWORD size = sizeof(DWORD);
 
-            if (!RegQueryValueExA(regkey, "VideoPciDeviceID", 0, &type, (BYTE *)&data, &size) && (type == REG_DWORD))
+            if (!RegQueryValueExA(regkey, "VideoPciDeviceID", 0, &type, (BYTE *)&data, &size) && (type == REG_DWORD) && (size == sizeof(DWORD)))
                 pIdentifier->DeviceId = data;
-            if (!RegQueryValueExA(regkey, "VideoPciVendorID", 0, &type, (BYTE *)&data, &size) && (type == REG_DWORD))
+            if(size != sizeof(DWORD)) {
+		ERR("VideoPciDeviceID is not a DWORD\n");
+		size = sizeof(DWORD);
+            }
+            if (!RegQueryValueExA(regkey, "VideoPciVendorID", 0, &type, (BYTE *)&data, &size) && (type == REG_DWORD) && (size == sizeof(DWORD)))
                 pIdentifier->VendorId = data;
+            if(size != sizeof(DWORD))
+                ERR("VideoPciVendorID is not a DWORD\n");
             RegCloseKey(regkey);
 
             TRACE("DeviceId:VendorId overridden: %04X:%04X\n", pIdentifier->DeviceId, pIdentifier->VendorId);

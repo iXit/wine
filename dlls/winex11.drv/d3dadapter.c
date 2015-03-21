@@ -437,10 +437,16 @@ DRI3Present_GetCursorPos( struct DRI3Present *This,
                           POINT *pPoint )
 {
     BOOL ok;
+    HWND draw_window;
+
     if (!pPoint)
         return D3DERR_INVALIDCALL;
+
+    draw_window = This->params.hDeviceWindow ?
+        This->params.hDeviceWindow : This->focus_wnd;
+
     ok = GetCursorPos(pPoint);
-    ok = ok && ScreenToClient(This->focus_wnd, pPoint);
+    ok = ok && ScreenToClient(draw_window, pPoint);
     return ok ? S_OK : D3DERR_DRIVERINTERNALERROR;
 }
 
@@ -448,11 +454,29 @@ static HRESULT WINAPI
 DRI3Present_SetCursorPos( struct DRI3Present *This,
                           POINT *pPoint )
 {
+    BOOL ok;
+    POINT real_pos;
+
     if (!pPoint)
         return D3DERR_INVALIDCALL;
-    return SetCursorPos(pPoint->x, pPoint->y);
+
+    ok = SetCursorPos(pPoint->x, pPoint->y);
+    if (!ok)
+        goto error;
+
+    ok = GetCursorPos(&real_pos);
+    if (!ok || real_pos.x != pPoint->x || real_pos.y != pPoint->y)
+        goto error;
+
+    return D3D_OK;
+
+error:
+    SetCursor(NULL); /* Hide cursor rather than put wrong pos */
+    return D3DERR_DRIVERINTERNALERROR;
 }
 
+
+/* Note: assuming 32x32 cursor */
 static HRESULT WINAPI
 DRI3Present_SetCursor( struct DRI3Present *This,
                        void *pBitmap,

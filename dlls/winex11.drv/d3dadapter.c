@@ -442,8 +442,8 @@ DRI3Present_GetCursorPos( struct DRI3Present *This,
     if (!pPoint)
         return D3DERR_INVALIDCALL;
 
-    draw_window = params->hDeviceWindow ?
-        params->hDeviceWindow : This->focus_wnd;
+    draw_window = This->params.hDeviceWindow ?
+        This->params.hDeviceWindow : This->focus_wnd;
 
     ok = GetCursorPos(pPoint);
     ok = ok && ScreenToClient(draw_window, pPoint);
@@ -464,8 +464,8 @@ DRI3Present_SetCursorPos( struct DRI3Present *This,
     if (!ok)
         goto error;
 
-    ok = GetCursorPos(&read_pos);
-    if (!ok || read_pos.x != pPoint.x || read_pos.y != pPoint.y)
+    ok = GetCursorPos(&real_pos);
+    if (!ok || real_pos.x != pPoint->x || real_pos.y != pPoint->y)
         goto error;
 
     return D3D_OK;

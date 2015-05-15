@@ -840,11 +840,14 @@ PRESENTDestroyPixmapContent(Display *dpy, PRESENTPixmapPriv *present_pixmap)
         EGLenum current_api;
         current_api = eglQueryAPI();
         eglBindAPI(EGL_OPENGL_API);
-        eglMakeCurrent(dri2_priv->display, EGL_NO_SURFACE, EGL_NO_SURFACE, dri2_priv->context);
-        glDeleteFramebuffers(1, &present_pixmap->dri2_info.fbo_read);
-        glDeleteFramebuffers(1, &present_pixmap->dri2_info.fbo_write);
-        glDeleteTextures(1, &present_pixmap->dri2_info.texture_read);
-        glDeleteTextures(1, &present_pixmap->dri2_info.texture_write);
+        if(eglMakeCurrent(dri2_priv->display, EGL_NO_SURFACE, EGL_NO_SURFACE, dri2_priv->context)) {
+            glDeleteFramebuffers(1, &present_pixmap->dri2_info.fbo_read);
+            glDeleteFramebuffers(1, &present_pixmap->dri2_info.fbo_write);
+            glDeleteTextures(1, &present_pixmap->dri2_info.texture_read);
+            glDeleteTextures(1, &present_pixmap->dri2_info.texture_write);
+        } else {
+            ERR("eglMakeCurrent failed with 0x%0X\n", eglGetError());
+        }
         eglMakeCurrent(dri2_priv->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         eglBindAPI(current_api);
     }
@@ -968,51 +971,52 @@ DRI2FallbackPRESENTPixmap(PRESENTpriv *present_priv, struct DRI2priv *dri2_priv,
         goto fail;
     close(fd);
 
-    eglMakeCurrent(dri2_priv->display, EGL_NO_SURFACE, EGL_NO_SURFACE, dri2_priv->context);
+    if(eglMakeCurrent(dri2_priv->display, EGL_NO_SURFACE, EGL_NO_SURFACE, dri2_priv->context)) {
+        glGenTextures(1, &texture_read);
+        glBindTexture(GL_TEXTURE_2D, texture_read);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        dri2_priv->glEGLImageTargetTexture2DOES_func(GL_TEXTURE_2D, image);
+        glGenFramebuffers(1, &fbo_read);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo_read);
+        glFramebufferTexture2D(GL_FRAMEBUFFER,
+                               GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_2D, texture_read,
+                               0);
+        status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (status != GL_FRAMEBUFFER_COMPLETE)
+            goto fail;
+        glBindTexture(GL_TEXTURE_2D, 0);
+        dri2_priv->eglDestroyImageKHR_func(dri2_priv->display, image);
 
-    glGenTextures(1, &texture_read);
-    glBindTexture(GL_TEXTURE_2D, texture_read);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    dri2_priv->glEGLImageTargetTexture2DOES_func(GL_TEXTURE_2D, image);
-    glGenFramebuffers(1, &fbo_read);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo_read);
-    glFramebufferTexture2D(GL_FRAMEBUFFER,
-                           GL_COLOR_ATTACHMENT0,
-                           GL_TEXTURE_2D, texture_read,
-                           0);
-    status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE)
-        goto fail;
-    glBindTexture(GL_TEXTURE_2D, 0);
-    dri2_priv->eglDestroyImageKHR_func(dri2_priv->display, image);
+        /* We bind a newly created pixmap (to which we want to copy the content)
+         * to an EGLImage, then to a texture, then to a fbo. */
+        image = dri2_priv->eglCreateImageKHR_func(dri2_priv->display,
+                                                  dri2_priv->context,
+                                                  EGL_NATIVE_PIXMAP_KHR,
+                                                  (void *)pixmap, NULL);
+        if (image == EGL_NO_IMAGE_KHR)
+            goto fail;
 
-    /* We bind a newly created pixmap (to which we want to copy the content)
-     * to an EGLImage, then to a texture, then to a fbo. */
-    image = dri2_priv->eglCreateImageKHR_func(dri2_priv->display,
-                                              dri2_priv->context,
-                                              EGL_NATIVE_PIXMAP_KHR,
-                                              (void *)pixmap, NULL);
-    if (image == EGL_NO_IMAGE_KHR)
-        goto fail;
-
-    glGenTextures(1, &texture_write);
-    glBindTexture(GL_TEXTURE_2D, texture_write);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    dri2_priv->glEGLImageTargetTexture2DOES_func(GL_TEXTURE_2D, image);
-    glGenFramebuffers(1, &fbo_write);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo_write);
-    glFramebufferTexture2D(GL_FRAMEBUFFER,
-                           GL_COLOR_ATTACHMENT0,
-                           GL_TEXTURE_2D, texture_write,
-                           0);
-    status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE)
-        goto fail;
-    glBindTexture(GL_TEXTURE_2D, 0);
-    dri2_priv->eglDestroyImageKHR_func(dri2_priv->display, image);
-
+        glGenTextures(1, &texture_write);
+        glBindTexture(GL_TEXTURE_2D, texture_write);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        dri2_priv->glEGLImageTargetTexture2DOES_func(GL_TEXTURE_2D, image);
+        glGenFramebuffers(1, &fbo_write);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo_write);
+        glFramebufferTexture2D(GL_FRAMEBUFFER,
+                               GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_2D, texture_write,
+                               0);
+        status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (status != GL_FRAMEBUFFER_COMPLETE)
+            goto fail;
+        glBindTexture(GL_TEXTURE_2D, 0);
+        dri2_priv->eglDestroyImageKHR_func(dri2_priv->display, image);
+    } else {
+        ERR("eglMakeCurrent failed with 0x%0X\n", eglGetError());
+    }
     eglMakeCurrent(dri2_priv->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
     *present_pixmap_priv = (PRESENTPixmapPriv *) calloc(1, sizeof(PRESENTPixmapPriv));
@@ -1153,16 +1157,17 @@ PRESENTPixmap(Display *dpy, XID window,
     if (present_pixmap_priv->dri2_info.is_dri2) {
         current_api = eglQueryAPI();
         eglBindAPI(EGL_OPENGL_API);
-        eglMakeCurrent(dri2_priv->display, EGL_NO_SURFACE, EGL_NO_SURFACE, dri2_priv->context);
+        if(eglMakeCurrent(dri2_priv->display, EGL_NO_SURFACE, EGL_NO_SURFACE, dri2_priv->context)) {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, present_pixmap_priv->dri2_info.fbo_read);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, present_pixmap_priv->dri2_info.fbo_write);
 
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, present_pixmap_priv->dri2_info.fbo_read);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, present_pixmap_priv->dri2_info.fbo_write);
-
-        glBlitFramebuffer(0, 0, present_pixmap_priv->width, present_pixmap_priv->height,
-                          0, 0, present_pixmap_priv->width, present_pixmap_priv->height,
-                          GL_COLOR_BUFFER_BIT, GL_NEAREST);
-        glFlush(); /* Perhaps useless */
-
+            glBlitFramebuffer(0, 0, present_pixmap_priv->width, present_pixmap_priv->height,
+                              0, 0, present_pixmap_priv->width, present_pixmap_priv->height,
+                              GL_COLOR_BUFFER_BIT, GL_NEAREST);
+            glFlush(); /* Perhaps useless */
+        } else {
+            ERR("eglMakeCurrent failed with 0x%0X\n", eglGetError());
+        }
         eglMakeCurrent(dri2_priv->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         eglBindAPI(current_api);
     }

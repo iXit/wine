@@ -128,6 +128,7 @@ struct DRI2priv {
     EGLContext context;
     PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES_func;
     PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR_func;
+    PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR_func;
 };
 
 /* TODO: We don't free memory properly. When exiting, eglTerminate doesn't work well(crash), and things are freed automatically. Rely on it */
@@ -138,13 +139,14 @@ DRI2FallbackInit(Display *dpy, struct DRI2priv **priv)
     PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES_func;
     PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR_func;
     PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT_func;
+    PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR_func;
     EGLDisplay display;
     EGLint major, minor;
     EGLConfig config;
     EGLContext context;
     EGLint i;
     EGLBoolean b;
-    EGLenum current_api;
+    EGLenum current_api = 0;
     const char *extensions;
     EGLint config_attribs[] = {
         EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
@@ -172,7 +174,8 @@ DRI2FallbackInit(Display *dpy, struct DRI2priv **priv)
     extensions = eglQueryString(display, EGL_EXTENSIONS);
     if (!extensions || !strstr(extensions, "EGL_EXT_image_dma_buf_import") ||
         !strstr(extensions, "EGL_KHR_create_context") ||
-        !strstr(extensions, "EGL_KHR_surfaceless_context"))
+        !strstr(extensions, "EGL_KHR_surfaceless_context") ||
+        !strstr(extensions, "EGL_KHR_image_base"))
         goto clean_egl_display;
 
     if (!eglChooseConfig(display, config_attribs, &config, 1, &i))
@@ -187,8 +190,11 @@ DRI2FallbackInit(Display *dpy, struct DRI2priv **priv)
 
     glEGLImageTargetTexture2DOES_func = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC) eglGetProcAddress("glEGLImageTargetTexture2DOES");
     eglCreateImageKHR_func = (PFNEGLCREATEIMAGEKHRPROC) eglGetProcAddress("eglCreateImageKHR");
-    if (!eglCreateImageKHR_func || !glEGLImageTargetTexture2DOES_func)
+    eglDestroyImageKHR_func = (PFNEGLDESTROYIMAGEKHRPROC) eglGetProcAddress("eglDestroyImageKHR");
+    if (!eglCreateImageKHR_func || !glEGLImageTargetTexture2DOES_func || !eglDestroyImageKHR_func) {
+        ERR("eglGetProcAddress failed !");
         goto clean_egl_display;
+    }
 
     eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
@@ -200,6 +206,7 @@ DRI2FallbackInit(Display *dpy, struct DRI2priv **priv)
     (*priv)->context = context;
     (*priv)->glEGLImageTargetTexture2DOES_func = glEGLImageTargetTexture2DOES_func;
     (*priv)->eglCreateImageKHR_func = eglCreateImageKHR_func;
+    (*priv)->eglDestroyImageKHR_func = eglDestroyImageKHR_func;
     eglBindAPI(current_api);
     return TRUE;
 
@@ -978,7 +985,7 @@ DRI2FallbackPRESENTPixmap(PRESENTpriv *present_priv, struct DRI2priv *dri2_priv,
     if (status != GL_FRAMEBUFFER_COMPLETE)
         goto fail;
     glBindTexture(GL_TEXTURE_2D, 0);
-    eglDestroyImageKHR(dri2_priv->display, image);
+    dri2_priv->eglDestroyImageKHR_func(dri2_priv->display, image);
 
     /* We bind a newly created pixmap (to which we want to copy the content)
      * to an EGLImage, then to a texture, then to a fbo. */
@@ -1004,7 +1011,7 @@ DRI2FallbackPRESENTPixmap(PRESENTpriv *present_priv, struct DRI2priv *dri2_priv,
     if (status != GL_FRAMEBUFFER_COMPLETE)
         goto fail;
     glBindTexture(GL_TEXTURE_2D, 0);
-    eglDestroyImageKHR(dri2_priv->display, image);
+    dri2_priv->eglDestroyImageKHR_func(dri2_priv->display, image);
 
     eglMakeCurrent(dri2_priv->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 

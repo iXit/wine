@@ -247,7 +247,7 @@ DRI3Present_QueryInterface( struct DRI3Present *This,
     return E_NOINTERFACE;
 }
 
-static void
+static HRESULT
 DRI3Present_ChangePresentParameters( struct DRI3Present *This,
                                     D3DPRESENT_PARAMETERS *params,
                                     BOOL first_time);
@@ -259,8 +259,7 @@ DRI3Present_SetPresentParameters( struct DRI3Present *This,
 {
     if (pFullscreenDisplayMode)
         FIXME("Ignoring pFullscreenDisplayMode\n");
-    DRI3Present_ChangePresentParameters(This, pPresentationParameters, FALSE);
-    return D3D_OK;
+    return DRI3Present_ChangePresentParameters(This, pPresentationParameters, FALSE);
 }
 
 static HRESULT WINAPI
@@ -587,13 +586,14 @@ static ID3DPresentVtbl DRI3Present_vtable = {
     (void *)DRI3Present_GetWindowInfo
 };
 
-static void
+static HRESULT
 DRI3Present_ChangePresentParameters( struct DRI3Present *This,
                                     D3DPRESENT_PARAMETERS *params,
                                     BOOL first_time)
 {
     HWND draw_window;
     RECT rect;
+    LONG hr;
 
     (void) first_time; /* will be used to manage screen res if windowed mode change */
     /* TODO: don't do anything if nothing changed */
@@ -618,22 +618,37 @@ DRI3Present_ChangePresentParameters( struct DRI3Present *This,
         LONG style, exstyle;
         DEVMODEW newMode;
 
+        ZeroMemory(&newMode, sizeof(DEVMODEW));
         newMode.dmPelsWidth = params->BackBufferWidth;
         newMode.dmPelsHeight = params->BackBufferHeight;
         newMode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT;
         newMode.dmSize = sizeof(DEVMODEW);
-        ChangeDisplaySettingsExW(This->devname, &newMode, 0, CDS_FULLSCREEN, NULL);
-
+        hr = ChangeDisplaySettingsExW(This->devname, &newMode, 0, CDS_FULLSCREEN, NULL);
+        if (hr != DISP_CHANGE_SUCCESSFUL) {
+            ERR("ChangeDisplaySettingsExW failed with 0x%08X\n", hr);
+            return D3DERR_INVALIDCALL;
+        }
         style = fullscreen_style(0);
         exstyle = fullscreen_exstyle(0);
 
         SetWindowLongW(draw_window, GWL_STYLE, style);
         SetWindowLongW(draw_window, GWL_EXSTYLE, exstyle);
-        SetWindowPos(draw_window, HWND_TOPMOST, 0, 0, params->BackBufferWidth, params->BackBufferHeight, SWP_FRAMECHANGED | SWP_SHOWWINDOW | SWP_NOACTIVATE);
-    } else if (!first_time && !This->params.Windowed)
-        ChangeDisplaySettingsExW(This->devname, &(This->initial_mode), 0, CDS_FULLSCREEN, NULL);
+        hr = SetWindowPos(draw_window, HWND_TOPMOST, 0, 0, params->BackBufferWidth, params->BackBufferHeight,
+                SWP_FRAMECHANGED | SWP_SHOWWINDOW | SWP_NOACTIVATE);
+        if (!hr) {
+            ERR("SetWindowLongW failed with 0x%08X\n", GetLastError());
+            return D3DERR_INVALIDCALL;
+        }
+    } else if (!first_time && !This->params.Windowed) {
+        hr = ChangeDisplaySettingsExW(This->devname, &(This->initial_mode), 0, CDS_FULLSCREEN, NULL);
+        if (hr != DISP_CHANGE_SUCCESSFUL) {
+            ERR("ChangeDisplaySettingsExW failed with 0x%08X\n", hr);
+            return D3DERR_INVALIDCALL;
+        }
+    }
 
     This->params = *params;
+    return D3D_OK;
 }
 
 static HRESULT
@@ -644,6 +659,7 @@ DRI3Present_new( Display *dpy,
                  struct DRI3Present **out )
 {
     struct DRI3Present *This;
+    HRESULT hr;
 
     if (!focus_wnd) { focus_wnd = params->hDeviceWindow; }
     if (!focus_wnd) {
@@ -669,7 +685,9 @@ DRI3Present_new( Display *dpy,
 
     EnumDisplaySettingsExW(This->devname, ENUM_CURRENT_SETTINGS, &(This->initial_mode), 0);
 
-    DRI3Present_ChangePresentParameters(This, params, TRUE);
+    hr = DRI3Present_ChangePresentParameters(This, params, TRUE);
+    if (hr != D3D_OK)
+        return hr;
 
     PRESENTInit(dpy, &(This->present_priv));
 #ifdef D3DADAPTER9_DRI2

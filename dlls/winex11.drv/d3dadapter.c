@@ -51,7 +51,11 @@ WINE_DEFAULT_DEBUG_CHANNEL(d3dadapter);
 #endif
 
 #define WINE_D3DADAPTER_DRIVER_PRESENT_VERSION_MAJOR 1
+#ifdef ID3DPresent_GetWindowOccluded
+#define WINE_D3DADAPTER_DRIVER_PRESENT_VERSION_MINOR 1
+#else
 #define WINE_D3DADAPTER_DRIVER_PRESENT_VERSION_MINOR 0
+#endif
 
 static const struct D3DAdapter9DRM *d3d9_drm = NULL;
 #ifdef D3DADAPTER9_DRI2
@@ -79,6 +83,23 @@ struct d3d_drawable
     HWND wnd; /* HWND (for convenience) */
 };
 
+#ifdef ID3DPresent_GetWindowOccluded
+static HHOOK hhook;
+
+struct d3d_wnd_hooks
+{
+    HWND focus_wnd;
+    struct DRI3Present *present;
+    struct d3d_wnd_hooks *prev;
+    struct d3d_wnd_hooks *next;
+};
+
+static HRESULT dri3_present_unregister_window_hook( struct DRI3Present *This );
+static HRESULT dri3_present_register_window_hook( struct DRI3Present *This );
+
+static struct d3d_wnd_hooks d3d_hooks;
+#endif
+
 struct DRI3Present
 {
     /* COM vtable */
@@ -97,6 +118,7 @@ struct DRI3Present
     HCURSOR hCursor;
 
     DEVMODEW initial_mode;
+    BOOL occluded;
 };
 
 struct D3DWindowBuffer
@@ -216,6 +238,9 @@ DRI3Present_Release( struct DRI3Present *This )
     TRACE("%p decreasing refcount to %u.\n", This, refs);
     if (refs == 0) {
         /* dtor */
+#ifdef ID3DPresent_GetWindowOccluded
+        dri3_present_unregister_window_hook(This);
+#endif
         ChangeDisplaySettingsExW(This->devname, &(This->initial_mode), 0, CDS_FULLSCREEN, NULL);
         PRESENTDestroy(gdi_display, This->present_priv);
 #ifdef D3DADAPTER9_DRI2
@@ -259,6 +284,9 @@ DRI3Present_SetPresentParameters( struct DRI3Present *This,
 {
     if (pFullscreenDisplayMode)
         FIXME("Ignoring pFullscreenDisplayMode\n");
+#ifdef ID3DPresent_GetWindowOccluded
+    dri3_present_register_window_hook(This);
+#endif
     return DRI3Present_ChangePresentParameters(This, pPresentationParameters, FALSE);
 }
 
@@ -562,7 +590,119 @@ static LONG fullscreen_exstyle(LONG exstyle)
     return exstyle;
 }
 
+#ifdef ID3DPresent_GetWindowOccluded
+static struct d3d_wnd_hooks *get_last_hook(void) {
+    struct d3d_wnd_hooks *hook = &d3d_hooks;
+    while (hook->next) {
+        hook = hook->next;
+    }
+    return hook;
+}
 
+LRESULT CALLBACK HookCallback(int nCode, WPARAM wParam, LPARAM lParam)
+{
+    struct d3d_wnd_hooks *hook = &d3d_hooks;
+    if (nCode < 0) {
+        return CallNextHookEx(hhook, nCode, wParam, lParam);
+    }
+
+    if (lParam) {
+        CWPSTRUCT wndprocparams = *((CWPSTRUCT*)lParam);
+        while (hook->next) {
+            hook = hook->next;
+            /* skip messages for other hwnds */
+            if (hook->focus_wnd != wndprocparams.hwnd)
+                continue;
+            switch (wndprocparams.message) {
+                case WM_ACTIVATE:
+                    if(wndprocparams.wParam == WA_INACTIVE) {
+                        if (hook->present && !hook->present->params.Windowed) {
+                            ShowWindow(hook->present->params.hDeviceWindow, SW_MINIMIZE);
+                            ChangeDisplaySettingsExW(hook->present->devname, &(hook->present->initial_mode), 0, 0, NULL);
+                            hook->present->occluded = TRUE;
+                        }
+                    } else {
+                        if (hook->present && !hook->present->params.Windowed && hook->present->occluded) {
+                            ShowWindow(hook->present->params.hDeviceWindow, SW_RESTORE);
+                            hook->present->occluded = FALSE;
+                        }
+                    }
+                break;
+                /* TODO: handle other window messages here */
+                default:
+                break;
+            }
+        }
+    }
+
+    return CallNextHookEx(hhook, nCode, wParam, lParam);
+}
+
+static HRESULT dri3_present_register_window_hook( struct DRI3Present *This ) {
+    struct d3d_wnd_hooks *lasthook;
+    struct d3d_wnd_hooks *hook = &d3d_hooks;
+
+    HWND hWnd = This->focus_wnd;
+    /* let's see if already hooked */
+    while (hook->next) {
+        hook = hook->next;
+        if (hook->focus_wnd == hWnd && hook->present == This)
+            return D3D_OK;
+    }
+    /* create single WindowsHook in this process */
+    if (!hhook) {
+        // TODO: do we need to handle different threadIDs ?
+        DWORD threadID = GetWindowThreadProcessId(hWnd, NULL);
+        hhook = SetWindowsHookExW(WH_CALLWNDPROC, HookCallback, NULL, threadID);
+        if (!hhook) {
+            ERR("SetWindowsHookEx failed with 0x%08x\n", GetLastError());
+            return D3DERR_DRIVERINTERNALERROR;
+        }
+    }
+    lasthook = get_last_hook();
+    hook = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+            sizeof(struct d3d_wnd_hooks));
+    if (!hook)
+        return E_OUTOFMEMORY;
+    /* add window hwnd to list */
+    lasthook->next = hook;
+    hook->prev = lasthook;
+    hook->focus_wnd = hWnd;
+    hook->present = This;
+    return D3D_OK;
+}
+
+static HRESULT dri3_present_unregister_window_hook( struct DRI3Present *This ) {
+    struct d3d_wnd_hooks *hook = &d3d_hooks;
+
+    HWND hWnd = This->focus_wnd;
+    /* find hook and remove it */
+    while (hook->next) {
+        hook = hook->next;
+        if(hook->focus_wnd == hWnd && hook->present == This) {
+            /* remove hook */
+            hook->prev->next = hook->next;
+            HeapFree(GetProcessHeap(), 0, hook);
+            /* start again at list head */
+            hook = &d3d_hooks;
+        }
+    }
+    /* remove single process WindowsHook */
+    if (get_last_hook() == &d3d_hooks && hhook) {
+       if (!UnhookWindowsHookEx(hhook)) {
+           ERR("UnhookWindowsHookEx failed with 0x%08x\n", GetLastError());
+       }
+       hhook = NULL;
+    }
+    return D3D_OK;
+}
+
+static BOOL WINAPI
+DRI3Present_GetWindowOccluded( struct DRI3Present *This )
+{
+    return This->occluded;
+}
+#endif
 /*----------*/
 
 
@@ -583,7 +723,10 @@ static ID3DPresentVtbl DRI3Present_vtable = {
     (void *)DRI3Present_SetCursorPos,
     (void *)DRI3Present_SetCursor,
     (void *)DRI3Present_SetGammaRamp,
-    (void *)DRI3Present_GetWindowInfo
+    (void *)DRI3Present_GetWindowInfo,
+#ifdef ID3DPresent_GetWindowOccluded
+    (void *)DRI3Present_GetWindowOccluded
+#endif
 };
 
 static HRESULT
@@ -646,6 +789,7 @@ DRI3Present_ChangePresentParameters( struct DRI3Present *This,
             return D3DERR_INVALIDCALL;
         }
     }
+    SetForegroundWindow(draw_window);
 
     This->params = *params;
     return D3D_OK;

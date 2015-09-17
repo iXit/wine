@@ -82,8 +82,6 @@ AC_ARG_WITH(xcomposite,AS_HELP_STRING([--without-xcomposite],[do not use the Xco
             [if test "x$withval" = "xno"; then ac_cv_header_X11_extensions_Xcomposite_h=no; fi])
 AC_ARG_WITH(xcursor,   AS_HELP_STRING([--without-xcursor],[do not use the Xcursor extension]),
             [if test "x$withval" = "xno"; then ac_cv_header_X11_Xcursor_Xcursor_h=no; fi])
-AC_ARG_WITH(xfixes,    AS_HELP_STRING([--without-xfixes],[do not use the Xfixes extension]),
-            [if test "x$withval" = "xno"; then ac_cv_header_X11_extensions_Xfixes_h=no; fi])
 AC_ARG_WITH(xinerama,  AS_HELP_STRING([--without-xinerama],[do not use Xinerama (multi-monitor support)]),
             [if test "x$withval" = "xno"; then ac_cv_header_X11_extensions_Xinerama_h=no; fi])
 AC_ARG_WITH(xinput,    AS_HELP_STRING([--without-xinput],[do not use the Xinput extension]),
@@ -1004,7 +1002,6 @@ then
                       X11/extensions/XInput2.h \
                       X11/extensions/XShm.h \
                       X11/extensions/Xcomposite.h \
-                      X11/extensions/Xfixes.h \
                       X11/extensions/Xinerama.h \
                       X11/extensions/Xrandr.h \
                       X11/extensions/Xrender.h \
@@ -1120,14 +1117,6 @@ then
         WINE_NOTICE_WITH(xcomposite,[test "x$ac_cv_lib_soname_Xcomposite" = "x"],
                          [libxcomposite ${notice_platform}development files not found, Xcomposite won't be supported.])
 
-        dnl *** Check for X Fixes extension
-        if test "$ac_cv_header_X11_extensions_Xfixes_h" = "yes"
-        then
-            WINE_CHECK_SONAME(Xfixes,XFixesCreateRegion,,,[$X_LIBS $XLIB $X_EXTRA_LIBS])
-        fi
-        WINE_NOTICE_WITH(xfixes,[test "x$ac_cv_lib_soname_Xfixes" = "x"],
-                         [libxfixes ${notice_platform}development files not found, Xfixes won't be supported.])
-
         dnl *** Check for XICCallback struct
         AC_CHECK_MEMBERS([XICCallback.callback, XEvent.xcookie],,,
 [#ifdef HAVE_X11_XLIB_H
@@ -1181,14 +1170,31 @@ OpenGL and Direct3D won't be supported.])
          AC_SUBST(D3D_LIBS)
          AC_DEFINE(SONAME_D3DADAPTER9, ["d3dadapter9.so.1"], ["temporary hack"])
          AC_DEFINE_UNQUOTED(D3D_MODULE_DIR, ["`pkg-config --variable=moduledir d3d`"], ["module dir"])
-         D3DADAPTER9_LIBS="-lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread"
-         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread"],[D3Dadapter9 requirements not met])
+         D3DADAPTER9_LIBS=""
+         WINE_CHECK_SONAME(xcb,xcb_request_check, [D3DADAPTER9_LIBS="-lxcb $D3DADAPTER9_LIBS"])
+         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lxcb "],[D3Dadapter9 requires libxcb])
+         WINE_CHECK_SONAME(xcb-dri3,xcb_dri3_open, [D3DADAPTER9_LIBS="-lxcb-dri3 $D3DADAPTER9_LIBS"])
+         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lxcb-dri3 -lxcb "],[D3Dadapter9 requires libxcb-dri3])
+         WINE_CHECK_SONAME(xcb-present,xcb_present_notify_msc, [D3DADAPTER9_LIBS="-lxcb-present $D3DADAPTER9_LIBS"])
+         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 requires libxcb-present])
+         WINE_CHECK_SONAME(X11-xcb,XGetXCBConnection, [D3DADAPTER9_LIBS="-lX11-xcb $D3DADAPTER9_LIBS"])
+         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 requires libX11-xcb])
+         WINE_CHECK_SONAME(xcb-xfixes,xcb_xfixes_create_region, [D3DADAPTER9_LIBS="-lxcb-xfixes $D3DADAPTER9_LIBS"])
+         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 requires libxcb-xfixes])
+         WINE_CHECK_SONAME(X11,XOpenDisplay, [D3DADAPTER9_LIBS="-lX11 $D3DADAPTER9_LIBS"])
+         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 requires libX11])
+         WINE_CHECK_SONAME(Xext,XextRemoveDisplay, [D3DADAPTER9_LIBS="-lXext $D3DADAPTER9_LIBS"])
+         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lXext -lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 requires libXext])
+         WINE_CHECK_SONAME(pthread,pthread_mutex_lock, [D3DADAPTER9_LIBS="-lpthread $D3DADAPTER9_LIBS"])
+         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lpthread -lXext -lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 requires libpthread])
+
          if test "x$with_d3dadapter_dri2_fallback" != "xno"
          then
              AC_DEFINE(D3DADAPTER9_DRI2, 1, [Whether d3dadapter9 DRI2 fallback is compiled])
              WINE_CHECK_SONAME(GL,glGenFramebuffers, [D3DADAPTER9_LIBS="-lGL $D3DADAPTER9_LIBS"])
+             WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lGL -lpthread -lXext -lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 DRI2 fallback requires libGL])
              WINE_CHECK_SONAME(EGL,eglCreateContext, [D3DADAPTER9_LIBS="-lEGL $D3DADAPTER9_LIBS"])
-             WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lEGL -lGL -lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread"],[D3Dadapter9 DRI2 fallback requirements not met])
+             WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lEGL -lGL -lpthread -lXext -lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 DRI2 fallback requires libEGL])
          fi
     fi
 
@@ -2864,6 +2870,7 @@ WINE_CONFIG_DLL(d3d8,,[implib])
 WINE_CONFIG_TEST(dlls/d3d8/tests)
 WINE_CONFIG_DLL(d3d9,,[implib])
 WINE_CONFIG_TEST(dlls/d3d9/tests)
+WINE_CONFIG_DLL(d3d9-nine,,[implib])
 WINE_CONFIG_DLL(d3dcompiler_33)
 WINE_CONFIG_DLL(d3dcompiler_34)
 WINE_CONFIG_DLL(d3dcompiler_35)

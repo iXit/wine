@@ -1,7 +1,7 @@
 /*
- * d3dadapter display driver definitions
+ * Wine present interface
  *
- * Copyright (c) 2013 Joakim Sindholt
+ * Copyright 2015 Patrick Rudolph
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,25 +18,19 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __WINE_D3DADAPTER_H
-#define __WINE_D3DADAPTER_H
+#ifndef __WINE_PRESENT_H
+#define __WINE_PRESENT_H
 
 #ifndef __WINE_CONFIG_H
 # error You must include config.h to use this header
 #endif
 
-#ifdef SONAME_D3DADAPTER9
+#include <X11/Xlib.h>
 
-#include <d3dadapter/d3dadapter9.h>
+HRESULT present_create_present_group(Display *gdi_display, const WCHAR *device_name, UINT adapter, HWND focus, D3DPRESENT_PARAMETERS *params, unsigned nparams, ID3DPresentGroup **group);
 
-#define WINE_D3DADAPTER_DRIVER_VERSION 0
+HRESULT present_create_adapter9(Display *gdi_display, HDC hdc, ID3DAdapter9 **adapter);
 
-struct d3dadapter_funcs
-{
-    HRESULT (*create_present_group)(const WCHAR *device_name, UINT adapter, HWND focus, D3DPRESENT_PARAMETERS *params, unsigned nparams, ID3DPresentGroup **group);
-    HRESULT (*create_adapter9)(HDC hdc, ID3DAdapter9 **adapter);
-};
+BOOL has_d3dadapter(Display *gdi_display);
 
-#endif /* SONAME_D3DADAPTER9 */
-
-#endif /* __WINE_D3DADAPTER_H */
+#endif /* __WINE_DRI3_H */

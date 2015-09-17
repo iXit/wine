@@ -25,10 +25,8 @@
 # error You must include config.h to use this header
 #endif
 
-#if defined(SONAME_LIBXEXT) && defined(SONAME_LIBXFIXES)
-
-#include <X11/extensions/Xfixes.h>
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb.h>
 #include <xcb/dri3.h>
@@ -104,7 +102,5 @@ PRESENTPixmap(Display *dpy, XID window,
 
 BOOL
 PRESENTWaitPixmapReleased(PRESENTPixmapPriv *present_pixmap_priv);
-
-#endif /* defined(SONAME_LIBXEXT) && defined(SONAME_LIBXFIXES) */
 
 #endif /* __WINE_DRI3_H */

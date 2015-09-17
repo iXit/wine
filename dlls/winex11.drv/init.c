@@ -465,21 +465,6 @@ static struct opengl_funcs * X11DRV_wine_get_wgl_driver( PHYSDEV dev, UINT versi
     return ret;
 }
 
-/**********************************************************************
- *           X11DRV_wine_get_d3dadapter_driver
- */
-static struct d3dadapter_funcs * X11DRV_wine_get_d3dadapter_driver( PHYSDEV dev, UINT version )
-{
-    struct d3dadapter_funcs *ret;
-
-    if (!(ret = get_d3d_dri3_driver( version )))
-    {
-        dev = GET_NEXT_PHYSDEV( dev, wine_get_d3dadapter_driver );
-        ret = dev->funcs->wine_get_d3dadapter_driver( dev, version );
-    }
-    return ret;
-}
-
 
 static const struct gdi_dc_funcs x11drv_funcs =
 {
@@ -610,7 +595,6 @@ static const struct gdi_dc_funcs x11drv_funcs =
     X11DRV_UnrealizePalette,            /* pUnrealizePalette */
     NULL,                               /* pWidenPath */
     X11DRV_wine_get_wgl_driver,         /* wine_get_wgl_driver */
-    X11DRV_wine_get_d3dadapter_driver,  /* wine_get_d3dadapter_driver */
     GDI_PRIORITY_GRAPHICS_DRV           /* priority */
 };
 

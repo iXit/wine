@@ -1,8 +1,12 @@
 /*
- * X11DRV ID3DAdapter9 support functions
+ * Wine ID3DAdapter9 support functions
  *
  * Copyright 2013 Joakim Sindholt
  *                Christoph Bumiller
+ * Copyright 2014 Tiziano Bacocco
+ *                David Heidelberger
+ * Copyright 2014-2015 Axel Davy
+ * Copyright 2015 Patrick Rudolph
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -21,30 +25,19 @@
 
 #include "config.h"
 #include "wine/port.h"
-
 #include "wine/debug.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(d3dadapter);
 
-#if defined(SONAME_LIBXEXT) && \
-    defined(SONAME_LIBXFIXES) && \
-    defined(SONAME_D3DADAPTER9)
-
-#include "wine/d3dadapter.h"
-#include "wine/library.h"
-#include "wine/unicode.h"
-
-#include "x11drv.h"
-
+#include <d3dadapter/d3dadapter9.h>
 #include <d3dadapter/drm.h>
-
-#include "xfixes.h"
-#include "dri3.h"
-
 #include <libdrm/drm.h>
-#include <sys/ioctl.h>
 #include <errno.h>
 #include <fcntl.h>
+
+#include "dri3.h"
+#include "wine/library.h"
+#include "wine/unicode.h"
 
 #ifndef D3DPRESENT_DONOTWAIT
 #define D3DPRESENT_DONOTWAIT      0x00000001
@@ -61,6 +54,25 @@ static const struct D3DAdapter9DRM *d3d9_drm = NULL;
 #ifdef D3DADAPTER9_DRI2
 static int is_dri2_fallback = 0;
 #endif
+
+#define X11DRV_ESCAPE 6789
+enum x11drv_escape_codes
+{
+    X11DRV_SET_DRAWABLE,     /* set current drawable for a DC */
+    X11DRV_GET_DRAWABLE,     /* get current drawable for a DC */
+    X11DRV_START_EXPOSURES,  /* start graphics exposures */
+    X11DRV_END_EXPOSURES,    /* end graphics exposures */
+    X11DRV_FLUSH_GL_DRAWABLE /* flush changes made to the gl drawable */
+};
+
+struct x11drv_escape_get_drawable
+{
+    enum x11drv_escape_codes code;         /* escape code (X11DRV_GET_DRAWABLE) */
+    Drawable                 drawable;     /* X drawable */
+    Drawable                 gl_drawable;  /* GL drawable */
+    int                      pixel_format; /* internal GL pixel format */
+    RECT                     dc_rect;      /* DC rectangle relative to drawable */
+};
 
 static XContext d3d_hwnd_context;
 static CRITICAL_SECTION context_section;
@@ -119,6 +131,8 @@ struct DRI3Present
 
     DEVMODEW initial_mode;
     BOOL occluded;
+    Display *gdi_display;
+    struct d3d_drawable *d3d;
 };
 
 struct D3DWindowBuffer
@@ -134,7 +148,7 @@ free_d3dadapter_drawable(struct d3d_drawable *d3d)
 }
 
 void
-destroy_d3dadapter_drawable(HWND hwnd)
+destroy_d3dadapter_drawable(Display *gdi_display, HWND hwnd)
 {
     struct d3d_drawable *d3d;
 
@@ -177,7 +191,7 @@ create_d3dadapter_drawable(HWND hwnd)
 }
 
 static struct d3d_drawable *
-get_d3d_drawable(HWND hwnd)
+get_d3d_drawable(Display *gdi_display, HWND hwnd)
 {
     struct d3d_drawable *d3d, *race;
 
@@ -241,8 +255,10 @@ DRI3Present_Release( struct DRI3Present *This )
 #ifdef ID3DPresent_GetWindowOccluded
         dri3_present_unregister_window_hook(This);
 #endif
+        if (This->d3d)
+            destroy_d3dadapter_drawable(This->gdi_display, This->d3d->wnd);
         ChangeDisplaySettingsExW(This->devname, &(This->initial_mode), 0, CDS_FULLSCREEN, NULL);
-        PRESENTDestroy(gdi_display, This->present_priv);
+        PRESENTDestroy(This->gdi_display, This->present_priv);
 #ifdef D3DADAPTER9_DRI2
         if (is_dri2_fallback)
             DRI2FallbackDestroy(This->dri2_priv);
@@ -313,7 +329,7 @@ DRI3Present_D3DWindowBufferFromDmaBuf( struct DRI3Present *This,
         return D3D_OK;
     }
 #endif
-    if (!DRI3PixmapFromDmaBuf(gdi_display, DefaultScreen(gdi_display),
+    if (!DRI3PixmapFromDmaBuf(This->gdi_display, DefaultScreen(This->gdi_display),
                               dmaBufFd, width, height, stride, depth,
                               bpp, &pixmap ))
         return D3DERR_DRIVERINTERNALERROR;
@@ -331,7 +347,7 @@ DRI3Present_DestroyD3DWindowBuffer( struct DRI3Present *This,
     /* the pixmap is managed by the PRESENT backend.
      * But if it can delete it right away, we may have
      * better performance */
-    PRESENTTryFreePixmap(gdi_display, buffer->present_pixmap_priv);
+    PRESENTTryFreePixmap(This->gdi_display, buffer->present_pixmap_priv);
     HeapFree(GetProcessHeap(), 0, buffer);
     return D3D_OK;
 }
@@ -353,7 +369,7 @@ DRI3Present_FrontBufferCopy( struct DRI3Present *This,
         return D3DERR_DRIVERINTERNALERROR;
 #endif
     /* TODO: use dc_rect */
-    if (PRESENTHelperCopyFront(gdi_display, buffer->present_pixmap_priv))
+    if (PRESENTHelperCopyFront(This->gdi_display, buffer->present_pixmap_priv))
         return D3D_OK;
     else
         return D3DERR_DRIVERINTERNALERROR;
@@ -372,13 +388,19 @@ DRI3Present_PresentBuffer( struct DRI3Present *This,
     RECT dest_translate;
 
     if (hWndOverride) {
-        d3d = get_d3d_drawable(hWndOverride);
+        d3d = get_d3d_drawable(This->gdi_display, hWndOverride);
     } else if (This->params.hDeviceWindow) {
-        d3d = get_d3d_drawable(This->params.hDeviceWindow);
+        d3d = get_d3d_drawable(This->gdi_display, This->params.hDeviceWindow);
     } else {
-        d3d = get_d3d_drawable(This->focus_wnd);
+        d3d = get_d3d_drawable(This->gdi_display, This->focus_wnd);
     }
     if (!d3d) { return D3DERR_DRIVERINTERNALERROR; }
+
+    /* TODO: should we use a list here instead ? */
+    if (This->d3d && (This->d3d->wnd != d3d->wnd)) {
+        destroy_d3dadapter_drawable(This->gdi_display, This->d3d->wnd);
+    }
+    This->d3d = d3d;
 
     if (d3d->dc_rect.top != 0 &&
         d3d->dc_rect.left != 0) {
@@ -393,7 +415,7 @@ DRI3Present_PresentBuffer( struct DRI3Present *This,
         }
     }
 
-    if (!PRESENTPixmap(gdi_display, d3d->drawable, buffer->present_pixmap_priv,
+    if (!PRESENTPixmap(This->gdi_display, d3d->drawable, buffer->present_pixmap_priv,
                        &This->params, pSourceRect, pDestRect, pDirtyRegion))
         return D3DERR_DRIVERINTERNALERROR;
 
@@ -789,14 +811,14 @@ DRI3Present_ChangePresentParameters( struct DRI3Present *This,
             return D3DERR_INVALIDCALL;
         }
     }
-    SetForegroundWindow(draw_window);
+    SetActiveWindow(draw_window);
 
     This->params = *params;
     return D3D_OK;
 }
 
 static HRESULT
-DRI3Present_new( Display *dpy,
+DRI3Present_new( Display *gdi_display,
                  const WCHAR *devname,
                  D3DPRESENT_PARAMETERS *params,
                  HWND focus_wnd,
@@ -818,6 +840,7 @@ DRI3Present_new( Display *dpy,
         return E_OUTOFMEMORY;
     }
 
+    This->gdi_display = gdi_display;
     This->vtable = &DRI3Present_vtable;
     This->refs = 1;
     This->focus_wnd = focus_wnd;
@@ -833,10 +856,10 @@ DRI3Present_new( Display *dpy,
     if (hr != D3D_OK)
         return hr;
 
-    PRESENTInit(dpy, &(This->present_priv));
+    PRESENTInit(gdi_display, &(This->present_priv));
 #ifdef D3DADAPTER9_DRI2
     if (is_dri2_fallback)
-        DRI2FallbackInit(dpy, &(This->dri2_priv));
+        DRI2FallbackInit(gdi_display, &(This->dri2_priv));
 #endif
     *out = This;
 
@@ -852,6 +875,7 @@ struct DRI3PresentGroup
 
     struct DRI3Present **present_backends;
     unsigned npresent_backends;
+    Display *gdi_display;
 };
 
 static ULONG WINAPI
@@ -928,7 +952,7 @@ DRI3PresentGroup_CreateAdditionalPresent( struct DRI3PresentGroup *This,
                                           ID3DPresent **ppPresent )
 {
     HRESULT hr;
-    hr = DRI3Present_new(gdi_display, This->present_backends[0]->devname,
+    hr = DRI3Present_new(This->gdi_display, This->present_backends[0]->devname,
                          pPresentationParameters, 0, (struct DRI3Present **)ppPresent);
     return hr;
 }
@@ -952,8 +976,9 @@ static ID3DPresentGroupVtbl DRI3PresentGroup_vtable = {
     (void *)DRI3PresentGroup_GetVersion
 };
 
-static HRESULT
-dri3_create_present_group( const WCHAR *device_name,
+HRESULT
+present_create_present_group( Display *gdi_display,
+                           const WCHAR *device_name,
                            UINT adapter,
                            HWND focus_wnd,
                            D3DPRESENT_PARAMETERS *params,
@@ -972,6 +997,7 @@ dri3_create_present_group( const WCHAR *device_name,
         return E_OUTOFMEMORY;
     }
 
+    This->gdi_display = gdi_display;
     This->vtable = &DRI3PresentGroup_vtable;
     This->refs = 1;
     This->npresent_backends = nparams;
@@ -1009,8 +1035,9 @@ dri3_create_present_group( const WCHAR *device_name,
     return D3D_OK;
 }
 
-static HRESULT
-dri3_create_adapter9( HDC hdc,
+HRESULT
+present_create_adapter9( Display *gdi_display,
+                      HDC hdc,
                       ID3DAdapter9 **out )
 {
     struct x11drv_escape_get_drawable extesc = { X11DRV_GET_DRAWABLE };
@@ -1052,25 +1079,22 @@ dri3_create_adapter9( HDC hdc,
     return D3D_OK;
 }
 
-static BOOL
-has_d3dadapter( void )
+BOOL
+has_d3dadapter( Display *gdi_display )
 {
     static const void * WINAPI (*pD3DAdapter9GetProc)(const char *);
     static void *handle = NULL;
     static int done = 0;
 
-    int xfmaj, xfmin;
     char errbuf[256];
+
+#if !defined(SONAME_D3DADAPTER9)
+    return FALSE;
+#endif
 
     /* like in opengl.c (single threaded assumption OK?) */
     if (done) { return handle != NULL; }
     done = 1;
-
-    /*  */
-    if (!usexfixes) {
-        ERR("%s needs Xfixes.\n", SONAME_D3DADAPTER9);
-        return FALSE;
-    }
 
     handle = wine_dlopen(D3D_MODULE_DIR "/" SONAME_D3DADAPTER9,
                          RTLD_GLOBAL | RTLD_NOW, errbuf, sizeof(errbuf));
@@ -1126,12 +1150,6 @@ has_d3dadapter( void )
 #endif
     }
 
-    /* query XFixes */
-    if (!pXFixesQueryVersion(gdi_display, &xfmaj, &xfmin)) {
-        ERR("Unable to query XFixes extension.\n");
-        return D3DERR_DRIVERINTERNALERROR;
-    }
-    TRACE("Got XFixes version %u.%u\n", xfmaj, xfmin);
     return TRUE;
 
 cleanup:
@@ -1144,49 +1162,3 @@ cleanup:
 
     return FALSE;
 }
-
-static struct d3dadapter_funcs dri3_driver = {
-    dri3_create_present_group,          /* create_present_group */
-    dri3_create_adapter9,               /* create_adapter9 */
-};
-
-struct d3dadapter_funcs *
-get_d3d_dri3_driver(UINT version)
-{
-    if (version != WINE_D3DADAPTER_DRIVER_VERSION) {
-        ERR("Version mismatch. d3d* wants %u but winex11 has "
-            "version %u\n", version, WINE_D3DADAPTER_DRIVER_VERSION);
-        return NULL;
-    }
-    if (has_d3dadapter()) { return &dri3_driver; }
-    return NULL;
-}
-
-#else /* defined(SONAME_LIBXEXT) && \
-         defined(SONAME_LIBXFIXES) && \
-         defined(SONAME_D3DADAPTER9) */
-
-struct d3dadapter_funcs;
-
-void
-destroy_d3dadapter_drawable(HWND hwnd)
-{
-}
-
-static BOOL
-has_d3dadapter( void )
-{
-    FIXME("\033[0;31m\nWine source code has been compiled without native Direct3D 9 support."
-          "\nFor more information visit https://wiki.ixit.cz/d3d9\033[0m\n");
-    return FALSE;
-}
-
-struct d3dadapter_funcs *
-get_d3d_dri3_driver(UINT version)
-{
-    return NULL;
-}
-
-#endif /* defined(SONAME_LIBXEXT) && \
-          defined(SONAME_LIBXFIXES) && \
-          defined(SONAME_D3DADAPTER9) */

@@ -790,7 +790,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -854,7 +853,6 @@ with_tiff
 with_v4l
 with_xcomposite
 with_xcursor
-with_xfixes
 with_xinerama
 with_xinput
 with_xinput2
@@ -1039,6 +1037,7 @@ enable_d3d10core
 enable_d3d11
 enable_d3d8
 enable_d3d9
+enable_d3d9_nine
 enable_d3dcompiler_33
 enable_d3dcompiler_34
 enable_d3dcompiler_35
@@ -1643,7 +1642,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1896,15 +1894,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -2042,7 +2031,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2195,7 +2184,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -2282,7 +2270,6 @@ Optional Packages:
   --without-v4l           do not use v4l1 (v4l support)
   --without-xcomposite    do not use the Xcomposite extension
   --without-xcursor       do not use the Xcursor extension
-  --without-xfixes        do not use the Xfixes extension
   --without-xinerama      do not use Xinerama (multi-monitor support)
   --without-xinput        do not use the Xinput extension
   --without-xinput2       do not use the Xinput 2 extension
@@ -3578,12 +3565,6 @@ fi
 # Check whether --with-xcursor was given.
 if test "${with_xcursor+set}" = set; then :
   withval=$with_xcursor; if test "x$withval" = "xno"; then ac_cv_header_X11_Xcursor_Xcursor_h=no; fi
-fi
-
-
-# Check whether --with-xfixes was given.
-if test "${with_xfixes+set}" = set; then :
-  withval=$with_xfixes; if test "x$withval" = "xno"; then ac_cv_header_X11_extensions_Xfixes_h=no; fi
 fi
 
 
@@ -9789,7 +9770,6 @@ fi
                       X11/extensions/XInput2.h \
                       X11/extensions/XShm.h \
                       X11/extensions/Xcomposite.h \
-                      X11/extensions/Xfixes.h \
                       X11/extensions/Xinerama.h \
                       X11/extensions/Xrandr.h \
                       X11/extensions/Xrender.h \
@@ -10576,71 +10556,6 @@ esac
 
 fi
 
-                if test "$ac_cv_header_X11_extensions_Xfixes_h" = "yes"
-        then
-            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lXfixes" >&5
-$as_echo_n "checking for -lXfixes... " >&6; }
-if ${ac_cv_lib_soname_Xfixes+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_soname_save_LIBS=$LIBS
-LIBS="-lXfixes $X_LIBS $XLIB $X_EXTRA_LIBS $LIBS"
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char XFixesCreateRegion ();
-int
-main ()
-{
-return XFixesCreateRegion ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  case "$LIBEXT" in
-    dll) ac_cv_lib_soname_Xfixes=`$ac_cv_path_LDD conftest.exe | grep "Xfixes" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_Xfixes=`otool -L conftest$ac_exeext | grep "libXfixes\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXfixes\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
-    *) ac_cv_lib_soname_Xfixes=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libXfixes\\.$LIBEXT" | sed -e "s/^.*\\[\\(libXfixes\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
-       if ${ac_cv_lib_soname_Xfixes:+false} :; then :
-  ac_cv_lib_soname_Xfixes=`$LDD conftest$ac_exeext | grep "libXfixes\\.$LIBEXT" | sed -e "s/^.*\(libXfixes\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
-fi ;;
-  esac
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-  LIBS=$ac_check_soname_save_LIBS
-fi
-if ${ac_cv_lib_soname_Xfixes:+false} :; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
-$as_echo "not found" >&6; }
-
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_Xfixes" >&5
-$as_echo "$ac_cv_lib_soname_Xfixes" >&6; }
-
-cat >>confdefs.h <<_ACEOF
-#define SONAME_LIBXFIXES "$ac_cv_lib_soname_Xfixes"
-_ACEOF
-
-
-fi
-        fi
-        if test "x$ac_cv_lib_soname_Xfixes" = "x"; then :
-  case "x$with_xfixes" in
-  x)   as_fn_append wine_notices "|libxfixes ${notice_platform}development files not found, Xfixes won't be supported." ;;
-  xno) ;;
-  *)   as_fn_error $? "libxfixes ${notice_platform}development files not found, Xfixes won't be supported.
-This is an error since --with-xfixes was requested." "$LINENO" 5 ;;
-esac
-fi
-
                 ac_fn_c_check_member "$LINENO" "XICCallback" "callback" "ac_cv_member_XICCallback_callback" "#ifdef HAVE_X11_XLIB_H
 #include <X11/Xlib.h>
 #endif
@@ -10929,14 +10844,488 @@ cat >>confdefs.h <<_ACEOF
 #define D3D_MODULE_DIR "`pkg-config --variable=moduledir d3d`"
 _ACEOF
 
-         D3DADAPTER9_LIBS="-lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread"
-         if test "x$D3DADAPTER9_LIBS" != "x-lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread"; then :
+         D3DADAPTER9_LIBS=""
+         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lxcb" >&5
+$as_echo_n "checking for -lxcb... " >&6; }
+if ${ac_cv_lib_soname_xcb+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lxcb  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char xcb_request_check ();
+int
+main ()
+{
+return xcb_request_check ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_xcb=`$ac_cv_path_LDD conftest.exe | grep "xcb" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_xcb=`$OTOOL -L conftest$ac_exeext | grep "libxcb\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libxcb\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_xcb=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libxcb\\.$LIBEXT" | sed -e "s/^.*\\[\\(libxcb\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_xcb:+false} :; then :
+  ac_cv_lib_soname_xcb=`$LDD conftest$ac_exeext | grep "libxcb\\.$LIBEXT" | sed -e "s/^.*\(libxcb\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_xcb:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_xcb" >&5
+$as_echo "$ac_cv_lib_soname_xcb" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBXCB "$ac_cv_lib_soname_xcb"
+_ACEOF
+
+       D3DADAPTER9_LIBS="-lxcb $D3DADAPTER9_LIBS"
+fi
+         if test "x$D3DADAPTER9_LIBS" != "x-lxcb "; then :
   case "x$with_d3dadapter" in
   xno) ;;
-  *)   as_fn_error $? "D3Dadapter9 requirements not met
+  *)   as_fn_error $? "D3Dadapter9 requires libxcb
 Use the --without-d3dadapter option if you really want this." "$LINENO" 5 ;;
 esac
 fi
+         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lxcb-dri3" >&5
+$as_echo_n "checking for -lxcb-dri3... " >&6; }
+if ${ac_cv_lib_soname_xcb_dri3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lxcb-dri3  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char xcb_dri3_open ();
+int
+main ()
+{
+return xcb_dri3_open ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_xcb_dri3=`$ac_cv_path_LDD conftest.exe | grep "xcb-dri3" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_xcb_dri3=`$OTOOL -L conftest$ac_exeext | grep "libxcb-dri3\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libxcb-dri3\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_xcb_dri3=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libxcb-dri3\\.$LIBEXT" | sed -e "s/^.*\\[\\(libxcb-dri3\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_xcb_dri3:+false} :; then :
+  ac_cv_lib_soname_xcb_dri3=`$LDD conftest$ac_exeext | grep "libxcb-dri3\\.$LIBEXT" | sed -e "s/^.*\(libxcb-dri3\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_xcb_dri3:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_xcb_dri3" >&5
+$as_echo "$ac_cv_lib_soname_xcb_dri3" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBXCB_DRI3 "$ac_cv_lib_soname_xcb_dri3"
+_ACEOF
+
+       D3DADAPTER9_LIBS="-lxcb-dri3 $D3DADAPTER9_LIBS"
+fi
+         if test "x$D3DADAPTER9_LIBS" != "x-lxcb-dri3 -lxcb "; then :
+  case "x$with_d3dadapter" in
+  xno) ;;
+  *)   as_fn_error $? "D3Dadapter9 requires libxcb-dri3
+Use the --without-d3dadapter option if you really want this." "$LINENO" 5 ;;
+esac
+fi
+         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lxcb-present" >&5
+$as_echo_n "checking for -lxcb-present... " >&6; }
+if ${ac_cv_lib_soname_xcb_present+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lxcb-present  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char xcb_present_notify_msc ();
+int
+main ()
+{
+return xcb_present_notify_msc ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_xcb_present=`$ac_cv_path_LDD conftest.exe | grep "xcb-present" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_xcb_present=`$OTOOL -L conftest$ac_exeext | grep "libxcb-present\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libxcb-present\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_xcb_present=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libxcb-present\\.$LIBEXT" | sed -e "s/^.*\\[\\(libxcb-present\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_xcb_present:+false} :; then :
+  ac_cv_lib_soname_xcb_present=`$LDD conftest$ac_exeext | grep "libxcb-present\\.$LIBEXT" | sed -e "s/^.*\(libxcb-present\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_xcb_present:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_xcb_present" >&5
+$as_echo "$ac_cv_lib_soname_xcb_present" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBXCB_PRESENT "$ac_cv_lib_soname_xcb_present"
+_ACEOF
+
+       D3DADAPTER9_LIBS="-lxcb-present $D3DADAPTER9_LIBS"
+fi
+         if test "x$D3DADAPTER9_LIBS" != "x-lxcb-present -lxcb-dri3 -lxcb "; then :
+  case "x$with_d3dadapter" in
+  xno) ;;
+  *)   as_fn_error $? "D3Dadapter9 requires libxcb-present
+Use the --without-d3dadapter option if you really want this." "$LINENO" 5 ;;
+esac
+fi
+         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lX11-xcb" >&5
+$as_echo_n "checking for -lX11-xcb... " >&6; }
+if ${ac_cv_lib_soname_X11_xcb+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lX11-xcb  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char XGetXCBConnection ();
+int
+main ()
+{
+return XGetXCBConnection ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_X11_xcb=`$ac_cv_path_LDD conftest.exe | grep "X11-xcb" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_X11_xcb=`$OTOOL -L conftest$ac_exeext | grep "libX11-xcb\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libX11-xcb\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_X11_xcb=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libX11-xcb\\.$LIBEXT" | sed -e "s/^.*\\[\\(libX11-xcb\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_X11_xcb:+false} :; then :
+  ac_cv_lib_soname_X11_xcb=`$LDD conftest$ac_exeext | grep "libX11-xcb\\.$LIBEXT" | sed -e "s/^.*\(libX11-xcb\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_X11_xcb:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_X11_xcb" >&5
+$as_echo "$ac_cv_lib_soname_X11_xcb" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBX11_XCB "$ac_cv_lib_soname_X11_xcb"
+_ACEOF
+
+       D3DADAPTER9_LIBS="-lX11-xcb $D3DADAPTER9_LIBS"
+fi
+         if test "x$D3DADAPTER9_LIBS" != "x-lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "; then :
+  case "x$with_d3dadapter" in
+  xno) ;;
+  *)   as_fn_error $? "D3Dadapter9 requires libX11-xcb
+Use the --without-d3dadapter option if you really want this." "$LINENO" 5 ;;
+esac
+fi
+         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lxcb-xfixes" >&5
+$as_echo_n "checking for -lxcb-xfixes... " >&6; }
+if ${ac_cv_lib_soname_xcb_xfixes+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lxcb-xfixes  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char xcb_xfixes_create_region ();
+int
+main ()
+{
+return xcb_xfixes_create_region ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_xcb_xfixes=`$ac_cv_path_LDD conftest.exe | grep "xcb-xfixes" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_xcb_xfixes=`$OTOOL -L conftest$ac_exeext | grep "libxcb-xfixes\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libxcb-xfixes\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_xcb_xfixes=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libxcb-xfixes\\.$LIBEXT" | sed -e "s/^.*\\[\\(libxcb-xfixes\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_xcb_xfixes:+false} :; then :
+  ac_cv_lib_soname_xcb_xfixes=`$LDD conftest$ac_exeext | grep "libxcb-xfixes\\.$LIBEXT" | sed -e "s/^.*\(libxcb-xfixes\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_xcb_xfixes:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_xcb_xfixes" >&5
+$as_echo "$ac_cv_lib_soname_xcb_xfixes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBXCB_XFIXES "$ac_cv_lib_soname_xcb_xfixes"
+_ACEOF
+
+       D3DADAPTER9_LIBS="-lxcb-xfixes $D3DADAPTER9_LIBS"
+fi
+         if test "x$D3DADAPTER9_LIBS" != "x-lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "; then :
+  case "x$with_d3dadapter" in
+  xno) ;;
+  *)   as_fn_error $? "D3Dadapter9 requires libxcb-xfixes
+Use the --without-d3dadapter option if you really want this." "$LINENO" 5 ;;
+esac
+fi
+         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lX11" >&5
+$as_echo_n "checking for -lX11... " >&6; }
+if ${ac_cv_lib_soname_X11+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lX11  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char XOpenDisplay ();
+int
+main ()
+{
+return XOpenDisplay ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_X11=`$ac_cv_path_LDD conftest.exe | grep "X11" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_X11=`$OTOOL -L conftest$ac_exeext | grep "libX11\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libX11\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_X11=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libX11\\.$LIBEXT" | sed -e "s/^.*\\[\\(libX11\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_X11:+false} :; then :
+  ac_cv_lib_soname_X11=`$LDD conftest$ac_exeext | grep "libX11\\.$LIBEXT" | sed -e "s/^.*\(libX11\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_X11:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_X11" >&5
+$as_echo "$ac_cv_lib_soname_X11" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBX11 "$ac_cv_lib_soname_X11"
+_ACEOF
+
+       D3DADAPTER9_LIBS="-lX11 $D3DADAPTER9_LIBS"
+fi
+         if test "x$D3DADAPTER9_LIBS" != "x-lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "; then :
+  case "x$with_d3dadapter" in
+  xno) ;;
+  *)   as_fn_error $? "D3Dadapter9 requires libX11
+Use the --without-d3dadapter option if you really want this." "$LINENO" 5 ;;
+esac
+fi
+         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lXext" >&5
+$as_echo_n "checking for -lXext... " >&6; }
+if ${ac_cv_lib_soname_Xext+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lXext  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char XextRemoveDisplay ();
+int
+main ()
+{
+return XextRemoveDisplay ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_Xext=`$ac_cv_path_LDD conftest.exe | grep "Xext" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_Xext=`$OTOOL -L conftest$ac_exeext | grep "libXext\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libXext\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_Xext=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libXext\\.$LIBEXT" | sed -e "s/^.*\\[\\(libXext\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_Xext:+false} :; then :
+  ac_cv_lib_soname_Xext=`$LDD conftest$ac_exeext | grep "libXext\\.$LIBEXT" | sed -e "s/^.*\(libXext\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_Xext:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_Xext" >&5
+$as_echo "$ac_cv_lib_soname_Xext" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBXEXT "$ac_cv_lib_soname_Xext"
+_ACEOF
+
+       D3DADAPTER9_LIBS="-lXext $D3DADAPTER9_LIBS"
+fi
+         if test "x$D3DADAPTER9_LIBS" != "x-lXext -lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "; then :
+  case "x$with_d3dadapter" in
+  xno) ;;
+  *)   as_fn_error $? "D3Dadapter9 requires libXext
+Use the --without-d3dadapter option if you really want this." "$LINENO" 5 ;;
+esac
+fi
+         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lpthread" >&5
+$as_echo_n "checking for -lpthread... " >&6; }
+if ${ac_cv_lib_soname_pthread+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lpthread  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char pthread_mutex_lock ();
+int
+main ()
+{
+return pthread_mutex_lock ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_pthread=`$ac_cv_path_LDD conftest.exe | grep "pthread" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_pthread=`$OTOOL -L conftest$ac_exeext | grep "libpthread\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libpthread\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_pthread=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libpthread\\.$LIBEXT" | sed -e "s/^.*\\[\\(libpthread\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_pthread:+false} :; then :
+  ac_cv_lib_soname_pthread=`$LDD conftest$ac_exeext | grep "libpthread\\.$LIBEXT" | sed -e "s/^.*\(libpthread\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_pthread:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_pthread" >&5
+$as_echo "$ac_cv_lib_soname_pthread" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBPTHREAD "$ac_cv_lib_soname_pthread"
+_ACEOF
+
+       D3DADAPTER9_LIBS="-lpthread $D3DADAPTER9_LIBS"
+fi
+         if test "x$D3DADAPTER9_LIBS" != "x-lpthread -lXext -lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "; then :
+  case "x$with_d3dadapter" in
+  xno) ;;
+  *)   as_fn_error $? "D3Dadapter9 requires libpthread
+Use the --without-d3dadapter option if you really want this." "$LINENO" 5 ;;
+esac
+fi
+
          if test "x$with_d3dadapter_dri2_fallback" != "xno"
          then
 
@@ -10970,7 +11359,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_GL=`$ac_cv_path_LDD conftest.exe | grep "GL" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_GL=`otool -L conftest$ac_exeext | grep "libGL\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libGL\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_GL=`$OTOOL -L conftest$ac_exeext | grep "libGL\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libGL\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_GL=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libGL\\.$LIBEXT" | sed -e "s/^.*\\[\\(libGL\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_GL:+false} :; then :
   ac_cv_lib_soname_GL=`$LDD conftest$ac_exeext | grep "libGL\\.$LIBEXT" | sed -e "s/^.*\(libGL\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -10994,6 +11383,13 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
        D3DADAPTER9_LIBS="-lGL $D3DADAPTER9_LIBS"
+fi
+             if test "x$D3DADAPTER9_LIBS" != "x-lGL -lpthread -lXext -lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "; then :
+  case "x$with_d3dadapter" in
+  xno) ;;
+  *)   as_fn_error $? "D3Dadapter9 DRI2 fallback requires libGL
+Use the --without-d3dadapter option if you really want this." "$LINENO" 5 ;;
+esac
 fi
              { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lEGL" >&5
 $as_echo_n "checking for -lEGL... " >&6; }
@@ -11023,7 +11419,7 @@ _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   case "$LIBEXT" in
     dll) ac_cv_lib_soname_EGL=`$ac_cv_path_LDD conftest.exe | grep "EGL" | sed -e "s/dll.*/dll/"';2,$d'` ;;
-    dylib) ac_cv_lib_soname_EGL=`otool -L conftest$ac_exeext | grep "libEGL\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libEGL\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_EGL=`$OTOOL -L conftest$ac_exeext | grep "libEGL\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libEGL\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
     *) ac_cv_lib_soname_EGL=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libEGL\\.$LIBEXT" | sed -e "s/^.*\\[\\(libEGL\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
        if ${ac_cv_lib_soname_EGL:+false} :; then :
   ac_cv_lib_soname_EGL=`$LDD conftest$ac_exeext | grep "libEGL\\.$LIBEXT" | sed -e "s/^.*\(libEGL\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
@@ -11048,10 +11444,10 @@ _ACEOF
 
        D3DADAPTER9_LIBS="-lEGL $D3DADAPTER9_LIBS"
 fi
-             if test "x$D3DADAPTER9_LIBS" != "x-lEGL -lGL -lxcb -lxcb-dri3 -lxcb-present -lX11-xcb -lxcb-xfixes -lpthread"; then :
+             if test "x$D3DADAPTER9_LIBS" != "x-lEGL -lGL -lpthread -lXext -lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "; then :
   case "x$with_d3dadapter" in
   xno) ;;
-  *)   as_fn_error $? "D3Dadapter9 DRI2 fallback requirements not met
+  *)   as_fn_error $? "D3Dadapter9 DRI2 fallback requires libEGL
 Use the --without-d3dadapter option if you really want this." "$LINENO" 5 ;;
 esac
 fi
@@ -17851,6 +18247,7 @@ wine_fn_config_dll d3d8 enable_d3d8 implib
 wine_fn_config_test dlls/d3d8/tests d3d8_test
 wine_fn_config_dll d3d9 enable_d3d9 implib
 wine_fn_config_test dlls/d3d9/tests d3d9_test
+wine_fn_config_dll d3d9-nine enable_d3d9_nine implib
 wine_fn_config_dll d3dcompiler_33 enable_d3dcompiler_33
 wine_fn_config_dll d3dcompiler_34 enable_d3dcompiler_34
 wine_fn_config_dll d3dcompiler_35 enable_d3dcompiler_35

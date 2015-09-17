@@ -1,7 +1,8 @@
 /*
- * Wine X11DRV DRI3 interface
+ * Wine DRI3 interface
  *
- * Copyright 2014 Axel Davy
+ * Copyright 2014-2015 Axel Davy
+ * Copyright 2015 Patrick Rudolph
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,24 +23,14 @@
 #include "config.h"
 #include "wine/debug.h"
 
-WINE_DEFAULT_DEBUG_CHANNEL(x11drv);
+WINE_DEFAULT_DEBUG_CHANNEL(d3dadapter);
 
-#if defined(SONAME_LIBXEXT) && defined(SONAME_LIBXFIXES)
-
-#include "x11drv.h"
-#include "wine/d3dadapter.h"
-
-
+#include <d3dadapter/d3dadapter9.h>
 #include <stdlib.h>
 #include <fcntl.h>
-
-#include <X11/Xlib.h>
-#include <X11/extensions/Xfixes.h>
-#include <X11/Xlib-xcb.h>
-
-#include "xfixes.h"
-#include "dri3.h"
 #include <pthread.h>
+
+#include "dri3.h"
 #include "winbase.h" /* for Sleep */
 
 #ifdef D3DADAPTER9_DRI2
@@ -47,7 +38,23 @@ WINE_DEFAULT_DEBUG_CHANNEL(x11drv);
 #include <sys/ioctl.h>
 #include <stdio.h>
 #include <string.h>
-#include "x11drv.h"
+
+#define BOOL X_BOOL
+#define BYTE X_BYTE
+#define INT8 X_INT8
+#define INT16 X_INT16
+#define INT32 X_INT32
+#define INT64 X_INT64
+#include <X11/Xmd.h>
+#include <X11/Xproto.h>
+#undef BOOL
+#undef BYTE
+#undef INT8
+#undef INT16
+#undef INT32
+#undef INT64
+#undef LONG64
+
 #include <X11/Xlibint.h>
 #include <X11/extensions/dri2tokens.h>
 #include <X11/extensions/dri2proto.h>
@@ -1335,5 +1342,3 @@ PRESENTWaitPixmapReleased(PRESENTPixmapPriv *present_pixmap_priv)
     pthread_mutex_unlock(&present_priv->mutex_present);
     return TRUE;
 }
-
-#endif /* defined(SONAME_LIBXEXT) && defined(SONAME_LIBXFIXES) */

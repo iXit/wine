@@ -1,8 +1,12 @@
 /*
- * X11DRV IDirect3D9 interface using ID3DAdapter9
+ * Wine IDirect3D9 interface using ID3DAdapter9
  *
  * Copyright 2013 Joakim Sindholt
  *                Christoph Bumiller
+ * Copyright 2014 David Heidelberger
+ * Copyright 2014-2015 Axel Davy
+ * Copyright 2015 Nick Sarnie
+ *                Patrick Rudolph
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,14 +26,10 @@
 #include "config.h"
 #include "wine/debug.h"
 
-#include <d3d9.h>
+WINE_DEFAULT_DEBUG_CHANNEL(d3dadapter);
 
-#ifdef SONAME_D3DADAPTER9
-
-#include "wine/d3dadapter.h"
-#include "wine/gdi_driver.h"
-
-WINE_DEFAULT_DEBUG_CHANNEL(d3d9);
+#include <d3dadapter/d3dadapter9.h>
+#include "present.h"
 
 /* this represents a snapshot taken at the moment of creation */
 struct output
@@ -77,13 +77,9 @@ struct d3dadapter9
     unsigned ngroups;
     unsigned ngroupsalloc;
 
-    struct d3dadapter_funcs *funcs;
-    /* fake window for getting driver funcs */
-    HWND hwnd;
-    HDC hdc;
-
     /* true if it implements IDirect3D9Ex */
     boolean ex;
+    Display *gdi_display;
 };
 
 /* convenience wrapper for calls into ID3D9Adapter */
@@ -143,9 +139,6 @@ d3dadapter9_Release( struct d3dadapter9 *This )
             }
             HeapFree(GetProcessHeap(), 0, This->groups);
         }
-
-        if (This->hdc) { ReleaseDC(This->hwnd, This->hdc); }
-        if (This->hwnd) { DestroyWindow(This->hwnd); }
 
         HeapFree(GetProcessHeap(), 0, This);
     }
@@ -218,8 +211,8 @@ d3dadapter9_GetAdapterIdentifier( struct d3dadapter9 *This,
             if (!RegQueryValueExA(regkey, "VideoPciDeviceID", 0, &type, (BYTE *)&data, &size) && (type == REG_DWORD) && (size == sizeof(DWORD)))
                 pIdentifier->DeviceId = data;
             if(size != sizeof(DWORD)) {
-		ERR("VideoPciDeviceID is not a DWORD\n");
-		size = sizeof(DWORD);
+                ERR("VideoPciDeviceID is not a DWORD\n");
+                size = sizeof(DWORD);
             }
             if (!RegQueryValueExA(regkey, "VideoPciVendorID", 0, &type, (BYTE *)&data, &size) && (type == REG_DWORD) && (size == sizeof(DWORD)))
                 pIdentifier->VendorId = data;
@@ -490,7 +483,7 @@ d3dadapter9_CreateDeviceEx( struct d3dadapter9 *This,
             nparams = 1;
             ordinal = Adapter - This->map[Adapter].master;
         }
-        hr = This->funcs->create_present_group(group->devname, ordinal,
+        hr = present_create_present_group(This->gdi_display, group->devname, ordinal,
                                                hFocusWindow,
                                                pPresentationParameters,
                                                nparams, &present);
@@ -674,7 +667,7 @@ fill_groups( struct d3dadapter9 *This )
             goto end_group;
         }
 
-        hr = This->funcs->create_adapter9(hdc, &group->adapter);
+        hr = present_create_adapter9(This->gdi_display, hdc, &group->adapter);
         DeleteDC(hdc);
         if (FAILED(hr)) {
             remove_group(This);
@@ -804,63 +797,9 @@ static IDirect3D9ExVtbl d3dadapter9_vtable = {
     (void *)d3dadapter9_GetAdapterLUID
 };
 
-#define D3D9_FAKE_WNDCLASS "FAKED3D9WINDOW"
-
-void
-d3dadapter9_init( HINSTANCE hinst )
-{
-    WNDCLASSA wc;
-
-    wc.style = CS_HREDRAW | CS_VREDRAW;
-    wc.lpfnWndProc = DefWindowProcA;
-    wc.cbClsExtra = 0;
-    wc.cbWndExtra = 0;
-    wc.hInstance = hinst;
-    wc.hIcon = LoadIconA(NULL, (LPCSTR)IDI_WINLOGO);
-    wc.hCursor = LoadCursorA(NULL, (LPCSTR)IDC_ARROW);
-    wc.hbrBackground = NULL;
-    wc.lpszMenuName = NULL;
-    wc.lpszClassName = D3D9_FAKE_WNDCLASS;
-
-    if (!RegisterClassA(&wc)) {
-        ERR("Unable to register window to retrieve driver info.\n");
-    }
-}
-
-void
-d3dadapter9_destroy( HINSTANCE hinst )
-{
-    UnregisterClassA(D3D9_FAKE_WNDCLASS, hinst);
-}
-
-static int
-load_adapter_funcs( struct d3dadapter9 *This )
-{
-    This->hwnd = CreateWindowA(D3D9_FAKE_WNDCLASS, "D3DAdapter9 fake window",
-                               WS_OVERLAPPEDWINDOW, 10, 10, 10, 10,
-                               NULL, NULL, NULL, NULL);
-    if (!This->hwnd) {
-        ERR("Unable to create fake window to retrieve driver info.\n");
-        return FALSE;
-    }
-    This->hdc = GetDC(This->hwnd);
-    if (!This->hdc) {
-        ERR("Unable to get fake window DC to retrieve driver info.\n");
-        return FALSE;
-    }
-
-    This->funcs =
-        __wine_get_d3dadapter_driver(This->hdc, WINE_D3DADAPTER_DRIVER_VERSION);
-    if (!This->funcs || !This->funcs->create_adapter9) {
-        WARN("Your display driver doesn't support native D3D9 adapters.\n");
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
 HRESULT
-d3dadapter9_new( boolean ex,
+d3dadapter9_new( Display *gdi_display,
+                 boolean ex,
                  IDirect3D9Ex **ppOut )
 {
     struct d3dadapter9 *This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
@@ -876,8 +815,9 @@ d3dadapter9_new( boolean ex,
     This->vtable = &d3dadapter9_vtable;
     This->refs = 1;
     This->ex = ex;
+    This->gdi_display = gdi_display;
 
-    if (!load_adapter_funcs(This)) {
+    if (!has_d3dadapter(gdi_display)) {
         ERR("Your display driver doesn't support native D3D9 adapters.\n");
         d3dadapter9_Release(This);
         return D3DERR_NOTAVAILABLE;
@@ -920,24 +860,3 @@ d3dadapter9_new( boolean ex,
           "\nFor more information visit https://wiki.ixit.cz/d3d9\033[0m\n");
     return D3D_OK;
 }
-
-#else
-
-HRESULT
-d3dadapter9_new( boolean ex,
-                 IDirect3D9Ex **ppOut )
-{
-    return D3DERR_NOTAVAILABLE;
-}
-
-void
-d3dadapter9_init( HINSTANCE hinst )
-{
-}
-
-void
-d3dadapter9_destroy( HINSTANCE hinst )
-{
-}
-
-#endif /* SONAME_D3DADAPTER9 */

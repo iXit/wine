@@ -1,8 +1,7 @@
 /*
- * Wine X11DRV XFixes interface
+ * D3DAdapter9 interface
  *
- * Copyright 2007 Chris Robinson
- *           2013 Joakim Sindholt
+ * Copyright 2015 Patrick Rudolph
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,22 +17,14 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
-#ifndef __WINE_XFIXES_H
-#define __WINE_XFIXES_H
 
-#ifndef __WINE_CONFIG_H
-# error You must include config.h to use this header
-#endif
+#ifndef __WINE_D3D9ADAPTER_H
+#define __WINE_D3D9ADAPTER_H
 
-#ifdef SONAME_LIBXFIXES
+#include <X11/Xlib.h>
 
-#include <X11/extensions/Xfixes.h>
-#define MAKE_FUNCPTR(f) extern typeof(f) * p##f DECLSPEC_HIDDEN;
-MAKE_FUNCPTR(XFixesQueryExtension)
-MAKE_FUNCPTR(XFixesQueryVersion)
-MAKE_FUNCPTR(XFixesCreateRegion)
-MAKE_FUNCPTR(XFixesDestroyRegion)
-#undef MAKE_FUNCPTR
+void d3dadapter9_init(HINSTANCE hinst);
+void d3dadapter9_destroy(HINSTANCE hinst);
+HRESULT d3dadapter9_new(Display *gdi_display, boolean ex, IDirect3D9Ex **ppOut);
 
-#endif /* defined(SONAME_LIBXFIXES) */
-#endif /* __WINE_XFIXES_H */
+#endif /* __WINE_D3D9ADAPTER_H */

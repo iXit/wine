@@ -96,9 +96,9 @@ struct d3d_wnd_hooks
 
 static HRESULT dri3_present_unregister_window_hook( struct DRI3Present *This );
 static HRESULT dri3_present_register_window_hook( struct DRI3Present *This );
-#endif
 
 static struct d3d_wnd_hooks d3d_hooks;
+#endif
 
 struct DRI3Present
 {

@@ -27,7 +27,7 @@
 
 #include <X11/Xlib.h>
 
-HRESULT present_create_present_group(Display *gdi_display, const WCHAR *device_name, UINT adapter, HWND focus, D3DPRESENT_PARAMETERS *params, unsigned nparams, ID3DPresentGroup **group);
+HRESULT present_create_present_group(Display *gdi_display, const WCHAR *device_name, UINT adapter, HWND focus, D3DPRESENT_PARAMETERS *params, unsigned nparams, ID3DPresentGroup **group, boolean ex, boolean no_window_changes);
 
 HRESULT present_create_adapter9(Display *gdi_display, HDC hdc, ID3DAdapter9 **adapter);
 

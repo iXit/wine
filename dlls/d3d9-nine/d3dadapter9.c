@@ -466,6 +466,7 @@ d3dadapter9_CreateDeviceEx( struct d3dadapter9 *This,
 {
     ID3DPresentGroup *present;
     HRESULT hr;
+    boolean no_window_changes;
 
     if (Adapter >= d3dadapter9_GetAdapterCount(This)) {
         WARN("Adapter %u does not exist.\n", Adapter);
@@ -483,10 +484,12 @@ d3dadapter9_CreateDeviceEx( struct d3dadapter9 *This,
             nparams = 1;
             ordinal = Adapter - This->map[Adapter].master;
         }
+        no_window_changes = !!(BehaviorFlags & D3DCREATE_NOWINDOWCHANGES);
+
         hr = present_create_present_group(This->gdi_display, group->devname, ordinal,
                                                hFocusWindow,
                                                pPresentationParameters,
-                                               nparams, &present);
+                                               nparams, &present, This->ex, no_window_changes);
     }
 
     if (FAILED(hr)) {

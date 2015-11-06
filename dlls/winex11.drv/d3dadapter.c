@@ -985,6 +985,8 @@ dri3_create_present_group( const WCHAR *device_name,
 
     if (nparams != 1) { adapter = 0; }
     for (i = 0; i < This->npresent_backends; ++i) {
+        ZeroMemory(&dd, sizeof(dd));
+        dd.cb = sizeof(dd);
         /* find final device name */
         if (!EnumDisplayDevicesW(device_name, adapter+i, &dd, 0)) {
             WARN("Couldn't find subdevice %d from `%s'\n",

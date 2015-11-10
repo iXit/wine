@@ -871,7 +871,8 @@ DRI3PresentGroup_Release( struct DRI3PresentGroup *This )
         unsigned i;
         if (This->present_backends) {
             for (i = 0; i < This->npresent_backends; ++i) {
-                DRI3Present_Release(This->present_backends[i]);
+                if (This->present_backends[i])
+                    DRI3Present_Release(This->present_backends[i]);
             }
             HeapFree(GetProcessHeap(), 0, This->present_backends);
         }

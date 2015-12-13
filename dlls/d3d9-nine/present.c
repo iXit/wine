@@ -31,13 +31,12 @@ WINE_DEFAULT_DEBUG_CHANNEL(d3dadapter);
 
 #include <d3dadapter/d3dadapter9.h>
 #include <d3dadapter/drm.h>
-#include <libdrm/drm.h>
-#include <errno.h>
-#include <fcntl.h>
+#include <X11/Xutil.h>
 
 #include "dri3.h"
-#include "wine/library.h"
-#include "wine/unicode.h"
+
+#include "wine/library.h" // for wine_dl*
+#include "wine/unicode.h" // for strcpyW
 
 #ifndef D3DPRESENT_DONOTWAIT
 #define D3DPRESENT_DONOTWAIT      0x00000001

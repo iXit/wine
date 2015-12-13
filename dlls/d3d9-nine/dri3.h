@@ -26,11 +26,6 @@
 #endif
 
 #include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xlib-xcb.h>
-#include <xcb/xcb.h>
-#include <xcb/dri3.h>
-#include <xcb/present.h>
 
 BOOL
 DRI3CheckExtension(Display *dpy, int major, int minor);

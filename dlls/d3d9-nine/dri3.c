@@ -26,18 +26,20 @@
 WINE_DEFAULT_DEBUG_CHANNEL(d3dadapter);
 
 #include <d3dadapter/d3dadapter9.h>
-#include <stdlib.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <pthread.h>
 
 #include "dri3.h"
+
+#include <X11/Xlib-xcb.h>
+#include <xcb/dri3.h>
+#include <xcb/present.h>
+
 #include "winbase.h" /* for Sleep */
 
 #ifdef D3DADAPTER9_DRI2
-#include <unistd.h>
 #include <sys/ioctl.h>
-#include <stdio.h>
-#include <string.h>
 
 #define BOOL X_BOOL
 #define BYTE X_BYTE
@@ -46,7 +48,6 @@ WINE_DEFAULT_DEBUG_CHANNEL(d3dadapter);
 #define INT32 X_INT32
 #define INT64 X_INT64
 #include <X11/Xmd.h>
-#include <X11/Xproto.h>
 #undef BOOL
 #undef BYTE
 #undef INT8
@@ -948,7 +949,7 @@ DRI2FallbackPRESENTPixmap(PRESENTpriv *present_priv, struct DRI2priv *dri2_priv,
         EGL_DMA_BUF_PLANE0_PITCH_EXT, 0,
         EGL_NONE
     };
-    EGLenum current_api;
+    EGLenum current_api = 0;
     int status;
 
     pthread_mutex_lock(&present_priv->mutex_present);
@@ -1134,7 +1135,7 @@ PRESENTPixmap(Display *dpy, XID window,
     PRESENTpriv *present_priv = present_pixmap_priv->present_priv;
 #ifdef D3DADAPTER9_DRI2
     struct DRI2priv *dri2_priv = present_pixmap_priv->dri2_info.dri2_priv;
-    EGLenum current_api;
+    EGLenum current_api = 0;
 #endif
     xcb_void_cookie_t cookie;
     xcb_generic_error_t *error;

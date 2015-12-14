@@ -26,17 +26,11 @@
 #include "initguid.h"
 #include "wine/debug.h"
 
-#include <dlfcn.h>
 #include <fcntl.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include <d3dadapter/d3dadapter9.h>
 
 #include "d3dadapter9.h"
-
-#include "wine/library.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(d3dadapter);
 

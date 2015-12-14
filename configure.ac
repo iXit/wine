@@ -1161,43 +1161,126 @@ This probably prevents linking to OpenGL. Try deleting the file and restarting c
     WINE_WARNING_WITH(opengl,[test -n "$opengl_msg"],[$opengl_msg
 OpenGL and Direct3D won't be supported.])
 
-
-
     dnl Check for d3dadapter
     if test "x$with_d3dadapter" != "xno"
     then
-         D3D_CFLAGS=`pkg-config --cflags d3d`
-         D3D_LIBS=`pkg-config --libs d3d`
+         D3D_CFLAGS="`pkg-config --cflags d3d`"
+         # pkg-config doesn't support cross-compilation. remove once fixed.
+         test x"$D3D_CFLAGS" = x && D3D_CFLAGS="-I/usr/include/d3dadapter/"
          AC_SUBST(D3D_CFLAGS)
-         AC_SUBST(D3D_LIBS)
          AC_DEFINE(SONAME_D3DADAPTER9, ["d3dadapter9.so.1"], ["temporary hack"])
-         AC_DEFINE_UNQUOTED(D3D_MODULE_DIR, ["`pkg-config --variable=moduledir d3d`"], ["module dir"])
+         D3D_MODULE_DIR=`pkg-config --variable=moduledir d3d`
+         # need -I./include for D3D9.h and D3D_MODULE_DIR test
+         CPPFLAGS="$CPPFLAGS $D3D_CFLAGS -I./include -ldl"
+       
+         ac_cv_c_dlopen_d3dadapter=""
+         AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <dlfcn.h>
+#include <stdlib.h>]],[[void *handle = dlopen("${D3D_MODULE_DIR}" "/" SONAME_D3DADAPTER9, RTLD_GLOBAL | RTLD_NOW);
+exit((handle && dlsym(handle, "D3DAdapter9GetProc")) ? 0 : 1)]])],
+             [ac_cv_c_dlopen_d3dadapter=yes],[ac_cv_c_dlopen_d3dadapter=no])
+         if test "x$ac_cv_c_dlopen_d3dadapter" != "xyes"
+         then
+             echo "d3dadapter9.so.1 not found in '$D3D_MODULE_DIR'";
+             # workaround for pkg-config cross-compilation
+             # search for module in known folders
+             for D3D_MODULE_DIR in `$CC -Xlinker --verbose 2>/dev/null | grep SEARCH`
+             do
+                 D3D_MODULE_DIR="`echo \"$D3D_MODULE_DIR\" | sed 's/SEARCH_DIR("//g;s/\/");/\/d3d/g;s/");/\/d3d/g'`"
+                 ac_cv_c_dlopen_d3dadapter=""
+                 AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <dlfcn.h>
+#include <stdlib.h>]],[[void *handle = dlopen("${D3D_MODULE_DIR}" "/" SONAME_D3DADAPTER9, RTLD_GLOBAL | RTLD_NOW);
+exit((handle && dlsym(handle, "D3DAdapter9GetProc")) ? 0 : 1)]])],
+                     [echo "d3dadapter9.so.1 found in '$D3D_MODULE_DIR'";ac_cv_c_dlopen_d3dadapter=yes],
+                     [echo "d3dadapter9.so.1 not found in '$D3D_MODULE_DIR'";ac_cv_c_dlopen_d3dadapter=no])
+                 if test "x$ac_cv_c_dlopen_d3dadapter" = xyes
+                 then
+                     break
+                 fi
+             done
+         fi
+         AC_DEFINE_UNQUOTED(D3D_MODULE_DIR, ["`echo ${D3D_MODULE_DIR}`"], ["module dir"])
+         WINE_NOTICE_WITH(d3dadapter,[test "x$ac_cv_c_dlopen_d3dadapter" = xno],
+                 [d3dadapter9.so.1 module not found, Gallium Nine won't be supported.])
+
          D3DADAPTER9_LIBS=""
-         WINE_CHECK_SONAME(xcb,xcb_request_check, [D3DADAPTER9_LIBS="-lxcb $D3DADAPTER9_LIBS"])
-         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lxcb "],[D3Dadapter9 requires libxcb])
-         WINE_CHECK_SONAME(xcb-dri3,xcb_dri3_open, [D3DADAPTER9_LIBS="-lxcb-dri3 $D3DADAPTER9_LIBS"])
-         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lxcb-dri3 -lxcb "],[D3Dadapter9 requires libxcb-dri3])
-         WINE_CHECK_SONAME(xcb-present,xcb_present_notify_msc, [D3DADAPTER9_LIBS="-lxcb-present $D3DADAPTER9_LIBS"])
-         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 requires libxcb-present])
-         WINE_CHECK_SONAME(X11-xcb,XGetXCBConnection, [D3DADAPTER9_LIBS="-lX11-xcb $D3DADAPTER9_LIBS"])
-         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 requires libX11-xcb])
-         WINE_CHECK_SONAME(xcb-xfixes,xcb_xfixes_create_region, [D3DADAPTER9_LIBS="-lxcb-xfixes $D3DADAPTER9_LIBS"])
-         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 requires libxcb-xfixes])
-         WINE_CHECK_SONAME(X11,XOpenDisplay, [D3DADAPTER9_LIBS="-lX11 $D3DADAPTER9_LIBS"])
-         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 requires libX11])
-         WINE_CHECK_SONAME(Xext,XextRemoveDisplay, [D3DADAPTER9_LIBS="-lXext $D3DADAPTER9_LIBS"])
-         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lXext -lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 requires libXext])
-         WINE_CHECK_SONAME(pthread,pthread_mutex_lock, [D3DADAPTER9_LIBS="-lpthread $D3DADAPTER9_LIBS"])
-         WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lpthread -lXext -lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 requires libpthread])
+         D3DADAPTER9_LIBS_NOT_FOUND=""
+         D3DADAPTER9_HEADER_NOT_FOUND=""
+
+         AC_CHECK_HEADERS([d3dadapter9.h X11/Xlib-xcb.h xcb/dri3.h xcb/present.h X11/Xutil.h X11/Xlib.h pthread.h])
+         test "x$ac_cv_header_d3dadapter9_h" != xyes && D3DADAPTER9_HEADER_NOT_FOUND="d3dadapter9.h "
+         test "x$ac_cv_header_X11_Xlib_xcb_h" != xyes && D3DADAPTER9_HEADER_NOT_FOUND="${D3DADAPTER9_HEADER_NOT_FOUND}X11/Xlib-xcb.h "
+         test "x$ac_cv_header_xcb_dri3_h" != xyes && D3DADAPTER9_HEADER_NOT_FOUND="${D3DADAPTER9_HEADER_NOT_FOUND}xcb/dri3.h "
+         test "x$ac_cv_header_xcb_present_h" != xyes && D3DADAPTER9_HEADER_NOT_FOUND="${D3DADAPTER9_HEADER_NOT_FOUND}xcb/present.h "
+         test "x$ac_cv_header_X11_Xutil_h" != xyes && D3DADAPTER9_HEADER_NOT_FOUND="${D3DADAPTER9_HEADER_NOT_FOUND}X11/Xutil.h "
+         test "x$ac_cv_header_X11_Xlib_h" != xyes && D3DADAPTER9_HEADER_NOT_FOUND="${D3DADAPTER9_HEADER_NOT_FOUND}X11/Xlib.h "
+         test "x$ac_cv_header_pthread_h" != xyes && D3DADAPTER9_HEADER_NOT_FOUND="${D3DADAPTER9_HEADER_NOT_FOUND}pthread.h "
+         WINE_NOTICE_WITH(d3dadapter,[test "x$D3DADAPTER9_HEADER_NOT_FOUND" != x],
+                 [$D3DADAPTER9_HEADER_NOT_FOUND header not found, Gallium Nine won't be supported.])
+
+         AC_CHECK_LIB(xcb,xcb_request_check,[AC_SUBST(D3DADAPTER9_LIBS,["$D3DADAPTER9_LIBS -lxcb"])])
+         test "x$ac_cv_lib_xcb_xcb_request_check" != xyes && D3DADAPTER9_LIBS_NOT_FOUND="libxcb "
+         AC_CHECK_LIB(xcb-dri3,xcb_dri3_open,[AC_SUBST(D3DADAPTER9_LIBS,["$D3DADAPTER9_LIBS -lxcb-dri3"])])
+         test "x$ac_cv_lib_xcb_dri3_xcb_dri3_open" != xyes && D3DADAPTER9_LIBS_NOT_FOUND="${D3DADAPTER9_LIBS_NOT_FOUND}libxcb-dri3 "
+         AC_CHECK_LIB(xcb-present,xcb_present_notify_msc,[AC_SUBST(D3DADAPTER9_LIBS,["$D3DADAPTER9_LIBS -lxcb-present"])])
+         test "x$ac_cv_lib_xcb_present_xcb_present_notify_msc" != xyes && D3DADAPTER9_LIBS_NOT_FOUND="${D3DADAPTER9_LIBS_NOT_FOUND}libxcb-present "
+         AC_CHECK_LIB(xcb-xfixes,xcb_xfixes_create_region,[AC_SUBST(D3DADAPTER9_LIBS,["$D3DADAPTER9_LIBS -lxcb-xfixes"])])
+         test "x$ac_cv_lib_xcb_xfixes_xcb_xfixes_create_region" != xyes && D3DADAPTER9_LIBS_NOT_FOUND="${D3DADAPTER9_LIBS_NOT_FOUND}libxcb-xfixes "
+         AC_CHECK_LIB(X11-xcb,XGetXCBConnection,[AC_SUBST(D3DADAPTER9_LIBS,["$D3DADAPTER9_LIBS -lX11-xcb"])])
+         test "x$ac_cv_lib_X11_xcb_XGetXCBConnection" != xyes && D3DADAPTER9_LIBS_NOT_FOUND="${D3DADAPTER9_LIBS_NOT_FOUND}libX11-xcb "
+         AC_CHECK_LIB(X11,XOpenDisplay,[AC_SUBST(D3DADAPTER9_LIBS,["$D3DADAPTER9_LIBS -lX11"])])
+         test "x$ac_cv_lib_X11_XOpenDisplay" != xyes && D3DADAPTER9_LIBS_NOT_FOUND="${D3DADAPTER9_LIBS_NOT_FOUND}libX11 "
+         AC_CHECK_LIB(Xext,XextRemoveDisplay,[AC_SUBST(D3DADAPTER9_LIBS,["$D3DADAPTER9_LIBS -lXext"])])
+         test "x$ac_cv_lib_Xext_XextRemoveDisplay" != xyes && D3DADAPTER9_LIBS_NOT_FOUND="${D3DADAPTER9_LIBS_NOT_FOUND}libXext "
+         AC_CHECK_LIB(pthread,pthread_mutex_lock,[AC_SUBST(D3DADAPTER9_LIBS,["$D3DADAPTER9_LIBS -lpthread"])])
+         test "x$ac_cv_lib_pthread_pthread_mutex_lock" != xyes && D3DADAPTER9_LIBS_NOT_FOUND="${D3DADAPTER9_LIBS_NOT_FOUND}libpthread "
 
          if test "x$with_d3dadapter_dri2_fallback" != "xno"
          then
-             AC_DEFINE(D3DADAPTER9_DRI2, 1, [Whether d3dadapter9 DRI2 fallback is compiled])
-             WINE_CHECK_SONAME(GL,glGenFramebuffers, [D3DADAPTER9_LIBS="-lGL $D3DADAPTER9_LIBS"])
-             WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lGL -lpthread -lXext -lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 DRI2 fallback requires libGL])
-             WINE_CHECK_SONAME(EGL,eglCreateContext, [D3DADAPTER9_LIBS="-lEGL $D3DADAPTER9_LIBS"])
-             WINE_ERROR_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS" != "x-lEGL -lGL -lpthread -lXext -lX11 -lxcb-xfixes -lX11-xcb -lxcb-present -lxcb-dri3 -lxcb "],[D3Dadapter9 DRI2 fallback requires libEGL])
+             D3DADAPTER9_FALLBACK_LIBS_NOT_FOUND=""
+             D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND=""
+             AC_CHECK_LIB(GL,glGenFramebuffers,[AC_SUBST(D3DADAPTER9_LIBS,["$D3DADAPTER9_LIBS -lGL"])])
+             test "x$ac_cv_lib_GL_glGenFramebuffers" != xyes && D3DADAPTER9_FALLBACK_LIBS_NOT_FOUND="libGL "
+             AC_CHECK_LIB(EGL,eglCreateContext,[AC_SUBST(D3DADAPTER9_LIBS,["$D3DADAPTER9_LIBS -lEGL"])])
+             test "x$ac_cv_lib_EGL_eglCreateContext" != xyes && D3DADAPTER9_FALLBACK_LIBS_NOT_FOUND="${D3DADAPTER9_FALLBACK_LIBS_NOT_FOUND}libEGL"
+
+             AC_CHECK_HEADERS([X11/Xmd.h X11/Xlibint.h X11/extensions/dri2tokens.h X11/extensions/dri2proto.h X11/extensions/extutil.h GL/gl.h GL/glext.h EGL/egl.h EGL/eglext.h libdrm/drm_fourcc.h libdrm/drm.h],
+                     [],[],[[
+#include <X11/Xlibint.h>
+#include <X11/extensions/dri2tokens.h>
+#include <GL/gl.h>
+#include <EGL/egl.h>
+]])
+             test "x$ac_cv_header_X11_Xmd_h" != xyes && D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND="${D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND}X11/Xmd.h "
+             test "x$ac_cv_header_X11_Xlibint_h" != xyes && D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND="${D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND}X11/Xlibint.h "
+             test "x$ac_cv_header_X11_extensions_dri2tokens_h" != xyes && D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND="${D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND}X11/extensions/dri2tokens.h "
+             test "x$ac_cv_header_X11_extensions_dri2proto_h" != xyes && D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND="${D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND}X11/extensions/dri2proto.h "
+             test "x$ac_cv_header_X11_extensions_extutil_h" != xyes && D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND="${D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND}X11/extensions/extutil.h "
+             test "x$ac_cv_header_GL_gl_h" != xyes && D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND="${D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND}GL/gl.h "
+             test "x$ac_cv_header_GL_glext_h" != xyes && D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND="${D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND}GL/glext.h "
+             test "x$ac_cv_header_EGL_egl_h" != xyes && D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND="${D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND}EGL/egl.h "
+             test "x$ac_cv_header_EGL_eglext_h" != xyes && D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND="${D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND}EGL/eglext.h "
+             test "x$ac_cv_header_libdrm_drm_fourcc_h" != xyes && D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND="${D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND}libdrm/drm_fourcc.h "
+             test "x$ac_cv_header_libdrm_drm_h" != xyes && D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND="${D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND}libdrm/drm.h "
+
+             if test "x$D3DADAPTER9_FALLBACK_LIBS_NOT_FOUND" = x -a "x$D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND" = x
+             then
+                 AC_DEFINE(D3DADAPTER9_DRI2, 1, [Whether d3dadapter9 DRI2 fallback is compiled])
+             fi
+             WINE_NOTICE_WITH(d3dadapter_dri2_fallback,[test "x$D3DADAPTER9_FALLBACK_LIBS_NOT_FOUND" != x],
+                     [$D3DADAPTER9_FALLBACK_LIBS_NOT_FOUND ${notice_platform}development files not found, Gallium Nine DRI2 fallback won't be supported.])
+             WINE_NOTICE_WITH(d3dadapter_dri2_fallback,[test "x$D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND" != x],
+                     [$D3DADAPTER9_FALLBACK_HEADERS_NOT_FOUND headers not found, Gallium Nine DRI2 fallback won't be supported.])
          fi
+
+         test "x$D3DADAPTER9_LIBS_NOT_FOUND" != "x" && \
+             "x$D3DADAPTER9_HEADER_NOT_FOUND" != x && \
+             "x$ac_cv_c_dlopen_d3dadapter" != xyes && \
+             enable_d3d9_nine=${enable_d3d9_nine:-no}
+         WINE_NOTICE_WITH(d3dadapter,[test "x$D3DADAPTER9_LIBS_NOT_FOUND" != "x"],
+                 [$D3DADAPTER9_LIBS_NOT_FOUND ${notice_platform}development files not found, Gallium Nine won't be supported.])
+    else
+        enable_d3d9_nine=${enable_d3d9_nine:-no}
+        D3D_CFLAGS=""
     fi
 
     CPPFLAGS="$ac_save_CPPFLAGS"

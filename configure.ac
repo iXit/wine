@@ -1171,7 +1171,7 @@ OpenGL and Direct3D won't be supported.])
          AC_DEFINE(SONAME_D3DADAPTER9, ["d3dadapter9.so.1"], ["temporary hack"])
          D3D_MODULE_DIR=`pkg-config --variable=moduledir d3d`
          # need -I./include for D3D9.h and D3D_MODULE_DIR test
-         CPPFLAGS="$CPPFLAGS $D3D_CFLAGS -I./include -ldl"
+         CPPFLAGS="$CPPFLAGS $D3D_CFLAGS -I./include -Wl,--no-as-needed -ldl"
        
          ac_cv_c_dlopen_d3dadapter=""
          AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <dlfcn.h>

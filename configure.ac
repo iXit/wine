@@ -1168,7 +1168,7 @@ OpenGL and Direct3D won't be supported.])
          D3D_MODULE_DIR=`pkg-config --variable=moduledir d3d`
          CPPFLAGSBAK=$CPPFLAGS
          # link against libdl
-         CPPFLAGS="$CPPFLAGS -ldl"
+         CPPFLAGS="$CPPFLAGS -Wl,--no-as-needed -ldl"
        
          ac_cv_c_dlopen_d3dadapter=""
          AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <dlfcn.h>

@@ -628,8 +628,10 @@ WCHAR* get_redirect( const WCHAR *app_name, const WCHAR *path, BYTE *buffer, ULO
         goto done;
 
     /* then module basename without '*' (only if explicit path) */
+    /*
     if (basename != module+1 && (ret = get_redirect_value( std_key, app_key, basename, buffer, size )))
         goto done;
+    */
 
     /* and last the hard-coded default */
     ret = NULL;

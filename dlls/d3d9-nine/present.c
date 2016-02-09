@@ -859,10 +859,12 @@ DRI3Present_ChangePresentParameters( struct DRI3Present *This,
                 new_mode.dmDisplayFrequency = params->FullScreen_RefreshRateInHz;
             }
             new_mode.dmSize = sizeof(DEVMODEW);
-            DRI3Present_ChangeDisplaySettingsIfNeccessary(This, &new_mode);
+            hr = DRI3Present_ChangeDisplaySettingsIfNeccessary(This, &new_mode);
         } else {
-            DRI3Present_ChangeDisplaySettingsIfNeccessary(This, &This->initial_mode);
+            hr= DRI3Present_ChangeDisplaySettingsIfNeccessary(This, &This->initial_mode);
         }
+        if (hr != D3D_OK)
+            return hr;
         This->mode_changed = FALSE;
 
         if (This->params.Windowed) {

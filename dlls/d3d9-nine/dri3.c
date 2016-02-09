@@ -130,6 +130,9 @@ DRI3CheckExtension(Display *dpy, int major, int minor)
 
 #ifdef D3DADAPTER9_DRI2
 
+static EGLDisplay display = NULL;
+static int display_ref = 0;
+
 struct DRI2priv {
     Display *dpy;
     EGLDisplay display;
@@ -148,7 +151,6 @@ DRI2FallbackInit(Display *dpy, struct DRI2priv **priv)
     PFNEGLCREATEIMAGEKHRPROC eglCreateImageKHR_func;
     PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT_func;
     PFNEGLDESTROYIMAGEKHRPROC eglDestroyImageKHR_func;
-    EGLDisplay display;
     EGLint major, minor;
     EGLConfig config;
     EGLContext context;
@@ -169,9 +171,13 @@ DRI2FallbackInit(Display *dpy, struct DRI2priv **priv)
     eglGetPlatformDisplayEXT_func = (PFNEGLGETPLATFORMDISPLAYEXTPROC) eglGetProcAddress("eglGetPlatformDisplayEXT");
     if (!eglGetPlatformDisplayEXT_func)
         return FALSE;
-    display = eglGetPlatformDisplayEXT_func(EGL_PLATFORM_X11_EXT, dpy, NULL);
+    if (!display)
+        display = eglGetPlatformDisplayEXT_func(EGL_PLATFORM_X11_EXT, dpy, NULL);
     if (!display)
         return FALSE;
+    /* count references on display for multi device setups */
+    display_ref++;
+
     if (eglInitialize(display, &major, &minor) != EGL_TRUE)
         goto clean_egl_display;
 
@@ -234,7 +240,14 @@ DRI2FallbackDestroy(struct DRI2priv *priv)
     eglBindAPI(EGL_OPENGL_API);
     eglMakeCurrent(priv->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     eglDestroyContext(priv->display, priv->context);
-    eglTerminate(priv->display);
+    if (display) {
+        /* destroy display connection with last device */
+        display_ref--;
+        if (!display_ref) {
+            eglTerminate(display);
+            display = NULL;
+        }
+    }
     eglBindAPI(current_api);
     free(priv);
 }

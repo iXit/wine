@@ -7,6 +7,7 @@ C_SRCS = \
         d3d9_main.c \
         d3dadapter9.c \
         present.c \
-        dri3.c
+        dri3.c \
+        wndproc.c
 
 RC_SRCS = version.rc

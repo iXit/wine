@@ -1,7 +1,11 @@
 /*
- * Wine present interface
+ * Direct3D wine internal interface main
  *
- * Copyright 2015 Patrick Rudolph
+ * Copyright 2002-2003 The wine-d3d team
+ * Copyright 2002-2003 Raphael Junqueira
+ * Copyright 2004      Jason Edmeades
+ * Copyright 2007-2008 Stefan Dösinger for CodeWeavers
+ * Copyright 2009 Henri Verbeet for CodeWeavers
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,23 +22,20 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __WINE_PRESENT_H
-#define __WINE_PRESENT_H
+#ifndef __WINE_NINE_WNDPROC_H
+#define __WINE_NINE_WNDPROC_H
 
-#ifndef __WINE_CONFIG_H
-# error You must include config.h to use this header
+struct DRI3Present;
+
+BOOL nine_register_window(HWND window, struct DRI3Present *present);
+BOOL nine_unregister_window(HWND window);
+
+BOOL nine_dll_init(HINSTANCE hInstDLL);
+BOOL nine_dll_destroy(HINSTANCE hInstDLL);
+
+LRESULT device_process_message(struct DRI3Present *present, HWND window, BOOL unicode,
+        UINT message, WPARAM wparam, LPARAM lparam, WNDPROC proc);
+
+#define NINE_WINDOW_CLASS_NAME "Gallium_Nine_Window"
+
 #endif
-
-#include <X11/Xlib.h>
-
-HRESULT present_create_present_group(Display *gdi_display, const WCHAR *device_name, UINT adapter,
-        HWND focus, D3DPRESENT_PARAMETERS *params, unsigned nparams, ID3DPresentGroup **group,
-        boolean ex, DWORD BehaviorFlags);
-
-HRESULT present_create_adapter9(Display *gdi_display, HDC hdc, ID3DAdapter9 **adapter);
-
-BOOL present_has_d3dadapter(Display *gdi_display);
-
-BOOL enable_device_vtable_wrapper(void);
-
-#endif /* __WINE_PRESENT_H */

@@ -874,20 +874,24 @@ DRI3Present_ChangePresentParameters( struct DRI3Present *This,
                     if (This->focus_wnd != draw_window)
                         SetWindowPos(This->focus_wnd, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
                 }
-                This->style = GetWindowLongW(draw_window, GWL_STYLE);
-                This->style_ex = GetWindowLongW(draw_window, GWL_EXSTYLE);
-
-                style = fullscreen_style(This->style);
-                style_ex = fullscreen_exstyle(This->style_ex);
 
                 drop_wnd_messages = This->drop_wnd_messages;
                 This->drop_wnd_messages = TRUE;
 
-                SetWindowLongW(draw_window, GWL_STYLE, style);
-                SetWindowLongW(draw_window, GWL_EXSTYLE, style_ex);
-                SetWindowPos(draw_window, HWND_TOPMOST, 0, 0, params->BackBufferWidth,
-                             params->BackBufferHeight,
-                             SWP_FRAMECHANGED | SWP_SHOWWINDOW | SWP_NOACTIVATE);
+                if (!This->no_window_changes) {
+                    This->style = GetWindowLongW(draw_window, GWL_STYLE);
+                    This->style_ex = GetWindowLongW(draw_window, GWL_EXSTYLE);
+
+                    style = fullscreen_style(This->style);
+                    style_ex = fullscreen_exstyle(This->style_ex);
+
+                    SetWindowLongW(draw_window, GWL_STYLE, style);
+                    SetWindowLongW(draw_window, GWL_EXSTYLE, style_ex);
+
+                    SetWindowPos(draw_window, HWND_TOPMOST, 0, 0, params->BackBufferWidth,
+                                 params->BackBufferHeight,
+                                 SWP_FRAMECHANGED | SWP_SHOWWINDOW | SWP_NOACTIVATE);
+                }
                 This->drop_wnd_messages = drop_wnd_messages;
             }
         } else {
@@ -900,12 +904,12 @@ DRI3Present_ChangePresentParameters( struct DRI3Present *This,
                         params->BackBufferHeight,
                         TRUE);
                 This->drop_wnd_messages = drop_wnd_messages;
-            } else if (This->style || This->style_ex) {
+            } else if (!This->no_window_changes &&
+                       (This->style || This->style_ex)) {
                 /* switch from fullscreen to window */
                 style = GetWindowLongW(draw_window, GWL_STYLE);
                 style_ex = GetWindowLongW(draw_window, GWL_EXSTYLE);
-
-                /* These flags are set by wined3d_device_setup_fullscreen_window, not the
+                /* These flags are set by us, not the
                  * application, and we want to ignore them in the test below, since it's
                  * not the application's fault that they changed. Additionally, we want to
                  * preserve the current status of these flags (i.e. don't restore them) to

@@ -627,11 +627,11 @@ DRI3Present_ChangeDisplaySettingsIfNeccessary( struct DRI3Present *This, DEVMODE
                 new_mode->dmDisplayFrequency = 0;
                 hr = ChangeDisplaySettingsExW(This->devname, new_mode, 0, CDS_FULLSCREEN, NULL);
                 if (hr != DISP_CHANGE_SUCCESSFUL) {
-                    ERR("ChangeDisplaySettingsExW failed with 0x%08X\n", hr);
+                    WARN("ChangeDisplaySettingsExW failed with 0x%08X\n", hr);
                     return D3DERR_INVALIDCALL;
                 }
             } else {
-                ERR("ChangeDisplaySettingsExW failed with 0x%08X\n", hr);
+                WARN("ChangeDisplaySettingsExW failed with 0x%08X\n", hr);
                 return D3DERR_INVALIDCALL;
             }
         }

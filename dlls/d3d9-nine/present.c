@@ -249,9 +249,7 @@ DRI3Present_Release( struct DRI3Present *This )
     TRACE("%p decreasing refcount to %u.\n", This, refs);
     if (refs == 0) {
         /* dtor */
-#ifdef ID3DPresent_GetWindowOccluded
         (void) nine_unregister_window(This->focus_wnd);
-#endif
         if (This->d3d)
             destroy_d3dadapter_drawable(This->gdi_display, This->d3d->wnd);
         ChangeDisplaySettingsExW(This->devname, &(This->initial_mode), 0, CDS_FULLSCREEN, NULL);
@@ -641,7 +639,6 @@ DRI3Present_ChangeDisplaySettingsIfNeccessary( struct DRI3Present *This, DEVMODE
     return D3D_OK;
 }
 
-#ifdef ID3DPresent_GetWindowOccluded
 LRESULT device_process_message(struct DRI3Present *present, HWND window, BOOL unicode,
         UINT message, WPARAM wparam, LPARAM lparam, WNDPROC proc)
 {
@@ -742,15 +739,11 @@ LRESULT device_process_message(struct DRI3Present *present, HWND window, BOOL un
         return CallWindowProcA(proc, window, message, wparam, lparam);
 }
 
+#ifdef ID3DPresent_GetWindowOccluded
 static BOOL WINAPI
 DRI3Present_GetWindowOccluded( struct DRI3Present *This )
 {
     return This->occluded;
-}
-#else
-LRESULT device_process_message(struct DRI3Present *present, HWND window, BOOL unicode,
-        UINT message, WPARAM wparam, LPARAM lparam, WNDPROC proc)
-{
 }
 #endif
 
@@ -875,15 +868,10 @@ DRI3Present_ChangePresentParameters( struct DRI3Present *This,
         if (This->params.Windowed) {
             if (!params->Windowed) {
                 /* switch from window to fullscreen */
-#ifdef ID3DPresent_GetWindowOccluded
                 if (nine_register_window(This->focus_wnd, This)) {
                     if (This->focus_wnd != draw_window)
                         SetWindowPos(This->focus_wnd, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
                 }
-#else
-                if (This->focus_wnd != draw_window)
-                    SetWindowPos(This->focus_wnd, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-#endif
                 This->style = GetWindowLongW(draw_window, GWL_STYLE);
                 This->style_ex = GetWindowLongW(draw_window, GWL_EXSTYLE);
 
@@ -943,10 +931,8 @@ DRI3Present_ChangePresentParameters( struct DRI3Present *This,
                 This->style = 0;
                 This->style_ex = 0;
             }
-#ifdef ID3DPresent_GetWindowOccluded
             if (params->Windowed && !nine_unregister_window(This->focus_wnd))
                 ERR("Window %p is not registered with nine.\n", This->focus_wnd);
-#endif
         }
     } else if (!params->Windowed) {
         /* move draw window back to place */

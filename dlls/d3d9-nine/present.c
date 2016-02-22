@@ -44,10 +44,17 @@ WINE_DEFAULT_DEBUG_CHANNEL(d3dadapter);
 
 #define WINE_D3DADAPTER_DRIVER_PRESENT_VERSION_MAJOR 1
 #ifdef ID3DPresent_GetWindowOccluded
+#if defined (ID3DPresent_ResolutionMismatch) && \
+    defined (ID3DPresent_CreateThread) && \
+    defined (ID3DPresent_WaitForThread)
+#define WINE_D3DADAPTER_DRIVER_PRESENT_VERSION_MINOR 2
+#else
 #define WINE_D3DADAPTER_DRIVER_PRESENT_VERSION_MINOR 1
+#endif
 #else
 #define WINE_D3DADAPTER_DRIVER_PRESENT_VERSION_MINOR 0
 #endif
+
 
 static const struct D3DAdapter9DRM *d3d9_drm = NULL;
 #ifdef D3DADAPTER9_DRI2
@@ -129,7 +136,7 @@ struct DRI3Present
     HCURSOR hCursor;
 
     DEVMODEW initial_mode;
-    BOOL device_needs_reset;
+    BOOL resolution_mismatch;
     BOOL occluded;
     Display *gdi_display;
     struct d3d_drawable *d3d;
@@ -663,6 +670,7 @@ LRESULT CALLBACK HookCallback(int nCode, WPARAM wParam, LPARAM lParam)
 {
     struct d3d_wnd_hooks *hook = &d3d_hooks;
     boolean drop_wnd_messages;
+    DEVMODEW current_mode;
 
     if (nCode < 0) {
         return CallNextHookEx(hhook, nCode, wParam, lParam);
@@ -695,7 +703,6 @@ LRESULT CALLBACK HookCallback(int nCode, WPARAM wParam, LPARAM lParam)
                                     IsWindowVisible(hook->present->params.hDeviceWindow))
                                 ShowWindow(hook->present->params.hDeviceWindow, SW_MINIMIZE);
                     } else {
-                            hook->present->device_needs_reset |= hook->present->occluded;
                             hook->present->occluded = FALSE;
 
                             if (!hook->present->no_window_changes) {
@@ -724,7 +731,19 @@ LRESULT CALLBACK HookCallback(int nCode, WPARAM wParam, LPARAM lParam)
                 break;
                 case WM_DISPLAYCHANGE:
                     hook->present->mode_changed = TRUE;
-                    hook->present->device_needs_reset = TRUE;
+                    /* Ex restores display mode, while non Ex requires the
+                     * user to call Device::Reset() */
+                    ZeroMemory(&current_mode, sizeof(DEVMODEW));
+                    if (!hook->present->ex &&
+                        !hook->present->params.Windowed &&
+                        EnumDisplaySettingsW(hook->present->devname, ENUM_CURRENT_SETTINGS, &current_mode) &&
+                       (current_mode.dmPelsWidth != hook->present->params.BackBufferWidth ||
+                        current_mode.dmPelsHeight != hook->present->params.BackBufferHeight))
+                    {
+                        hook->present->resolution_mismatch = TRUE;
+                    } else {
+                        hook->present->resolution_mismatch = FALSE;
+                    }
                 break;
                 /* TODO: handle other window messages here */
                 default:
@@ -801,17 +820,49 @@ static HRESULT dri3_present_unregister_window_hook( struct DRI3Present *This ) {
 static BOOL WINAPI
 DRI3Present_GetWindowOccluded( struct DRI3Present *This )
 {
-    /* we missed to poll occluded */
-    if (This->device_needs_reset) {
-        This->device_needs_reset = FALSE;
-        return TRUE;
-    }
-
     return This->occluded;
 }
 #endif
-/*----------*/
 
+#ifdef ID3DPresent_ResolutionMismatch
+static BOOL WINAPI
+DRI3Present_ResolutionMismatch( struct DRI3Present *This )
+{
+    /* The resolution might change due to a third party app.
+     * Poll this function to get the device's resolution match.
+     * A device reset is required to restore the requested resolution.
+     */
+    return This->resolution_mismatch;
+}
+#endif
+
+#ifdef ID3DPresent_CreateThread
+static HANDLE WINAPI
+DRI3Present_CreateThread( struct DRI3Present *This,
+                          void *pThreadfunc,
+                          void *pParam )
+{
+    LPTHREAD_START_ROUTINE lpStartAddress =
+            (LPTHREAD_START_ROUTINE) pThreadfunc;
+
+    return CreateThread(NULL, 0, lpStartAddress, pParam, 0, NULL);
+}
+#endif
+
+#ifdef ID3DPresent_WaitForThread
+static BOOL WINAPI
+DRI3Present_WaitForThread( struct DRI3Present *This,
+                           HANDLE thread )
+{
+    DWORD ExitCode = 0;
+    while (GetExitCodeThread(thread, &ExitCode) && ExitCode == STILL_ACTIVE) {
+        Sleep(10);
+    }
+    return TRUE;
+}
+#endif
+
+/*----------*/
 
 static ID3DPresentVtbl DRI3Present_vtable = {
     (void *)DRI3Present_QueryInterface,
@@ -832,7 +883,16 @@ static ID3DPresentVtbl DRI3Present_vtable = {
     (void *)DRI3Present_SetGammaRamp,
     (void *)DRI3Present_GetWindowInfo,
 #ifdef ID3DPresent_GetWindowOccluded
-    (void *)DRI3Present_GetWindowOccluded
+    (void *)DRI3Present_GetWindowOccluded,
+#endif
+#ifdef ID3DPresent_ResolutionMismatch
+    (void *)DRI3Present_ResolutionMismatch,
+#endif
+#ifdef ID3DPresent_CreateThread
+    (void *)DRI3Present_CreateThread,
+#endif
+#ifdef ID3DPresent_WaitForThread
+    (void *)DRI3Present_WaitForThread,
 #endif
 };
 
@@ -949,12 +1009,13 @@ DRI3Present_ChangePresentParameters( struct DRI3Present *This,
                              SWP_NOACTIVATE);
                 This->drop_wnd_messages = drop_wnd_messages;
 
-#ifdef ID3DPresent_GetWindowOccluded
-        dri3_present_unregister_window_hook(This);
-#endif
                 This->style = 0;
                 This->style_ex = 0;
             }
+#ifdef ID3DPresent_GetWindowOccluded
+            if (params->Windowed && !dri3_present_unregister_window_hook(This))
+                ERR("Window %p is not registered with nine.\n", This->focus_wnd);
+#endif
         }
     } else if (!params->Windowed) {
         LONG style, style_ex;

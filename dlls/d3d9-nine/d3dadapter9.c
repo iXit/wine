@@ -397,7 +397,7 @@ d3dadapter9_GetAdapterMonitor( struct d3dadapter9 *This,
     return (HMONITOR)ADAPTER_OUTPUT.monitor;
 }
 
-static HRESULT WINAPI
+static HRESULT WINAPI DECLSPEC_HOTPATCH
 d3dadapter9_CreateDeviceEx( struct d3dadapter9 *This,
                             UINT Adapter,
                             D3DDEVTYPE DeviceType,
@@ -407,7 +407,7 @@ d3dadapter9_CreateDeviceEx( struct d3dadapter9 *This,
                             D3DDISPLAYMODEEX *pFullscreenDisplayMode,
                             IDirect3DDevice9Ex **ppReturnedDeviceInterface );
 
-static HRESULT WINAPI
+static HRESULT WINAPI DECLSPEC_HOTPATCH
 d3dadapter9_CreateDevice( struct d3dadapter9 *This,
                           UINT Adapter,
                           D3DDEVTYPE DeviceType,
@@ -455,7 +455,7 @@ d3dadapter9_GetAdapterDisplayModeEx( struct d3dadapter9 *This,
     return D3DERR_INVALIDCALL;
 }
 
-static HRESULT WINAPI
+static HRESULT WINAPI DECLSPEC_HOTPATCH
 d3dadapter9_CreateDeviceEx( struct d3dadapter9 *This,
                             UINT Adapter,
                             D3DDEVTYPE DeviceType,

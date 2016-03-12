@@ -340,7 +340,7 @@ HRESULT WINAPI DECLSPEC_HOTPATCH WineNineDevice9_CreateAdditionalSwapChain(IDire
     if (FAILED(hr))
         return hr;
 
-    (*pSwapChain)->lpVtbl = (IDirect3DSwapChain9ExVtbl *)&WineNineSwapChain9Ex_vtable;
+    (*pSwapChain)->lpVtbl = (IDirect3DSwapChain9Vtbl *)&WineNineSwapChain9Ex_vtable;
 
     return hr;
 }
@@ -353,7 +353,7 @@ HRESULT WINAPI DECLSPEC_HOTPATCH WineNineDevice9_GetSwapChain(IDirect3DDevice9Ex
     if (FAILED(hr))
         return hr;
 
-    (*pSwapChain)->lpVtbl = (IDirect3DSwapChain9ExVtbl *)&WineNineSwapChain9Ex_vtable;
+    (*pSwapChain)->lpVtbl = (IDirect3DSwapChain9Vtbl *)&WineNineSwapChain9Ex_vtable;
 
     return hr;
 }

@@ -65,6 +65,14 @@ AC_ARG_WITH(openal,    AS_HELP_STRING([--without-openal],[do not use OpenAL]),
 AC_ARG_WITH(opencl,    AS_HELP_STRING([--without-opencl],[do not use OpenCL]),
             [if test "x$withval" = "xno"; then ac_cv_header_CL_cl_h=no; ac_cv_header_OpenCL_opencl_h=no; fi])
 AC_ARG_WITH(opengl,    AS_HELP_STRING([--without-opengl],[do not use OpenGL]))
+AC_ARG_WITH(d3d9-nine, AS_HELP_STRING([--without-d3d9-nine],[do not build d3d9-nine.dll (Gallium Nine support)]),
+            [], [with_d3d9_nine=auto])
+AC_ARG_WITH(d3d9-nine-module, AS_HELP_STRING([--with-d3d9-nine-module],
+            [Gallium Nine module location. Can be 'manual' (path to be filled in a register), 'auto' (default. use pkgconfig to detect the location) or a path]),
+            [], [with_d3d9_nine_module=auto])
+AC_ARG_WITH(d3d9-nine-headers-path, AS_HELP_STRING([--with-d3d9-nine-headers-path],
+            [Gallium Nine headers location. Can be 'auto' (default. use pkgconfig to detect the location) or a path]),
+            [], [with_d3d9_nine_headers_path=auto])
 AC_ARG_WITH(osmesa,     AS_HELP_STRING([--without-osmesa],[do not use the OSMesa library]))
 AC_ARG_WITH(oss,       AS_HELP_STRING([--without-oss],[do not use the OSS sound support]))
 AC_ARG_WITH(pcap,      AS_HELP_STRING([--without-pcap],[do not use the Packet Capture library]),
@@ -377,6 +385,8 @@ dnl Check for -lossaudio for NetBSD
 AC_CHECK_LIB(ossaudio,_oss_ioctl)
 
 AC_SUBST(OPENGL_LIBS,"")
+
+AC_SUBST(D3D9NINE_LIBS,"")
 
 dnl **** Check for header files ****
 
@@ -1185,6 +1195,185 @@ This probably prevents linking to OpenGL. Try deleting the file and restarting c
     fi
     WINE_WARNING_WITH(opengl,[test -n "$opengl_msg"],[$opengl_msg
 OpenGL and Direct3D won't be supported.])
+
+    dnl Check for d3d9-nine support
+    if test "x$with_d3d9_nine" = "xauto" && (test "x$with_d3d9_nine_module" = "xauto" || test "x$with_d3d9_nine_headers_path" = "xauto")
+    then
+        AC_MSG_CHECKING([whether d3dadapter9 package (Gallium Nine) is present])
+        D3DADAPTER9_MODULEDIR=`$PKG_CONFIG --variable=moduledir d3dadapter9 2>/dev/null`
+        D3DADAPTER9_LEGACY_MODULEDIR=`$PKG_CONFIG --variable=moduledir d3d 2>/dev/null`
+        if test "x$D3DADAPTER9_MODULEDIR" = "x" -a "x$D3DADAPTER9_LEGACY_MODULEDIR" = "x"
+        then
+            AC_MSG_RESULT([no, disabling support])
+            with_d3d9_nine=no
+        else
+            AC_MSG_RESULT([yes])
+        fi
+    fi
+
+    if test "x$with_d3d9_nine" != "xno"
+    then
+        AC_MSG_NOTICE([Checking for d3dadapter9 library dependencies])
+        D3D9NINE_LIBS=""
+        D3D9NINE_MISSING_LIBS=""
+        AC_CHECK_LIB(xcb,xcb_request_check,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lxcb"])])
+        test "x$ac_cv_lib_xcb_xcb_request_check" != xyes && D3D9NINE_MISSING_LIBS="libxcb "
+        AC_CHECK_LIB(xcb-dri3,xcb_dri3_open,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lxcb-dri3"])])
+        test "x$ac_cv_lib_xcb_dri3_xcb_dri3_open" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libxcb-dri3 "
+        AC_CHECK_LIB(xcb-present,xcb_present_notify_msc,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lxcb-present"])])
+        test "x$ac_cv_lib_xcb_present_xcb_present_notify_msc" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libxcb-present "
+        AC_CHECK_LIB(xcb-xfixes,xcb_xfixes_create_region,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lxcb-xfixes"])])
+        test "x$ac_cv_lib_xcb_xfixes_xcb_xfixes_create_region" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libxcb-xfixes "
+        AC_CHECK_LIB(X11-xcb,XGetXCBConnection,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lX11-xcb"])])
+        test "x$ac_cv_lib_X11_xcb_XGetXCBConnection" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libX11-xcb "
+        AC_CHECK_LIB(X11,XOpenDisplay,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lX11"])])
+        test "x$ac_cv_lib_X11_XOpenDisplay" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libX11 "
+        AC_CHECK_LIB(Xext,XextRemoveDisplay,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lXext"])])
+        test "x$ac_cv_lib_Xext_XextRemoveDisplay" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libXext "
+        AC_CHECK_LIB(pthread,pthread_mutex_lock,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lpthread"])])
+        test "x$ac_cv_lib_pthread_pthread_mutex_lock" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libpthread "
+        # libs for the dri2 fallback
+        AC_CHECK_LIB(GL,glGenFramebuffers,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lGL"])])
+        test "x$ac_cv_lib_GL_glGenFramebuffers" != xyes && D3D9NINE_MISSING_LIBS="libGL "
+        AC_CHECK_LIB(EGL,eglCreateContext,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lEGL"])])
+        test "x$ac_cv_lib_EGL_eglCreateContext" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libEGL"
+
+        if test "x$D3D9NINE_MISSING_LIBS" != x
+        then
+            if test "x$with_d3d9_nine" = "xyes"
+            then
+                AC_MSG_ERROR([Missing libraries to build d3d9-nine.dll: $D3D9NINE_MISSING_LIBS])
+            else
+                AC_MSG_NOTICE([Missing libraries to build d3d9-nine.dll: $D3D9NINE_MISSING_LIBS . disabling support])
+                with_d3d9_nine=no
+            fi
+        fi
+    fi
+
+    if test "x$with_d3d9_nine" != "xno"
+    then
+        AC_MSG_NOTICE([Checking d3dadapter9 header dependencies])
+        D3D9NINE_MISSING_HEADERS=""
+        AC_CHECK_HEADERS([X11/Xlib-xcb.h xcb/dri3.h xcb/present.h X11/Xutil.h X11/Xlib.h pthread.h])
+        test "x$ac_cv_header_X11_Xlib_xcb_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/Xlib-xcb.h "
+        test "x$ac_cv_header_xcb_dri3_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}xcb/dri3.h "
+        test "x$ac_cv_header_xcb_present_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}xcb/present.h "
+        test "x$ac_cv_header_X11_Xutil_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/Xutil.h "
+        test "x$ac_cv_header_X11_Xlib_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/Xlib.h "
+        test "x$ac_cv_header_pthread_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}pthread.h "
+        # headers for the dri2 fallback
+        AC_CHECK_HEADERS([X11/Xmd.h X11/Xlibint.h X11/extensions/dri2tokens.h X11/extensions/dri2proto.h X11/extensions/extutil.h GL/gl.h GL/glext.h EGL/egl.h EGL/eglext.h libdrm/drm_fourcc.h libdrm/drm.h],
+                         [],[],[[
+#include <X11/Xlibint.h>
+#include <X11/extensions/dri2tokens.h>
+#include <GL/gl.h>
+#include <EGL/egl.h>
+]])
+        test "x$ac_cv_header_X11_Xmd_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/Xmd.h "
+        test "x$ac_cv_header_X11_Xlibint_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/Xlibint.h "
+        test "x$ac_cv_header_X11_extensions_dri2tokens_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/extensions/dri2tokens.h "
+        test "x$ac_cv_header_X11_extensions_dri2proto_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/extensions/dri2proto.h "
+        test "x$ac_cv_header_X11_extensions_extutil_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/extensions/extutil.h "
+        test "x$ac_cv_header_GL_gl_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}GL/gl.h "
+        test "x$ac_cv_header_GL_glext_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}GL/glext.h "
+        test "x$ac_cv_header_EGL_egl_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}EGL/egl.h "
+        test "x$ac_cv_header_EGL_eglext_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}EGL/eglext.h "
+        test "x$ac_cv_header_libdrm_drm_fourcc_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}libdrm/drm_fourcc.h "
+        test "x$ac_cv_header_libdrm_drm_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}libdrm/drm.h "
+        if test "x$D3D9NINE_MISSING_HEADERS" != x
+        then
+            if test "x$with_d3d9_nine" = "xyes"
+            then
+                AC_MSG_ERROR([Missing headers to build d3d9-nine.dll: $D3D9NINE_MISSING_HEADERS])
+            else
+                AC_MSG_NOTICE([Missing headers to build d3d9-nine.dll: $D3D9NINE_MISSING_HEADERS . disabling support])
+                with_d3d9_nine=no
+            fi
+        fi
+    fi
+
+    if test "x$with_d3d9_nine" != "xno"
+    then
+        # d3d9-nine.dll will be built and an option to use it
+        # added. The module path can always be overriden by
+        # a wine registry setting. If the module isn't found
+        # at execution time, the dll will refuse to load and
+        # print an error message to the user.
+        AC_DEFINE(HAVE_D3D9NINE, 1, [Whether d3d9-nine.dll is built])
+        # default: use pkgconfig to find the gallium nine module.
+        # Check the module is there.
+        if test "x$with_d3d9_nine_module" = "xauto"
+        then
+            D3DADAPTER9_MODULEDIR=`$PKG_CONFIG --variable=moduledir d3dadapter9 2>/dev/null`
+            if test "x$D3DADAPTER9_MODULEDIR" = x
+            then
+                # legacy path
+                D3DADAPTER9_MODULEDIR=`$PKG_CONFIG --variable=moduledir d3d 2>/dev/null`
+                if test "x$D3DADAPTER9_MODULEDIR" = x
+                then
+                    AC_MSG_ERROR([pkg-config couldn't find Gallium Nine module])
+                fi
+            fi
+            AC_DEFINE_UNQUOTED(D3D9NINE_MODULEPATH, ["`echo ${D3DADAPTER9_MODULEDIR}/d3dadapter9.so.1`"], [Gallium Nine module path])
+            # Check module
+            CPPFLAGSBAK=$CPPFLAGS
+            # link against libdl
+            CPPFLAGS="$CPPFLAGS -Wl,--no-as-needed -ldl"
+
+            AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <dlfcn.h>
+#include <stdlib.h>]],[[void *handle = dlopen("${D3DADAPTER9_MODULEDIR}/d3dadapter9.so.1", RTLD_GLOBAL | RTLD_NOW);
+exit((handle && dlsym(handle, "D3DAdapter9GetProc")) ? 0 : 1)]])],
+                          [echo "d3dadapter9.so.1 found at '${D3DADAPTER9_MODULEDIR}/d3dadapter9.so.1'"],
+                          [AC_MSG_ERROR([Couldn't load Gallium nine module at '${D3DADAPTER9_MODULEDIR}/d3dadapter9.so.1' (found by pkg-config)])])
+            CPPFLAGS=$CPPFLAGSBAK
+        else
+            # Manual : do not feed any path, the wine registry will have
+            # to be used to pass a path. Useful for wine builds
+            # that are distributed and will run on different
+            # distros.
+            # Else feed a path directly. Useful for distro maintainers who
+            # know where the package would be installed, but don't have
+            # it installed on their build.
+            # Don't check if the module is there.
+            if test "x$with_d3d9_nine_module" != "xmanual"
+            then
+                AC_DEFINE_UNQUOTED(D3D9NINE_MODULEPATH, ["`echo ${with_d3d9_nine_module}`"], [Gallium Nine module path])
+            fi
+        fi
+
+        # by default the headers are found with pkgconfig,
+        # but it is possible to pass a path to a specific directory.
+        # that directory must contain a d3dadapter directory
+        # with d3dadapter9.h, drm.h and present.h
+        if test "x$with_d3d9_nine_headers_path" = "xauto"
+        then
+            AC_PROG_SED
+            D3DADAPTER9_INCLUDEDIR=`$PKG_CONFIG --variable=includedir d3dadapter9 2>/dev/null`
+            D3DADAPTER9_MAJOR=`$PKG_CONFIG --modversion d3dadapter9 2>/dev/null | $SED -n 's/\([[^\.]]*\)\..*$/\1/p'`
+            if test "x$D3DADAPTER9_INCLUDEDIR" = x
+            then
+                # legacy path
+                D3DADAPTER9_INCLUDEDIR=`$PKG_CONFIG --variable=includedir d3d 2>/dev/null`
+                D3DADAPTER9_MAJOR=`$PKG_CONFIG --modversion d3d 2>/dev/null | $SED -n 's/\([[^\.]]*\)\..*$/\1/p'`
+                if test "x$D3DADAPTER9_INCLUDEDIR" = x
+                then
+                    AC_MSG_ERROR([pkg-config couldn't find Gallium Nine headers])
+                fi
+            fi
+            # check major version of package. The major version number guarantees header compatibility.
+            if test "x$D3DADAPTER9_MAJOR" != x1
+            then
+                AC_MSG_ERROR([pkg-config found Gallium Nine Module and Headers, but version is incompatible])
+            fi
+        else
+            D3DADAPTER9_INCLUDEDIR=`echo ${with_d3d9_nine_headers_path}`
+        fi
+        AC_DEFINE_UNQUOTED(D3D9NINE_HEADERS_CFLAGS, ["`echo -I${D3DADAPTER9_INCLUDEDIR}`"], [Gallium Nine headers cflags])
+
+        AC_DEFINE(D3D9NINE_DRI2, 1, [Whether d3d9-nine DRI2 fallback is compiled])
+    else
+        enable_d3d9_nine=${enable_d3d9_nine:-no}
+    fi
 
     CPPFLAGS="$ac_save_CPPFLAGS"
 else
@@ -2986,6 +3175,7 @@ WINE_CONFIG_DLL(d3d8,,[implib])
 WINE_CONFIG_TEST(dlls/d3d8/tests)
 WINE_CONFIG_DLL(d3d9,,[implib])
 WINE_CONFIG_TEST(dlls/d3d9/tests)
+WINE_CONFIG_DLL(d3d9-nine,,[implib])
 WINE_CONFIG_DLL(d3dcompiler_33)
 WINE_CONFIG_DLL(d3dcompiler_34)
 WINE_CONFIG_DLL(d3dcompiler_35)

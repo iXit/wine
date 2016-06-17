@@ -1211,7 +1211,7 @@ PRESENTPixmap(Display *dpy, XID window,
         case D3DPRESENT_INTERVAL_IMMEDIATE:
         default:
             presentationInterval = 0;
-            options |= XCB_PRESENT_OPTION_ASYNC;
+            options |= XCB_PRESENT_OPTION_ASYNC | XCB_PRESENT_OPTION_COPY;
             break;
     }
     target_msc += presentationInterval * (present_priv->pixmap_present_pending + 1);

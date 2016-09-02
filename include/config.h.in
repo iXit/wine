@@ -4,6 +4,15 @@
 #define __WINE_CONFIG_H
 #ifndef WINE_CROSSTEST
 
+/* Whether d3d9-nine DRI2 fallback is compiled */
+#undef D3D9NINE_DRI2
+
+/* Gallium Nine headers cflags */
+#undef D3D9NINE_HEADERS_CFLAGS
+
+/* Gallium Nine module path */
+#undef D3D9NINE_MODULEPATH
+
 /* Define to a function attribute for Microsoft hotpatch assembly prefix. */
 #undef DECLSPEC_HOTPATCH
 
@@ -107,6 +116,9 @@
 /* Define to 1 if you have the <curses.h> header file. */
 #undef HAVE_CURSES_H
 
+/* Whether d3d9-nine.dll is built */
+#undef HAVE_D3D9NINE
+
 /* Define if you have the daylight variable */
 #undef HAVE_DAYLIGHT
 
@@ -128,6 +140,9 @@
 
 /* Define to 1 if you have the `dlopen' function. */
 #undef HAVE_DLOPEN
+
+/* Define to 1 if you have the <EGL/eglext.h> header file. */
+#undef HAVE_EGL_EGLEXT_H
 
 /* Define to 1 if you have the <EGL/egl.h> header file. */
 #undef HAVE_EGL_EGL_H
@@ -267,6 +282,12 @@
 /* Define to 1 if you have the `getuid' function. */
 #undef HAVE_GETUID
 
+/* Define to 1 if you have the <GL/glext.h> header file. */
+#undef HAVE_GL_GLEXT_H
+
+/* Define to 1 if you have the <GL/gl.h> header file. */
+#undef HAVE_GL_GL_H
+
 /* Define to 1 if you have the `gnutls_cipher_init' function. */
 #undef HAVE_GNUTLS_CIPHER_INIT
 
@@ -389,6 +410,12 @@
 
 /* Define to 1 if you have the `lgammaf' function. */
 #undef HAVE_LGAMMAF
+
+/* Define to 1 if you have the <libdrm/drm_fourcc.h> header file. */
+#undef HAVE_LIBDRM_DRM_FOURCC_H
+
+/* Define to 1 if you have the <libdrm/drm.h> header file. */
+#undef HAVE_LIBDRM_DRM_H
 
 /* Define to 1 if you have the `gettextpo' library (-lgettextpo). */
 #undef HAVE_LIBGETTEXTPO
@@ -1275,6 +1302,15 @@
 /* Define to 1 if you have the `vsnprintf' function. */
 #undef HAVE_VSNPRINTF
 
+/* Define to 1 if you have the <X11/extensions/dri2proto.h> header file. */
+#undef HAVE_X11_EXTENSIONS_DRI2PROTO_H
+
+/* Define to 1 if you have the <X11/extensions/dri2tokens.h> header file. */
+#undef HAVE_X11_EXTENSIONS_DRI2TOKENS_H
+
+/* Define to 1 if you have the <X11/extensions/extutil.h> header file. */
+#undef HAVE_X11_EXTENSIONS_EXTUTIL_H
+
 /* Define to 1 if you have the <X11/extensions/shape.h> header file. */
 #undef HAVE_X11_EXTENSIONS_SHAPE_H
 
@@ -1314,11 +1350,26 @@
 /* Define to 1 if you have the <X11/XKBlib.h> header file. */
 #undef HAVE_X11_XKBLIB_H
 
+/* Define to 1 if you have the <X11/Xlibint.h> header file. */
+#undef HAVE_X11_XLIBINT_H
+
 /* Define to 1 if you have the <X11/Xlib.h> header file. */
 #undef HAVE_X11_XLIB_H
 
+/* Define to 1 if you have the <X11/Xlib-xcb.h> header file. */
+#undef HAVE_X11_XLIB_XCB_H
+
+/* Define to 1 if you have the <X11/Xmd.h> header file. */
+#undef HAVE_X11_XMD_H
+
 /* Define to 1 if you have the <X11/Xutil.h> header file. */
 #undef HAVE_X11_XUTIL_H
+
+/* Define to 1 if you have the <xcb/dri3.h> header file. */
+#undef HAVE_XCB_DRI3_H
+
+/* Define to 1 if you have the <xcb/present.h> header file. */
+#undef HAVE_XCB_PRESENT_H
 
 /* Define to 1 if `xcookie' is a member of `XEvent'. */
 #undef HAVE_XEVENT_XCOOKIE

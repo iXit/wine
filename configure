@@ -685,6 +685,7 @@ XSLT_CFLAGS
 XML2_LIBS
 XML2_CFLAGS
 PCAP_LIBS
+SED
 X_EXTRA_LIBS
 X_LIBS
 X_PRE_LIBS
@@ -732,6 +733,7 @@ LDRPATH_INSTALL
 DLLFLAGS
 dlldir
 CPP
+D3D9NINE_LIBS
 OPENGL_LIBS
 ICOTOOL
 CONVERT
@@ -792,7 +794,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -843,6 +844,9 @@ with_netapi
 with_openal
 with_opencl
 with_opengl
+with_d3d9_nine
+with_d3d9_nine_module
+with_d3d9_nine_headers_path
 with_osmesa
 with_oss
 with_pcap
@@ -1102,6 +1106,7 @@ enable_d3d10core
 enable_d3d11
 enable_d3d8
 enable_d3d9
+enable_d3d9_nine
 enable_d3dcompiler_33
 enable_d3dcompiler_34
 enable_d3dcompiler_35
@@ -1638,6 +1643,7 @@ enable_wevtutil
 enable_wineboot
 enable_winebrowser
 enable_winecfg
+enable_ninewinecfg
 enable_wineconsole
 enable_winedbg
 enable_winedevice
@@ -1752,7 +1758,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -2005,15 +2010,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -2151,7 +2147,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2304,7 +2300,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -2377,6 +2372,14 @@ Optional Packages:
   --without-openal        do not use OpenAL
   --without-opencl        do not use OpenCL
   --without-opengl        do not use OpenGL
+  --without-d3d9-nine     do not build d3d9-nine.dll (Gallium Nine support)
+  --with-d3d9-nine-module Gallium Nine module location. Can be 'manual' (path
+                          to be filled in a register), 'auto' (default. use
+                          pkgconfig to detect the location) or a path
+  --with-d3d9-nine-headers-path
+                          Gallium Nine headers location. Can be 'auto'
+                          (default. use pkgconfig to detect the location) or a
+                          path
   --without-osmesa        do not use the OSMesa library
   --without-oss           do not use the OSS sound support
   --without-pcap          do not use the Packet Capture library
@@ -3611,6 +3614,30 @@ fi
 # Check whether --with-opengl was given.
 if test "${with_opengl+set}" = set; then :
   withval=$with_opengl;
+fi
+
+
+# Check whether --with-d3d9-nine was given.
+if test "${with_d3d9_nine+set}" = set; then :
+  withval=$with_d3d9_nine;
+else
+  with_d3d9_nine=auto
+fi
+
+
+# Check whether --with-d3d9-nine-module was given.
+if test "${with_d3d9_nine_module+set}" = set; then :
+  withval=$with_d3d9_nine_module;
+else
+  with_d3d9_nine_module=auto
+fi
+
+
+# Check whether --with-d3d9-nine-headers-path was given.
+if test "${with_d3d9_nine_headers_path+set}" = set; then :
+  withval=$with_d3d9_nine_headers_path;
+else
+  with_d3d9_nine_headers_path=auto
 fi
 
 
@@ -6371,6 +6398,9 @@ fi
 OPENGL_LIBS=""
 
 
+D3D9NINE_LIBS=""
+
+
 
 # Check whether --enable-largefile was given.
 if test "${enable_largefile+set}" = set; then :
@@ -6397,7 +6427,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6443,7 +6473,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6467,7 +6497,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6512,7 +6542,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -6536,7 +6566,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -11143,6 +11173,680 @@ This is an error since --with-opengl was requested." "$LINENO" 5 ;;
 esac
 
 fi
+
+        if test "x$with_d3d9_nine" = "xauto" && (test "x$with_d3d9_nine_module" = "xauto" || test "x$with_d3d9_nine_headers_path" = "xauto")
+    then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether d3dadapter9 package (Gallium Nine) is present" >&5
+$as_echo_n "checking whether d3dadapter9 package (Gallium Nine) is present... " >&6; }
+        D3DADAPTER9_MODULEDIR=`$PKG_CONFIG --variable=moduledir d3dadapter9 2>/dev/null`
+        D3DADAPTER9_LEGACY_MODULEDIR=`$PKG_CONFIG --variable=moduledir d3d 2>/dev/null`
+        if test "x$D3DADAPTER9_MODULEDIR" = "x" -a "x$D3DADAPTER9_LEGACY_MODULEDIR" = "x"
+        then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: no, disabling support" >&5
+$as_echo "no, disabling support" >&6; }
+            with_d3d9_nine=no
+        else
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+        fi
+    fi
+
+    if test "x$with_d3d9_nine" != "xno"
+    then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: Checking for d3dadapter9 library dependencies" >&5
+$as_echo "$as_me: Checking for d3dadapter9 library dependencies" >&6;}
+        D3D9NINE_LIBS=""
+        D3D9NINE_MISSING_LIBS=""
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for xcb_request_check in -lxcb" >&5
+$as_echo_n "checking for xcb_request_check in -lxcb... " >&6; }
+if ${ac_cv_lib_xcb_xcb_request_check+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lxcb  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char xcb_request_check ();
+int
+main ()
+{
+return xcb_request_check ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_xcb_xcb_request_check=yes
+else
+  ac_cv_lib_xcb_xcb_request_check=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_xcb_xcb_request_check" >&5
+$as_echo "$ac_cv_lib_xcb_xcb_request_check" >&6; }
+if test "x$ac_cv_lib_xcb_xcb_request_check" = xyes; then :
+  D3D9NINE_LIBS="$D3D9NINE_LIBS -lxcb"
+
+fi
+
+        test "x$ac_cv_lib_xcb_xcb_request_check" != xyes && D3D9NINE_MISSING_LIBS="libxcb "
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for xcb_dri3_open in -lxcb-dri3" >&5
+$as_echo_n "checking for xcb_dri3_open in -lxcb-dri3... " >&6; }
+if ${ac_cv_lib_xcb_dri3_xcb_dri3_open+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lxcb-dri3  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char xcb_dri3_open ();
+int
+main ()
+{
+return xcb_dri3_open ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_xcb_dri3_xcb_dri3_open=yes
+else
+  ac_cv_lib_xcb_dri3_xcb_dri3_open=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_xcb_dri3_xcb_dri3_open" >&5
+$as_echo "$ac_cv_lib_xcb_dri3_xcb_dri3_open" >&6; }
+if test "x$ac_cv_lib_xcb_dri3_xcb_dri3_open" = xyes; then :
+  D3D9NINE_LIBS="$D3D9NINE_LIBS -lxcb-dri3"
+
+fi
+
+        test "x$ac_cv_lib_xcb_dri3_xcb_dri3_open" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libxcb-dri3 "
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for xcb_present_notify_msc in -lxcb-present" >&5
+$as_echo_n "checking for xcb_present_notify_msc in -lxcb-present... " >&6; }
+if ${ac_cv_lib_xcb_present_xcb_present_notify_msc+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lxcb-present  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char xcb_present_notify_msc ();
+int
+main ()
+{
+return xcb_present_notify_msc ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_xcb_present_xcb_present_notify_msc=yes
+else
+  ac_cv_lib_xcb_present_xcb_present_notify_msc=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_xcb_present_xcb_present_notify_msc" >&5
+$as_echo "$ac_cv_lib_xcb_present_xcb_present_notify_msc" >&6; }
+if test "x$ac_cv_lib_xcb_present_xcb_present_notify_msc" = xyes; then :
+  D3D9NINE_LIBS="$D3D9NINE_LIBS -lxcb-present"
+
+fi
+
+        test "x$ac_cv_lib_xcb_present_xcb_present_notify_msc" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libxcb-present "
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for xcb_xfixes_create_region in -lxcb-xfixes" >&5
+$as_echo_n "checking for xcb_xfixes_create_region in -lxcb-xfixes... " >&6; }
+if ${ac_cv_lib_xcb_xfixes_xcb_xfixes_create_region+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lxcb-xfixes  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char xcb_xfixes_create_region ();
+int
+main ()
+{
+return xcb_xfixes_create_region ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_xcb_xfixes_xcb_xfixes_create_region=yes
+else
+  ac_cv_lib_xcb_xfixes_xcb_xfixes_create_region=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_xcb_xfixes_xcb_xfixes_create_region" >&5
+$as_echo "$ac_cv_lib_xcb_xfixes_xcb_xfixes_create_region" >&6; }
+if test "x$ac_cv_lib_xcb_xfixes_xcb_xfixes_create_region" = xyes; then :
+  D3D9NINE_LIBS="$D3D9NINE_LIBS -lxcb-xfixes"
+
+fi
+
+        test "x$ac_cv_lib_xcb_xfixes_xcb_xfixes_create_region" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libxcb-xfixes "
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for XGetXCBConnection in -lX11-xcb" >&5
+$as_echo_n "checking for XGetXCBConnection in -lX11-xcb... " >&6; }
+if ${ac_cv_lib_X11_xcb_XGetXCBConnection+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lX11-xcb  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char XGetXCBConnection ();
+int
+main ()
+{
+return XGetXCBConnection ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_X11_xcb_XGetXCBConnection=yes
+else
+  ac_cv_lib_X11_xcb_XGetXCBConnection=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_X11_xcb_XGetXCBConnection" >&5
+$as_echo "$ac_cv_lib_X11_xcb_XGetXCBConnection" >&6; }
+if test "x$ac_cv_lib_X11_xcb_XGetXCBConnection" = xyes; then :
+  D3D9NINE_LIBS="$D3D9NINE_LIBS -lX11-xcb"
+
+fi
+
+        test "x$ac_cv_lib_X11_xcb_XGetXCBConnection" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libX11-xcb "
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for XOpenDisplay in -lX11" >&5
+$as_echo_n "checking for XOpenDisplay in -lX11... " >&6; }
+if ${ac_cv_lib_X11_XOpenDisplay+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lX11  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char XOpenDisplay ();
+int
+main ()
+{
+return XOpenDisplay ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_X11_XOpenDisplay=yes
+else
+  ac_cv_lib_X11_XOpenDisplay=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_X11_XOpenDisplay" >&5
+$as_echo "$ac_cv_lib_X11_XOpenDisplay" >&6; }
+if test "x$ac_cv_lib_X11_XOpenDisplay" = xyes; then :
+  D3D9NINE_LIBS="$D3D9NINE_LIBS -lX11"
+
+fi
+
+        test "x$ac_cv_lib_X11_XOpenDisplay" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libX11 "
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for XextRemoveDisplay in -lXext" >&5
+$as_echo_n "checking for XextRemoveDisplay in -lXext... " >&6; }
+if ${ac_cv_lib_Xext_XextRemoveDisplay+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lXext  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char XextRemoveDisplay ();
+int
+main ()
+{
+return XextRemoveDisplay ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_Xext_XextRemoveDisplay=yes
+else
+  ac_cv_lib_Xext_XextRemoveDisplay=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_Xext_XextRemoveDisplay" >&5
+$as_echo "$ac_cv_lib_Xext_XextRemoveDisplay" >&6; }
+if test "x$ac_cv_lib_Xext_XextRemoveDisplay" = xyes; then :
+  D3D9NINE_LIBS="$D3D9NINE_LIBS -lXext"
+
+fi
+
+        test "x$ac_cv_lib_Xext_XextRemoveDisplay" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libXext "
+        # libs for the dri2 fallback
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for glGenFramebuffers in -lGL" >&5
+$as_echo_n "checking for glGenFramebuffers in -lGL... " >&6; }
+if ${ac_cv_lib_GL_glGenFramebuffers+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lGL  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char glGenFramebuffers ();
+int
+main ()
+{
+return glGenFramebuffers ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_GL_glGenFramebuffers=yes
+else
+  ac_cv_lib_GL_glGenFramebuffers=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_GL_glGenFramebuffers" >&5
+$as_echo "$ac_cv_lib_GL_glGenFramebuffers" >&6; }
+if test "x$ac_cv_lib_GL_glGenFramebuffers" = xyes; then :
+  D3D9NINE_LIBS="$D3D9NINE_LIBS -lGL"
+
+fi
+
+        test "x$ac_cv_lib_GL_glGenFramebuffers" != xyes && D3D9NINE_MISSING_LIBS="libGL "
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for eglCreateContext in -lEGL" >&5
+$as_echo_n "checking for eglCreateContext in -lEGL... " >&6; }
+if ${ac_cv_lib_EGL_eglCreateContext+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lEGL  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char eglCreateContext ();
+int
+main ()
+{
+return eglCreateContext ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_EGL_eglCreateContext=yes
+else
+  ac_cv_lib_EGL_eglCreateContext=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_EGL_eglCreateContext" >&5
+$as_echo "$ac_cv_lib_EGL_eglCreateContext" >&6; }
+if test "x$ac_cv_lib_EGL_eglCreateContext" = xyes; then :
+  D3D9NINE_LIBS="$D3D9NINE_LIBS -lEGL"
+
+fi
+
+        test "x$ac_cv_lib_EGL_eglCreateContext" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libEGL"
+
+        if test "x$D3D9NINE_MISSING_LIBS" != x
+        then
+            if test "x$with_d3d9_nine" = "xyes"
+            then
+                as_fn_error $? "Missing libraries to build d3d9-nine.dll: $D3D9NINE_MISSING_LIBS" "$LINENO" 5
+            else
+                { $as_echo "$as_me:${as_lineno-$LINENO}: Missing libraries to build d3d9-nine.dll: $D3D9NINE_MISSING_LIBS . disabling support" >&5
+$as_echo "$as_me: Missing libraries to build d3d9-nine.dll: $D3D9NINE_MISSING_LIBS . disabling support" >&6;}
+                with_d3d9_nine=no
+            fi
+        fi
+    fi
+
+    if test "x$with_d3d9_nine" != "xno"
+    then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: Checking d3dadapter9 header dependencies" >&5
+$as_echo "$as_me: Checking d3dadapter9 header dependencies" >&6;}
+        D3D9NINE_MISSING_HEADERS=""
+        for ac_header in X11/Xlib-xcb.h xcb/dri3.h xcb/present.h X11/Xutil.h X11/Xlib.h pthread.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+
+done
+
+        test "x$ac_cv_header_X11_Xlib_xcb_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/Xlib-xcb.h "
+        test "x$ac_cv_header_xcb_dri3_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}xcb/dri3.h "
+        test "x$ac_cv_header_xcb_present_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}xcb/present.h "
+        test "x$ac_cv_header_X11_Xutil_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/Xutil.h "
+        test "x$ac_cv_header_X11_Xlib_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/Xlib.h "
+        test "x$ac_cv_header_pthread_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}pthread.h "
+        # headers for the dri2 fallback
+        for ac_header in X11/Xmd.h X11/Xlibint.h X11/extensions/dri2tokens.h X11/extensions/dri2proto.h X11/extensions/extutil.h GL/gl.h GL/glext.h EGL/egl.h EGL/eglext.h libdrm/drm_fourcc.h libdrm/drm.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_compile "$LINENO" "$ac_header" "$as_ac_Header" "
+#include <X11/Xlibint.h>
+#include <X11/extensions/dri2tokens.h>
+#include <GL/gl.h>
+#include <EGL/egl.h>
+
+"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+
+done
+
+        test "x$ac_cv_header_X11_Xmd_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/Xmd.h "
+        test "x$ac_cv_header_X11_Xlibint_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/Xlibint.h "
+        test "x$ac_cv_header_X11_extensions_dri2tokens_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/extensions/dri2tokens.h "
+        test "x$ac_cv_header_X11_extensions_dri2proto_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/extensions/dri2proto.h "
+        test "x$ac_cv_header_X11_extensions_extutil_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}X11/extensions/extutil.h "
+        test "x$ac_cv_header_GL_gl_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}GL/gl.h "
+        test "x$ac_cv_header_GL_glext_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}GL/glext.h "
+        test "x$ac_cv_header_EGL_egl_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}EGL/egl.h "
+        test "x$ac_cv_header_EGL_eglext_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}EGL/eglext.h "
+        test "x$ac_cv_header_libdrm_drm_fourcc_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}libdrm/drm_fourcc.h "
+        test "x$ac_cv_header_libdrm_drm_h" != xyes && D3D9NINE_MISSING_HEADERS="${D3D9NINE_MISSING_HEADERS}libdrm/drm.h "
+        if test "x$D3D9NINE_MISSING_HEADERS" != x
+        then
+            if test "x$with_d3d9_nine" = "xyes"
+            then
+                as_fn_error $? "Missing headers to build d3d9-nine.dll: $D3D9NINE_MISSING_HEADERS" "$LINENO" 5
+            else
+                { $as_echo "$as_me:${as_lineno-$LINENO}: Missing headers to build d3d9-nine.dll: $D3D9NINE_MISSING_HEADERS . disabling support" >&5
+$as_echo "$as_me: Missing headers to build d3d9-nine.dll: $D3D9NINE_MISSING_HEADERS . disabling support" >&6;}
+                with_d3d9_nine=no
+            fi
+        fi
+    fi
+
+    if test "x$with_d3d9_nine" != "xno"
+    then
+        # d3d9-nine.dll will be built and an option to use it
+        # added. The module path can always be overriden by
+        # a wine registry setting. If the module isn't found
+        # at execution time, the dll will refuse to load and
+        # print an error message to the user.
+
+$as_echo "#define HAVE_D3D9NINE 1" >>confdefs.h
+
+        # default: use pkgconfig to find the gallium nine module.
+        # Check the module is there.
+        if test "x$with_d3d9_nine_module" = "xauto"
+        then
+            D3DADAPTER9_MODULEDIR=`$PKG_CONFIG --variable=moduledir d3dadapter9 2>/dev/null`
+            if test "x$D3DADAPTER9_MODULEDIR" = x
+            then
+                # legacy path
+                D3DADAPTER9_MODULEDIR=`$PKG_CONFIG --variable=moduledir d3d 2>/dev/null`
+                if test "x$D3DADAPTER9_MODULEDIR" = x
+                then
+                    as_fn_error $? "pkg-config couldn't find Gallium Nine module" "$LINENO" 5
+                fi
+            fi
+
+cat >>confdefs.h <<_ACEOF
+#define D3D9NINE_MODULEPATH "`echo ${D3DADAPTER9_MODULEDIR}/d3dadapter9.so.1`"
+_ACEOF
+
+            # Check module
+            CPPFLAGSBAK=$CPPFLAGS
+            # link against libdl
+            CPPFLAGS="$CPPFLAGS -Wl,--no-as-needed -ldl"
+
+            if test "$cross_compiling" = yes; then :
+  { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "cannot run test program while cross compiling
+See \`config.log' for more details" "$LINENO" 5; }
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <dlfcn.h>
+#include <stdlib.h>
+int
+main ()
+{
+void *handle = dlopen("${D3DADAPTER9_MODULEDIR}/d3dadapter9.so.1", RTLD_GLOBAL | RTLD_NOW);
+exit((handle && dlsym(handle, "D3DAdapter9GetProc")) ? 0 : 1)
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  echo "d3dadapter9.so.1 found at '${D3DADAPTER9_MODULEDIR}/d3dadapter9.so.1'"
+else
+  as_fn_error $? "Couldn't load Gallium nine module at '${D3DADAPTER9_MODULEDIR}/d3dadapter9.so.1' (found by pkg-config)" "$LINENO" 5
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+            CPPFLAGS=$CPPFLAGSBAK
+        else
+            # Manual : do not feed any path, the wine registry will have
+            # to be used to pass a path. Useful for wine builds
+            # that are distributed and will run on different
+            # distros.
+            # Else feed a path directly. Useful for distro maintainers who
+            # know where the package would be installed, but don't have
+            # it installed on their build.
+            # Don't check if the module is there.
+            if test "x$with_d3d9_nine_module" != "xmanual"
+            then
+
+cat >>confdefs.h <<_ACEOF
+#define D3D9NINE_MODULEPATH "`echo ${with_d3d9_nine_module}`"
+_ACEOF
+
+            fi
+        fi
+
+        # by default the headers are found with pkgconfig,
+        # but it is possible to pass a path to a specific directory.
+        # that directory must contain a d3dadapter directory
+        # with d3dadapter9.h, drm.h and present.h
+        if test "x$with_d3d9_nine_headers_path" = "xauto"
+        then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for a sed that does not truncate output" >&5
+$as_echo_n "checking for a sed that does not truncate output... " >&6; }
+if ${ac_cv_path_SED+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+            ac_script=s/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/
+     for ac_i in 1 2 3 4 5 6 7; do
+       ac_script="$ac_script$as_nl$ac_script"
+     done
+     echo "$ac_script" 2>/dev/null | sed 99q >conftest.sed
+     { ac_script=; unset ac_script;}
+     if test -z "$SED"; then
+  ac_path_SED_found=false
+  # Loop through the user's path and test for each of PROGNAME-LIST
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_prog in sed gsed; do
+    for ac_exec_ext in '' $ac_executable_extensions; do
+      ac_path_SED="$as_dir/$ac_prog$ac_exec_ext"
+      as_fn_executable_p "$ac_path_SED" || continue
+# Check for GNU ac_path_SED and select it if it is found.
+  # Check for GNU $ac_path_SED
+case `"$ac_path_SED" --version 2>&1` in
+*GNU*)
+  ac_cv_path_SED="$ac_path_SED" ac_path_SED_found=:;;
+*)
+  ac_count=0
+  $as_echo_n 0123456789 >"conftest.in"
+  while :
+  do
+    cat "conftest.in" "conftest.in" >"conftest.tmp"
+    mv "conftest.tmp" "conftest.in"
+    cp "conftest.in" "conftest.nl"
+    $as_echo '' >> "conftest.nl"
+    "$ac_path_SED" -f conftest.sed < "conftest.nl" >"conftest.out" 2>/dev/null || break
+    diff "conftest.out" "conftest.nl" >/dev/null 2>&1 || break
+    as_fn_arith $ac_count + 1 && ac_count=$as_val
+    if test $ac_count -gt ${ac_path_SED_max-0}; then
+      # Best one so far, save it but keep looking for a better one
+      ac_cv_path_SED="$ac_path_SED"
+      ac_path_SED_max=$ac_count
+    fi
+    # 10*(2^10) chars as input seems more than enough
+    test $ac_count -gt 10 && break
+  done
+  rm -f conftest.in conftest.tmp conftest.nl conftest.out;;
+esac
+
+      $ac_path_SED_found && break 3
+    done
+  done
+  done
+IFS=$as_save_IFS
+  if test -z "$ac_cv_path_SED"; then
+    as_fn_error $? "no acceptable sed could be found in \$PATH" "$LINENO" 5
+  fi
+else
+  ac_cv_path_SED=$SED
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_path_SED" >&5
+$as_echo "$ac_cv_path_SED" >&6; }
+ SED="$ac_cv_path_SED"
+  rm -f conftest.sed
+
+            D3DADAPTER9_INCLUDEDIR=`$PKG_CONFIG --variable=includedir d3dadapter9 2>/dev/null`
+            D3DADAPTER9_MAJOR=`$PKG_CONFIG --modversion d3dadapter9 2>/dev/null | $SED -n 's/\([^\.]*\)\..*$/\1/p'`
+            if test "x$D3DADAPTER9_INCLUDEDIR" = x
+            then
+                # legacy path
+                D3DADAPTER9_INCLUDEDIR=`$PKG_CONFIG --variable=includedir d3d 2>/dev/null`
+                D3DADAPTER9_MAJOR=`$PKG_CONFIG --modversion d3d 2>/dev/null | $SED -n 's/\([^\.]*\)\..*$/\1/p'`
+                if test "x$D3DADAPTER9_INCLUDEDIR" = x
+                then
+                    as_fn_error $? "pkg-config couldn't find Gallium Nine headers" "$LINENO" 5
+                fi
+            fi
+            # check major version of package. The major version number guarantees header compatibility.
+            if test "x$D3DADAPTER9_MAJOR" != x1
+            then
+                as_fn_error $? "pkg-config found Gallium Nine Module and Headers, but version is incompatible" "$LINENO" 5
+            fi
+        else
+            D3DADAPTER9_INCLUDEDIR=`echo ${with_d3d9_nine_headers_path}`
+        fi
+
+cat >>confdefs.h <<_ACEOF
+#define D3D9NINE_HEADERS_CFLAGS "`echo -I${D3DADAPTER9_INCLUDEDIR}`"
+_ACEOF
+
+
+
+$as_echo "#define D3D9NINE_DRI2 1" >>confdefs.h
+
+    else
+        enable_d3d9_nine=${enable_d3d9_nine:-no}
+    fi
 
     CPPFLAGS="$ac_save_CPPFLAGS"
 else
@@ -17831,6 +18535,7 @@ ac_config_commands="$ac_config_commands include/stamp-h"
 $as_echo_n "creating Makefile rules..." >&6
 
 ALL_VARS_RULES="OPENGL_LIBS = $OPENGL_LIBS
+D3D9NINE_LIBS = $D3D9NINE_LIBS
 SOCKET_LIBS = $SOCKET_LIBS
 COREFOUNDATION_LIBS = $COREFOUNDATION_LIBS
 IOKIT_LIBS = $IOKIT_LIBS
@@ -18206,6 +18911,7 @@ wine_fn_config_dll d3d8 enable_d3d8 implib
 wine_fn_config_test dlls/d3d8/tests d3d8_test
 wine_fn_config_dll d3d9 enable_d3d9 implib
 wine_fn_config_test dlls/d3d9/tests d3d9_test
+wine_fn_config_dll d3d9-nine enable_d3d9_nine implib
 wine_fn_config_dll d3dcompiler_33 enable_d3dcompiler_33
 wine_fn_config_dll d3dcompiler_34 enable_d3dcompiler_34
 wine_fn_config_dll d3dcompiler_35 enable_d3dcompiler_35
@@ -18971,6 +19677,7 @@ wine_fn_config_program wevtutil enable_wevtutil install
 wine_fn_config_program wineboot enable_wineboot clean,install,installbin,manpage
 wine_fn_config_program winebrowser enable_winebrowser install
 wine_fn_config_program winecfg enable_winecfg clean,install,installbin,manpage
+wine_fn_config_program ninewinecfg enable_ninewinecfg clean,install,installbin
 wine_fn_config_program wineconsole enable_wineconsole clean,install,installbin,manpage
 wine_fn_config_program winedbg enable_winedbg clean,install,installbin,manpage
 wine_fn_config_program winedevice enable_winedevice install

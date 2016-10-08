@@ -1230,8 +1230,6 @@ OpenGL and Direct3D won't be supported.])
         test "x$ac_cv_lib_X11_XOpenDisplay" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libX11 "
         AC_CHECK_LIB(Xext,XextRemoveDisplay,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lXext"])])
         test "x$ac_cv_lib_Xext_XextRemoveDisplay" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libXext "
-        AC_CHECK_LIB(pthread,pthread_mutex_lock,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lpthread"])])
-        test "x$ac_cv_lib_pthread_pthread_mutex_lock" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libpthread "
         # libs for the dri2 fallback
         AC_CHECK_LIB(GL,glGenFramebuffers,[AC_SUBST(D3D9NINE_LIBS,["$D3D9NINE_LIBS -lGL"])])
         test "x$ac_cv_lib_GL_glGenFramebuffers" != xyes && D3D9NINE_MISSING_LIBS="libGL "

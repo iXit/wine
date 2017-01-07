@@ -66,6 +66,8 @@ BOOL PRESENTInit(Display *dpy, PRESENTpriv **present_priv);
  * This will take care than all pixmaps are released */
 void PRESENTDestroy(Display *dpy, PRESENTpriv *present_priv);
 
+BOOL PRESENTPixmapHasWindowDecoration(Drawable drawable, PRESENTPixmapPriv *present_pixmap_priv);
+
 BOOL PRESENTPixmapInit(PRESENTpriv *present_priv, Pixmap pixmap, PRESENTPixmapPriv **present_pixmap_priv);
 
 #ifdef D3D9NINE_DRI2

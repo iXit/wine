@@ -34,6 +34,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(d3d9nine);
 #include <X11/Xlib-xcb.h>
 #include <xcb/dri3.h>
 #include <xcb/present.h>
+#include <xcb/xproto.h>
 
 #include "winbase.h"
 
@@ -1122,6 +1123,29 @@ free_priv:
     HeapFree(GetProcessHeap(), 0, present_pixmap_priv);
     LeaveCriticalSection(&present_priv->mutex_present);
     return TRUE;
+}
+
+/* Dirty hack to detect clientside window decorations.
+ * FIXME: Find a better way, without modifing winex11.drv !
+ * Compare xwindow dimensions with pixmap dimensions.
+ * If they differ window decorations are used.
+ */
+BOOL PRESENTPixmapHasWindowDecoration(Drawable drawable, PRESENTPixmapPriv *present_pixmap_priv)
+{
+    xcb_get_geometry_cookie_t geomCookie;
+    xcb_get_geometry_reply_t *geom;
+    BOOL ret = False;
+    PRESENTpriv *present_priv = present_pixmap_priv->present_priv;
+
+    geomCookie = xcb_get_geometry(present_priv->xcb_connection_bis, drawable);
+    geom = xcb_get_geometry_reply(present_priv->xcb_connection_bis, geomCookie, NULL);
+    if (geom)
+    {
+        ret = ((geom->width != present_pixmap_priv->width) ||
+                (geom->height != present_pixmap_priv->height));
+        free(geom);
+    }
+    return ret;
 }
 
 BOOL PRESENTHelperCopyFront(Display *dpy, PRESENTPixmapPriv *present_pixmap_priv)

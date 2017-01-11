@@ -48,6 +48,7 @@ static BOOL nine_get(void)
 static void nine_set(BOOL status)
 {
     set_reg_key(config_key, keypath("DllRedirects"), "d3d9", status ? "d3d9-nine.dll" : NULL);
+    set_reg_key(config_key, keypath("Direct3D"), "DirectDrawRenderer", status ? "gdi" : NULL);
 }
 
 

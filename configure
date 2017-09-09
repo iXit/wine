@@ -1709,6 +1709,7 @@ enable_msinfo32
 enable_net
 enable_netsh
 enable_netstat
+enable_ninewinecfg
 enable_ngen
 enable_notepad
 enable_oleview
@@ -20903,6 +20904,7 @@ wine_fn_config_makefile programs/msinfo32 enable_msinfo32
 wine_fn_config_makefile programs/net enable_net
 wine_fn_config_makefile programs/netsh enable_netsh
 wine_fn_config_makefile programs/netstat enable_netstat
+wine_fn_config_makefile programs/ninewinecfg enable_ninewinecfg
 wine_fn_config_makefile programs/ngen enable_ngen
 wine_fn_config_makefile programs/notepad enable_notepad
 wine_fn_config_makefile programs/oleview enable_oleview

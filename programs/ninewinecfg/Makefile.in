@@ -1,0 +1,9 @@
+MODULE    = ninewinecfg.exe
+APPMODE   = -mwindows
+IMPORTS   = uuid comdlg32 comctl32 shell32 ole32 winmm shlwapi uxtheme user32 gdi32 advapi32
+
+C_SRCS = main.c
+
+RC_SRCS = ninewinecfg.rc
+
+INSTALL_LIB = ninewinecfg.exe ninewinecfg

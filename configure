@@ -694,6 +694,7 @@ XML2_LIBS
 XML2_CFLAGS
 PCAP_LIBS
 SED
+NINEWINECFG_LIBS
 X_EXTRA_LIBS
 X_LIBS
 X_PRE_LIBS
@@ -11761,6 +11762,7 @@ $as_echo "yes" >&6; }
         { $as_echo "$as_me:${as_lineno-$LINENO}: Checking for d3dadapter9 library dependencies" >&5
 $as_echo "$as_me: Checking for d3dadapter9 library dependencies" >&6;}
         D3D9NINE_LIBS=""
+        NINEWINECFG_LIBS=""
         D3D9NINE_MISSING_LIBS=""
         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for xcb_request_check in -lxcb" >&5
 $as_echo_n "checking for xcb_request_check in -lxcb... " >&6; }
@@ -12140,7 +12142,54 @@ if test "x$ac_cv_lib_EGL_eglCreateContext" = xyes; then :
 
 fi
 
-        test "x$ac_cv_lib_EGL_eglCreateContext" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libEGL"
+        test "x$ac_cv_lib_EGL_eglCreateContext" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libEGL "
+        # libdl
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for dlopen in -ldl" >&5
+$as_echo_n "checking for dlopen in -ldl... " >&6; }
+if ${ac_cv_lib_dl_dlopen+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ldl  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char dlopen ();
+int
+main ()
+{
+return dlopen ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_dl_dlopen=yes
+else
+  ac_cv_lib_dl_dlopen=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_dl_dlopen" >&5
+$as_echo "$ac_cv_lib_dl_dlopen" >&6; }
+if test "x$ac_cv_lib_dl_dlopen" = xyes; then :
+  NINEWINECFG_LIBS="$NINEWINECFG_LIBS -ldl"
+
+fi
+
+        test "x$ac_cv_lib_dl_dlopen" != xyes && D3D9NINE_MISSING_LIBS="${D3D9NINE_MISSING_LIBS}libdl "
+
+
+$as_echo "#define NINEWINECFG_LIBS \$NINEWINECFG_LIBS" >>confdefs.h
+
 
         if test "x$D3D9NINE_MISSING_LIBS" != x
         then
@@ -12251,6 +12300,7 @@ $as_echo "#define HAVE_D3D9NINE 1" >>confdefs.h
 cat >>confdefs.h <<_ACEOF
 #define D3D9NINE_MODULEPATH "`echo ${D3DADAPTER9_MODULEDIR}/d3dadapter9.so.1`"
 _ACEOF
+
 
             # Check module
             CPPFLAGSBAK=$CPPFLAGS
@@ -19723,6 +19773,7 @@ X_CFLAGS = $X_CFLAGS
 X_PRE_LIBS = $X_PRE_LIBS
 X_LIBS = $X_LIBS
 X_EXTRA_LIBS = $X_EXTRA_LIBS
+NINEWINECFG_LIBS = $NINEWINECFG_LIBS
 PCAP_LIBS = $PCAP_LIBS
 XML2_CFLAGS = $XML2_CFLAGS
 XML2_LIBS = $XML2_LIBS

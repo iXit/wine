@@ -50,7 +50,7 @@ BEGIN
     LTEXT       "MIT License\n",IDC_STATIC,16,60,230,8
 
     GROUPBOX    "Authors",IDC_STATIC,8,88,244,120
-    LTEXT       "Joakim Sindholt\nChristoph Bumiller\nTiziano Bacocco\nDavid Heidelberger\nAxel Davy\nNick Sarnie\nPatrick Rudolph\n\n\n\n",IDC_STATIC,16,100,230,92
+    LTEXT       "Joakim Sindholt\nChristoph Bumiller\nTiziano Bacocco\nDavid Heidelberg\nAxel Davy\nNick Sarnie\nPatrick Rudolph\n\n\n\n",IDC_STATIC,16,100,230,92
 END
 
 IDD_NINE DIALOG  0, 0, 260, 220

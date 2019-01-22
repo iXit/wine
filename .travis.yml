@@ -1,0 +1,30 @@
+before_install:
+  - sudo dpkg --add-architecture i386
+  - sudo apt-get install -y pkg-config software-properties-common wine-development gettext git build-essential flex bison gcc-multilib g++-multilib libegl1-mesa-dev libxcb-cursor-dev x11proto-core-dev x11proto-dri2-dev x11proto-dri3-dev libgl1-mesa-dev libxext-dev libxcb-dri3-dev libxcb-dri2-0-dev curl apt-transport-https
+  - sudo add-apt-repository -y ppa:oibaf/graphics-drivers
+  - sudo apt-get update -qq
+  - sudo apt-get dist-upgrade -y
+  - sudo apt-get install -y libegl1-mesa-dev
+addons:
+  apt:
+    update: true
+branches:
+  only:
+  - master
+language: c
+dist: xenial
+env:
+  global:
+    - TIMEOUT=1000
+  matrix:
+    - CONFIGURE_ARGS=--enable-win64
+    #FIXME 32bit build
+script:
+  - ./configure --with-x --without-freetype --without-fontconfig --without-curses  --without-cms  --without-gstreamer  --without-alsa  --without-capi  --without-opencl  --without-openal  --without-netapi   --without-mpg123  --without-ldap  --without-krb5  --without-jpeg  --without-gnutls  --without-coreaudio  --without-dbus  --without-cups  --without-gsm  --without-osmesa  --without-oss   --without-pcap  --without-png  --without-pulse  --without-sane  --without-tiff  --without-udev  --without-v4l  --without-xinput  --without-xinput2  --without-xml  --without-xslt  --without-zlib  --with-d3d9-nine --disable-tests $CONFIGURE_ARGS
+  - make include
+  - make __builddeps__
+  - make d3d9-nine.dll.so -C dlls/d3d9-nine
+  - make d3d9-nine.dll.fake -C dlls/d3d9-nine
+  - make programs/ninewinecfg
+
+

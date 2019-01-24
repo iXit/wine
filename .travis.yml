@@ -1,5 +1,6 @@
 before_install:
   - sudo dpkg --add-architecture i386
+  - sudo systemctl enable mysql
   - sudo apt-get install -y pkg-config software-properties-common wine-development gettext git build-essential flex bison gcc-multilib g++-multilib libegl1-mesa-dev libxcb-cursor-dev x11proto-core-dev x11proto-dri2-dev x11proto-dri3-dev libgl1-mesa-dev libxext-dev libxcb-dri3-dev libxcb-dri2-0-dev curl apt-transport-https
   - sudo add-apt-repository -y ppa:oibaf/graphics-drivers
   - sudo apt-get update -qq
